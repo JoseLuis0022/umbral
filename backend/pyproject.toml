@@ -1,0 +1,14 @@
+[project]
+name = "lab-agentes-backend"
+version = "0.1.0"
+description = "Capas 2 y 3 del laboratorio: FastAPI + Claude Agent SDK"
+requires-python = ">=3.13"
+dependencies = [
+    "claude-agent-sdk>=0.2.178",
+    "fastapi>=0.162",
+    "uvicorn[standard]>=0.54",
+    "pydantic-settings>=2.16",
+    "pyjwt>=2.15",
+    "argon2-cffi>=25.1",
+    "httpx>=0.28",
+]
