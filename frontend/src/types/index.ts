@@ -1,7 +1,18 @@
 // Modelo de datos de Umbral. Fuente única de tipos: si un servicio o una
 // pantalla necesita una forma nueva, se declara aquí, no en el archivo que la usa.
 
-export type Rol = 'usuario' | 'admin';
+/** Los roles los define el backend (`backend/app/perfiles.py`). */
+export type Rol = 'usuario' | 'especialista' | 'admin';
+
+/**
+ * Un modo del agente al que la cuenta tiene acceso. La lista viene del
+ * backend en el login: el front MUESTRA estos perfiles, el backend DECIDE.
+ */
+export interface PerfilAgente {
+  id: string;
+  nombre: string;
+  descripcion: string;
+}
 
 export interface Usuario {
   id: string;
@@ -114,4 +125,70 @@ export interface Guia {
 
 export interface Sesion {
   usuario: Usuario;
+  perfiles: PerfilAgente[];
+}
+
+/* ─────────────── Protocolo de eventos del chat (backend/app/protocolo.py) ───────────────
+ *
+ * El backend transmite SSE con cinco eventos:
+ *
+ *   inicio     EventoInicio
+ *   texto      { delta }               ← muchas veces
+ *   actividad  ActividadAgente         ← herramientas y subagentes
+ *   fin        ResumenConsulta         ← costo y tokens REALES
+ *   error      { codigo, mensaje }
+ *
+ * Mismos nombres y formas en los dos lados. Si cambias uno, cambia el otro.
+ */
+
+export interface EventoInicio {
+  conversacionId: string;
+  perfil: string;
+  motor: 'sdk' | 'prueba';
+}
+
+export interface ActividadAgente {
+  /** Empareja el `inicio` con su `fin`. */
+  id: string;
+  clase: 'herramienta' | 'subagente';
+  /** Nombre de la herramienta (`Read`, `Grep`…) o del subagente. */
+  nombre: string;
+  /** Qué está tocando, legible: una ruta relativa, un patrón de búsqueda. */
+  detalle: string;
+  fase: 'inicio' | 'fin';
+  /** Solo en `fin`: si la herramienta terminó bien. */
+  ok: boolean | null;
+  /** `id` de la actividad de subagente que la contiene; `null` = agente principal. */
+  dentroDe: string | null;
+}
+
+export interface TokensConsulta {
+  entrada: number;
+  salida: number;
+  /** Contexto repetido leído de la caché: cuesta ~10% de la entrada normal. */
+  cacheLectura: number;
+  cacheEscritura: number;
+}
+
+export interface ResumenConsulta {
+  costoUsd: number | null;
+  /** Vueltas del agentic loop. */
+  vueltas: number | null;
+  duracionMs: number | null;
+  tokens: TokensConsulta;
+  modelo: string | null;
+}
+
+export type CodigoErrorChat =
+  | 'configuracion'
+  | 'credenciales'
+  | 'saldo'
+  | 'limite_api'
+  | 'limite_vueltas'
+  | 'limite_presupuesto'
+  | 'motor';
+
+export interface EventoError {
+  codigo: CodigoErrorChat;
+  mensaje: string;
 }

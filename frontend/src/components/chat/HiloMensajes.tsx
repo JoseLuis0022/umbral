@@ -27,7 +27,7 @@ type Props = {
   /** Petición enviada, sin primer fragmento todavía: es el hueco del esqueleto. */
   esperando: boolean;
   /** Sub-agente trabajando. Solo llega con backend real y solo si hubo delegación. */
-  agenteActivo?: string | null;
+  actividad?: string | null;
   transmitiendo: boolean;
   textoParcial: string;
   error: string | null;
@@ -54,7 +54,7 @@ export function HiloMensajes({
   mensajes,
   cargando,
   esperando,
-  agenteActivo,
+  actividad,
   transmitiendo,
   textoParcial,
   error,
@@ -163,7 +163,7 @@ export function HiloMensajes({
                 )
               )}
 
-              {esperando && !textoParcial && <EsqueletoRespuesta agenteActivo={agenteActivo} />}
+              {esperando && !textoParcial && <EsqueletoRespuesta actividad={actividad} />}
               {textoParcial && <RespuestaEnVivo texto={textoParcial} transmitiendo={transmitiendo} />}
 
               {/* El error no borra lo que ya se leyó: el fragmento parcial se

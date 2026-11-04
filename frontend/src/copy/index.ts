@@ -9,6 +9,8 @@
  *  - Los errores dicen qué pasó y qué hacer. No se disculpan ni son vagos.
  */
 
+import type { Rol } from '../types';
+
 export const marca = {
   nombre: 'Umbral',
   universidad: 'Universidad Aurora Ciudad de México',
@@ -17,17 +19,15 @@ export const marca = {
 
 export const login = {
   titulo: 'Umbral',
-  subtitulo: 'Asistente interno · Universidad Aurora',
-  correo: 'Correo institucional',
+  subtitulo: 'Asistente de estudio · Procesamiento Digital de Imágenes',
+  correo: 'Correo',
   contrasena: 'Contraseña',
   entrar: 'Entrar',
   entrando: 'Entrando…',
-  microsoft: 'Continuar con cuenta institucional Microsoft',
-  microsoftNota: 'Disponible en la siguiente versión',
-  demoAbrir: 'Entrar como otro perfil',
-  demoNota: 'Cualquier contraseña funciona en la demostración.',
   errorVacio: 'Escribe tu correo y tu contraseña para entrar.',
-  pie: 'Herramienta interna · personal administrativo y profesorado',
+  errorCredenciales: 'Correo o contraseña incorrectos.',
+  errorServidor: 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
+  pie: 'Acceso solo con una cuenta que te haya dado quien administra el laboratorio',
 };
 
 export const chat = {
@@ -176,14 +176,22 @@ export const ajustes = {
 
 export const perfil = {
   titulo: 'Perfil',
-  subtitulo: 'Estos datos se sincronizan desde el directorio institucional.',
+  subtitulo: 'Los datos de tu cuenta en el laboratorio.',
   nombre: 'Nombre',
-  correo: 'Correo institucional',
+  correo: 'Correo',
   area: 'Área',
   rol: 'Rol en la herramienta',
-  nota: 'Para corregir algún dato, escribe a la Dirección de Recursos Humanos.',
+  nota: 'Para corregir algún dato, pídeselo a quien administra el laboratorio.',
   cerrarSesion: 'Cerrar sesión',
-  cambiarPerfil: 'Cambiar de perfil',
+  // `satisfies Record<Rol, string>`: si el backend estrena un rol, el
+  // compilador obliga a nombrarlo aquí en vez de mostrarlo como otro.
+  roles: {
+    usuario: 'Estudiante',
+    especialista: 'Especialista',
+    admin: 'Administrador',
+  } satisfies Record<Rol, string>,
+  modos: 'Modos del agente',
+  sinAreaRegistrada: 'Sin área registrada',
 };
 
 export const errores = {
@@ -191,5 +199,5 @@ export const errores = {
   noEncontradaDetalle: 'La dirección que abriste no existe o cambió de lugar.',
   volverInicio: 'Volver al inicio',
   sinPermiso: 'Esta sección es solo para administradores',
-  sinPermisoDetalle: 'Tu perfil actual no tiene acceso. Cambia de perfil si necesitas entrar.',
+  sinPermisoDetalle: 'Tu cuenta no tiene acceso. Si lo necesitas, pídeselo a quien administra el laboratorio.',
 };

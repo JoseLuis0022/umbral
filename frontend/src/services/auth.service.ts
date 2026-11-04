@@ -1,52 +1,60 @@
-import type { Sesion, Usuario } from '../types';
-import { usuarios } from '../data/usuarios';
-import { esperar, leer, escribir } from './simulacion';
+import type { PerfilAgente, Sesion, Usuario } from '../types';
+import { login as copy } from '../copy';
+import { ErrorApi, guardarToken, pedirJson, tokenGuardado } from './api';
+import { escribir, leer } from './simulacion';
 
 const CLAVE = 'sesion';
 
+interface SesionIniciada {
+  token: string;
+  usuario: Usuario;
+  perfiles: PerfilAgente[];
+}
+
 /**
- * Autenticación SIMULADA.
+ * Autenticación contra el backend (`POST /api/auth/login`, `GET /api/auth/yo`).
  *
- * En la demostración cualquier contraseña es válida: la herramienta es interna
- * y el acceso real se resolverá con la cuenta institucional (Entra ID / MSAL),
- * no con un formulario propio. Lo único que este servicio decide es CON QUÉ
- * PERFIL se entra, y eso lo determina el correo.
- *
- * Un correo que no está en el directorio entra igual, como personal
- * administrativo: en una demostración, un correo mal escrito no debe dejar a
- * nadie fuera de la pantalla que venía a mostrar.
+ * El front ya no decide con qué rol se entra: lo dice el servidor después de
+ * verificar la contraseña. La sesión que se guarda aquí es solo una COPIA para
+ * pintar la pantalla sin esperar; cada petición vuelve a probar quién eres con
+ * el token, y el backend lee tu rol de su base en cada una.
  */
 export const authService = {
-  async iniciarSesion(correo: string, _contrasena: string): Promise<Sesion> {
-    await esperar(300, 700);
-    const limpio = correo.trim().toLowerCase();
-    const encontrado = usuarios.find((u) => u.correo.toLowerCase() === limpio);
-    const usuario = encontrado ?? { ...usuarios[0], correo: limpio };
-    const sesion: Sesion = { usuario };
+  /** Lanza `ErrorApi` con el mensaje para la persona si el servidor rechaza. */
+  async iniciarSesion(correo: string, contrasena: string): Promise<Sesion> {
+    const respuesta = await pedirJson<SesionIniciada>(
+      '/auth/login',
+      { method: 'POST', json: { correo: correo.trim(), contrasena } },
+      copy.errorCredenciales
+    );
+    guardarToken(respuesta.token);
+    const sesion: Sesion = { usuario: respuesta.usuario, perfiles: respuesta.perfiles };
     escribir(CLAVE, sesion);
     return sesion;
   },
 
-  /** Entrada directa por perfil: el atajo del login para demostrar la app. */
-  async entrarComo(usuario: Usuario): Promise<Sesion> {
-    await esperar(300, 700);
-    const sesion: Sesion = { usuario };
-    escribir(CLAVE, sesion);
-    return sesion;
-  },
-
-  /** Cambio de perfil sin pasar por el login, desde el menú del avatar. */
-  cambiarPerfil(usuario: Usuario): Sesion {
-    const sesion: Sesion = { usuario };
-    escribir(CLAVE, sesion);
-    return sesion;
-  },
-
-  recuperarSesion(): Sesion | null {
-    return leer<Sesion | null>(CLAVE, null);
+  /**
+   * Al abrir la app: si hay token, se le pregunta al backend quién eres. Un 401
+   * (expiró, la cuenta ya no existe) cierra la sesión; un fallo de red usa la
+   * copia guardada, para que la app abra y el error aparezca donde se use.
+   */
+  async recuperarSesion(): Promise<Sesion | null> {
+    if (!tokenGuardado()) return null;
+    try {
+      const sesion = await pedirJson<Sesion>('/auth/yo', {}, copy.errorServidor);
+      escribir(CLAVE, sesion);
+      return sesion;
+    } catch (e) {
+      if (e instanceof ErrorApi && e.estado === 401) {
+        escribir<Sesion | null>(CLAVE, null);
+        return null;
+      }
+      return leer<Sesion | null>(CLAVE, null);
+    }
   },
 
   cerrarSesion() {
+    guardarToken(null);
     escribir<Sesion | null>(CLAVE, null);
   },
 };

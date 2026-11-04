@@ -4,6 +4,19 @@ export function formatoEntero(valor: number): string {
   return ENTEROS.format(valor);
 }
 
+// Cuatro decimales: una pregunta cuesta centavos, y con dos decimales casi
+// todas se verían iguales ("US$0.04"), que es justo la diferencia que se mide.
+const DOLARES = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
+export function formatoUsd(valor: number): string {
+  return DOLARES.format(valor);
+}
+
 /**
  * Duraciones legibles de un vistazo. Por debajo del segundo se muestran los
  * milisegundos enteros (un "0.9 s" esconde la diferencia entre 850 y 949 ms,

@@ -199,12 +199,13 @@ export const RespuestaEnVivo = memo(function RespuestaEnVivo({
  * separación: exactamente el interlineado de 22 px del cuerpo, para que al
  * llegar el texto real la altura no cambie y el hilo no brinque.
  *
- * `agenteActivo` sustituye el "Pensando…" genérico por el nombre del
- * sub-agente que está trabajando. Con el backend real, delegar cuesta 3-4
- * segundos de silencio, y decir *quién* trabaja es la diferencia entre una
- * espera que se entiende y una que parece un cuelgue.
+ * `actividad` sustituye el "Pensando…" genérico por lo que el agente está
+ * haciendo ("Leyendo el resumen de la Clase 12…"), ya redactado por
+ * `lib/actividad.ts`. Buscar en el material cuesta segundos de silencio, y
+ * decir *qué* está haciendo es la diferencia entre una espera que se entiende
+ * y una que parece un cuelgue.
  */
-export function EsqueletoRespuesta({ agenteActivo }: { agenteActivo?: string | null }) {
+export function EsqueletoRespuesta({ actividad }: { actividad?: string | null }) {
   return (
     // Sin `role="status"`: ya vive dentro del `role="log"` del hilo, y anidar
     // dos regiones anunciables hace que el mismo aviso se lea dos veces.
@@ -212,7 +213,7 @@ export function EsqueletoRespuesta({ agenteActivo }: { agenteActivo?: string | n
       <div className="flex items-center gap-2">
         <span className="flex h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
         <span className="font-ui text-13 text-text-3">
-          {agenteActivo ? copyLocal.consultandoAgente(agenteActivo) : copyLocal.pensando}
+          {actividad ?? copyLocal.pensando}
         </span>
       </div>
       <div className="flex flex-col gap-1.5" aria-hidden>

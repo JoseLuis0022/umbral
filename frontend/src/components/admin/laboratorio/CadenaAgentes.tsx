@@ -9,17 +9,16 @@ import { copyLab } from './copyLocal';
 import type { PasoAgente } from './tipos';
 
 /**
- * Cadena de agentes EN VIVO.
+ * Recorrido del agente EN VIVO.
  *
- * Es la pieza que justifica esta pantalla. Cuando el orquestador delega en
- * Gobernanza o en IT, el primer texto visible tarda entre 3.4 y 4.2 s porque el
- * sub-agente trabaja en silencio; `alMetadatos` avisa de ese trabajo en tiempo
- * real, así que esos cuatro segundos dejan de ser una espera muerta y pasan a
- * ser progreso legible: se ve quién entró, quién sigue trabajando y cuánto
- * tardó cada uno.
+ * Es la pieza que justifica esta pantalla. Antes de escribir, el agente lee el
+ * índice, el resumen de una clase, los apuntes… y cada paso es una vuelta del
+ * agentic loop que cuesta tiempo y tokens. `alActividad` avisa de cada
+ * herramienta en tiempo real, así que esa espera deja de ser muerta y pasa a
+ * ser progreso legible: qué leyó, qué sigue haciendo y cuánto tardó cada paso.
  *
- * Los delegados van indentados y con otra marca: la jerarquía de la delegación
- * se lee por posición, no por color (y por eso también llevan icono).
+ * Lo que hace un subagente va indentado y con otra marca: la jerarquía de la
+ * delegación se lee por posición, no por color (y por eso también lleva icono).
  */
 /* `memo`: el hilo del laboratorio se re-renderiza una vez por frame mientras
  * llega texto, y esta lista lleva animaciones de layout. Sin memo, Framer

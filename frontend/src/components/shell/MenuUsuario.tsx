@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, LogOut, Repeat, User, type LucideIcon } from 'lucide-react';
+import { ChevronDown, LogOut, User, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { springSnappy, dur } from '../../lib/motion';
 import { useAuth } from '../../context/AuthContext';
-import { PERFILES_DEMO } from '../../data/usuarios';
 import { perfil as copy } from '../../copy';
 
 /**
@@ -15,17 +14,14 @@ import { perfil as copy } from '../../copy';
  * pantallas de trabajo diarias, y este menú es para lo que se toca una vez al
  * mes: quién eres y cómo sales.
  *
- * Se queda **Cambiar de perfil**, que salta entre personal administrativo y
- * administrador sin pasar por el login. Es deliberado para la demostración: al
- * enseñar el MVP hay que mostrar las dos caras de la herramienta seguidas, y
- * obligar a cerrar sesión y volver a entrar en medio de la presentación rompe
- * el hilo de lo que se está contando.
+ * Ya no hay "Cambiar de perfil": con roles reales, el rol lo decide el backend
+ * al iniciar sesión, y el navegador no puede cambiarlo.
  */
 export function MenuUsuario() {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { usuario, cambiarPerfil, cerrarSesion } = useAuth();
+  const { usuario, cerrarSesion } = useAuth();
 
   useEffect(() => {
     if (!abierto) return;
@@ -44,8 +40,6 @@ export function MenuUsuario() {
   }, [abierto]);
 
   if (!usuario) return null;
-
-  const otrosPerfiles = PERFILES_DEMO.filter((p) => p.usuario.id !== usuario.id);
 
   return (
     <div className="relative" ref={ref}>
@@ -83,25 +77,6 @@ export function MenuUsuario() {
                 {copy.titulo}
               </ElementoMenu>
             </div>
-
-            {otrosPerfiles.length > 0 && (
-              <div className="border-t border-hairline pt-1.5">
-                <p className="px-2.5 pb-1 font-ui text-12 text-text-3">{copy.cambiarPerfil}</p>
-                {otrosPerfiles.map(({ usuario: otro, etiqueta }) => (
-                  <ElementoMenu
-                    key={otro.id}
-                    icono={Repeat}
-                    onClick={() => {
-                      setAbierto(false);
-                      cambiarPerfil(otro);
-                      navigate(otro.rol === 'admin' ? '/admin/conversaciones' : '/chat');
-                    }}
-                  >
-                    {etiqueta}
-                  </ElementoMenu>
-                ))}
-              </div>
-            )}
 
             <div className="border-t border-hairline pt-1.5">
               <ElementoMenu icono={LogOut} onClick={() => { setAbierto(false); cerrarSesion(); navigate('/login', { replace: true }); }}>

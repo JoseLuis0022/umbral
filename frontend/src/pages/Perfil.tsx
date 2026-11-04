@@ -4,14 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { perfil as copy } from '../copy';
 
 export default function Perfil() {
-  const { usuario } = useAuth();
+  const { usuario, perfiles } = useAuth();
   if (!usuario) return null;
 
+  const area = usuario.area || copy.sinAreaRegistrada;
   const campos = [
     { etiqueta: copy.nombre, valor: usuario.nombre },
     { etiqueta: copy.correo, valor: usuario.correo },
-    { etiqueta: copy.area, valor: usuario.area },
-    { etiqueta: copy.rol, valor: usuario.rol === 'admin' ? 'Administrador' : 'Personal administrativo' },
+    { etiqueta: copy.area, valor: area },
+    { etiqueta: copy.rol, valor: copy.roles[usuario.rol] ?? usuario.rol },
+    // Lo que el backend dijo que esta cuenta puede usar, no lo que el front supone.
+    { etiqueta: copy.modos, valor: perfiles.map((p) => p.nombre).join(' · ') || '—' },
   ];
 
   return (
@@ -24,7 +27,7 @@ export default function Perfil() {
           </span>
           <div className="min-w-0">
             <p className="truncate font-ui text-15 font-medium text-text-1">{usuario.nombre}</p>
-            <p className="truncate font-ui text-13 text-text-2">{usuario.area}</p>
+            <p className="truncate font-ui text-13 text-text-2">{area}</p>
           </div>
         </div>
         <dl className="flex flex-col">

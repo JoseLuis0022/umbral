@@ -39,12 +39,21 @@ export const copyLocal = {
   // Hilo
   pensando: 'Preparando respuesta…',
   /**
-   * El orquestador delegó: se nombra al especialista que está trabajando.
-   * Los nombres vienen tal cual del flujo de n8n, donde alguno trae espacios
-   * de más ("Agente  IT"); se normalizan aquí y no allá, porque este texto no
-   * puede depender de cómo esté escrito un nodo en el editor.
+   * Lo que el agente está haciendo antes de escribir, en lenguaje de persona.
+   * `lib/actividad.ts` traduce cada herramienta y ruta a una de estas frases:
+   * el estudiante lee "Leyendo el resumen de la Clase 12…", no
+   * "Read estado/inventario/clase-12.md".
    */
   consultandoAgente: (nombre: string) => `Consultando a ${nombre.replace(/\s+/g, ' ').trim()}…`,
+  actividadIndice: 'Revisando el índice de temas…',
+  actividadResumenClase: (n: string) => `Leyendo el resumen de la Clase ${n}…`,
+  actividadPractica: (n: string) => `Leyendo qué pide la Práctica ${n}…`,
+  actividadDiapositivas: 'Revisando las diapositivas del profesor…',
+  actividadCalendario: 'Revisando el calendario del curso…',
+  actividadApuntes: (n: string) => `Leyendo los apuntes del Tema ${n}…`,
+  actividadTranscripcion: (n: string) => `Buscando en la grabación de la Clase ${n}…`,
+  actividadBuscar: (patron: string) => `Buscando «${patron}» en el material…`,
+  actividadRevisar: 'Revisando el material del curso…',
   escribiendo: 'El asistente está escribiendo la respuesta',
   conversacionNoEncontrada: 'No encontramos esa conversación',
   conversacionNoEncontradaDetalle:

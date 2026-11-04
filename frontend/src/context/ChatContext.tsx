@@ -76,7 +76,7 @@ type ChatCtx = {
   estadoStream: EstadoStream;
   textoParcial: string;
   /** Sub-agente que está trabajando ahora mismo, o `null`. */
-  agenteActivo: string | null;
+  actividad: string | null;
   errorStream: string | null;
   /** En qué conversación está transmitiendo, para no pintar el parcial en otra. */
   streamEnId: string | null;
@@ -159,7 +159,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       const resultado = await stream.iniciar({
         conversacionId,
         mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
-        usuario: usuario ? { id: usuario.id, nombre: usuario.nombre, area: usuario.area } : undefined,
+        // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
         adjuntos: historial[historial.length - 1]?.adjuntos?.map((a) => ({
           nombre: a.nombre,
           tipo: a.tipo,
@@ -197,7 +197,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         setStreamEnId(null);
       }
     },
-    [actualizar, stream, usuario]
+    [actualizar, stream]
   );
 
   const enviar = useCallback(
@@ -308,7 +308,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       reintentar,
       estadoStream: stream.estado,
       textoParcial: stream.textoParcial,
-      agenteActivo: stream.agenteActivo,
+      actividad: stream.actividad,
       errorStream: stream.error,
       streamEnId,
       renombrar,
@@ -324,7 +324,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       stream.detener,
       stream.estado,
       stream.textoParcial,
-      stream.agenteActivo,
+      stream.actividad,
       stream.error,
       regenerar,
       reintentar,

@@ -8,6 +8,7 @@
  */
 
 import type { ParametrosModelo } from '../../../services/chat.service';
+import type { ResumenConsulta } from '../../../types';
 
 /** Los cuatro niveles que acepta `ParametrosModelo.nivelPensamiento`. */
 export type NivelPensamiento = NonNullable<ParametrosModelo['nivelPensamiento']>;
@@ -39,14 +40,16 @@ export interface ModeloCatalogo {
 export type EstadoCorpus = 'cargando' | 'listo' | 'error';
 
 /**
- * Un agente del flujo, tal como lo reporta `alMetadatos`. El laboratorio los
- * acumula en orden de aparición: esa lista ES la cadena de delegación.
+ * Una actividad del agente (herramienta o subagente), tal como la reporta
+ * `alActividad`. El laboratorio las acumula en orden de aparición: esa lista
+ * ES el recorrido del agentic loop.
  */
 export interface PasoAgente {
-  /** `nodeId` cuando existe; si no, el nombre. Es lo que empareja inicio y fin. */
+  /** `id` de la actividad: empareja su inicio con su fin. */
   clave: string;
+  /** Herramienta y lo que tocó, p. ej. "Read · estado/indice-temas.md". */
   nombre: string;
-  /** `false` = sub-agente al que el orquestador delegó. */
+  /** `false` = la hizo un subagente, no el agente principal. */
   principal: boolean;
   estado: 'trabajando' | 'listo';
   /** Milisegundos desde que arrancó la petición. */
@@ -66,12 +69,15 @@ export interface MetricasRespuesta {
   /** Caracteres de la respuesta. */
   caracteres: number;
   /**
-   * Caracteres que salieron de aquí en esta vuelta: la pregunta más las
-   * instrucciones del sistema. Es la base del cálculo de tokens de entrada, y
-   * se guarda como CARACTERES y no como tokens para que la estimación se pueda
-   * recalcular el día que cambie la razón caracteres/token.
+   * Caracteres de la pregunta más las instrucciones del sistema. Solo se usa
+   * para ESTIMAR tokens cuando no hay `consumo` (simulador).
    */
   caracteresEntrada: number;
+  /**
+   * Costo y tokens MEDIDOS que reporta el backend en el evento `fin`. Cuando
+   * existe, las métricas muestran esto y no la estimación.
+   */
+  consumo?: ResumenConsulta;
 }
 
 export interface MensajeLab {

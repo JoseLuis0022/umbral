@@ -3,51 +3,31 @@ import type { ModeloCatalogo, ParametrosLab } from './tipos';
 /**
  * Catálogo de modelos que ofrece el laboratorio.
  *
- * IMPORTANTE — esta lista es del LADO DEL CLIENTE. Quien elige el modelo de
- * verdad es el flujo de n8n; lo que se selecciona aquí viaja dentro de
- * `metadata.parametros` y el flujo lo aplica solo si tiene ese campo cableado
- * a su nodo de modelo. La interfaz avisa de que estos ajustes son de la sesión
- * de pruebas (ver `copyLab.avisoAlcance`) en vez de fingir que el control manda:
- * un panel que promete lo que no cumple es peor que no tener panel.
+ * El `id` viaja en `parametros.modelo` y el backend se lo pasa tal cual al
+ * Agent SDK (`model`), que solo habla con modelos de Claude. Solo un admin
+ * puede mandarlo: a cualquier otro rol el backend le responde 403.
  *
- * Los `id` son los de OpenRouter y se mandan literales, sin traducir.
+ * Para comparar costo, cambia de modelo y repite la MISMA pregunta con la
+ * memoria borrada: la métrica de costo del pie de cada respuesta es la medida.
  */
 export const MODELOS: ModeloCatalogo[] = [
   {
-    id: 'openai/gpt-4.1-mini',
-    nombre: 'GPT-4.1 mini',
+    id: 'claude-haiku-5-5',
+    nombre: 'Claude Haiku 5.5',
     etiqueta: 'Rápido',
-    descripcion: 'El más barato y el que antes empieza a escribir. Suficiente para preguntas de trámite.',
+    descripcion: 'El más ligero de la familia. Buen punto de partida para medir cuánto cuesta una búsqueda.',
   },
   {
-    id: 'openai/gpt-4.1',
-    nombre: 'GPT-4.1',
+    id: 'claude-sonnet-5-5',
+    nombre: 'Claude Sonnet 5.5',
     etiqueta: 'Equilibrado',
-    descripcion: 'Respuestas largas y ordenadas. Es la opción segura para una demostración.',
+    descripcion: 'Balance entre calidad, velocidad y costo. Es el valor por defecto del laboratorio.',
   },
   {
-    id: 'anthropic/claude-sonnet-4.5',
-    nombre: 'Claude Sonnet 4.5',
-    etiqueta: 'Redacción',
-    descripcion: 'El mejor con normativa y documentos largos; sigue instrucciones al pie de la letra.',
-  },
-  {
-    id: 'google/gemini-2.5-flash',
-    nombre: 'Gemini 2.5 Flash',
-    etiqueta: 'Rápido',
-    descripcion: 'Contexto enorme a precio bajo. Útil cuando el corpus que se consulta es grande.',
-  },
-  {
-    id: 'google/gemini-2.5-pro',
-    nombre: 'Gemini 2.5 Pro',
+    id: 'claude-opus-5-5',
+    nombre: 'Claude Opus 5.5',
     etiqueta: 'Razonamiento',
-    descripcion: 'Piensa antes de contestar. Tarda más, pero aguanta preguntas con varios pasos.',
-  },
-  {
-    id: 'deepseek/deepseek-chat-v3.1',
-    nombre: 'DeepSeek V3.1',
-    etiqueta: 'Económico',
-    descripcion: 'Abierto y muy barato por millón de tokens. Buen banco de pruebas para el costo.',
+    descripcion: 'El más capaz de los tres. Úsalo para ver si la calidad extra justifica el costo extra.',
   },
 ];
 
@@ -86,8 +66,8 @@ export function sonParametrosPorDefecto(p: ParametrosLab): boolean {
 }
 
 /**
- * Un `sessionId` nuevo. El flujo de n8n guarda la memoria de la conversación
- * en Postgres indexada por este valor, así que estrenar uno es LO ÚNICO que
+ * Un `sessionId` nuevo. El backend reanuda la sesión del agente asociada a
+ * este valor (tabla `sesiones` de backend/lab.db), así que estrenar uno es LO ÚNICO que
  * corta el contexto del lado del servidor: vaciar los mensajes de la pantalla
  * no toca esa tabla.
  */

@@ -53,12 +53,12 @@ export const copyLab = {
 
   modeloEtiqueta: 'Modelo',
   modeloAbrir: 'Elegir modelo',
-  modeloAyuda: 'El identificador técnico es el que se copia en la configuración del asistente.',
+  modeloAyuda: 'El identificador técnico es el que se copia en la configuración del perfil del agente.',
 
   // ── Instrucciones del sistema ──
   instruccionesEtiqueta: 'Instrucciones del sistema',
-  instruccionesAyuda: 'Se mandan con cada mensaje, por delante de la pregunta.',
-  instruccionesVacio: 'Sin instrucciones. El asistente responde con su configuración de siempre.',
+  instruccionesAyuda: 'Reemplazan por completo las instrucciones del perfil de consulta en esta prueba.',
+  instruccionesVacio: 'Sin instrucciones propias. El agente usa las del perfil de consulta.',
   instruccionesEditar: 'Editar instrucciones',
   instruccionesAbrir: 'Abrir el editor de instrucciones del sistema',
   instruccionesPlaceholder:
@@ -95,11 +95,11 @@ export const copyLab = {
   temperaturaMin: 'Determinista',
   temperaturaMax: 'Creativo',
   temperaturaAyuda:
-    'En 0.00 la misma pregunta devuelve casi siempre la misma respuesta; cerca de 1.00 el modelo se arriesga y varía.',
+    'El agente actual no usa este ajuste: se ignora al enviar. Se conserva para comparar con otros motores.',
 
   memoriaTitulo: 'Memoria y contexto',
   memoriaExplicacion:
-    'La memoria de la conversación no vive en esta pantalla: vive del lado del servidor, indexada por el sessionId. Por eso borrarla significa estrenar un sessionId — es lo único que corta el contexto de verdad.',
+    'La memoria de la conversación no vive en esta pantalla: el servidor reanuda la sesión del agente asociada a este sessionId. Por eso borrarla significa estrenar un sessionId — es lo único que corta el contexto de verdad.',
   memoriaBoton: 'Borrar memoria y contexto',
   memoriaHecho: (sesion: string) => `Memoria borrada. Sesión nueva: ${sesion}`,
 
@@ -117,10 +117,10 @@ export const copyLab = {
   preparandoTitulo: 'Preparando el laboratorio',
   preparandoDetalle: 'Estamos trayendo las bases de conocimiento disponibles.',
   ejemplos: [
-    '¿Puedo usar ChatGPT con datos de alumnos?',
-    'Resume la política de uso de IA en cinco puntos.',
-    '¿Qué hago si sospecho una fuga de información?',
-    'Redacta un correo para pedir acceso a una herramienta nueva.',
+    '¿Qué es la ecualización de histograma y cómo se calcula?',
+    '¿En qué se diferencia un filtro de mediana de uno de promedio?',
+    'Resume lo que entra en el Examen 7.',
+    '¿Qué es la transformada de Radón y para qué sirve?',
   ],
   placeholderEntrada: 'Escribe una pregunta de prueba…',
   placeholderBloqueado: 'Elige una base de conocimiento para empezar…',
@@ -132,10 +132,10 @@ export const copyLab = {
   respuestaIncompleta: 'Respuesta incompleta: la transmisión se cortó.',
   respuestaVacia: 'El asistente cerró la respuesta sin devolver texto.',
 
-  // ── Cadena de agentes ──
-  cadenaTitulo: 'Cadena de agentes',
-  cadenaPrincipal: 'Orquestador',
-  cadenaDelegado: 'Delegado',
+  // ── Recorrido del agente ──
+  cadenaTitulo: 'Recorrido del agente',
+  cadenaPrincipal: 'Agente',
+  cadenaDelegado: 'Subagente',
   cadenaTrabajando: 'trabajando…',
 
   // ── Métricas ──
@@ -146,7 +146,16 @@ export const copyLab = {
   metricaTokens: 'Tokens aprox.',
   /** Se lee al pasar el cursor: dice de dónde sale la cifra y que es estimada. */
   metricaTokensDetalle: (entrada: string, salida: string) =>
-    `Estimación, no medición: el asistente no reporta el consumo real. Se calcula a razón de 4 caracteres por token. Entrada ≈ ${entrada} · Salida ≈ ${salida}.`,
+    `Estimación, no medición: el simulador no reporta consumo. Se calcula a razón de 4 caracteres por token. Entrada ≈ ${entrada} · Salida ≈ ${salida}.`,
+  // Con el backend real, el evento `fin` trae el consumo MEDIDO.
+  metricaCosto: 'Costo',
+  metricaCostoDetalle: 'Lo que reportó la API de Anthropic para esta respuesta, en dólares.',
+  metricaVueltas: 'Vueltas',
+  metricaVueltasDetalle: 'Veces que el agente llamó al modelo en el agentic loop.',
+  metricaTokensReales: 'Tokens',
+  /** Entrada + caché / salida. Se lee al pasar el cursor. */
+  metricaTokensRealesDetalle: (entrada: string, cacheLectura: string, cacheEscritura: string, salida: string) =>
+    `Medido por la API. Entrada nueva: ${entrada} · leída de caché: ${cacheLectura} · escrita en caché: ${cacheEscritura} · salida: ${salida}. La caché se cobra a cerca del 10% de la entrada normal.`,
   metricaSinDato: '—',
 
   // ── Errores ──

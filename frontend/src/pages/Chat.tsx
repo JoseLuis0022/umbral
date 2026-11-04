@@ -66,7 +66,7 @@ export default function Chat() {
     reintentar,
     estadoStream,
     textoParcial,
-    agenteActivo,
+    actividad,
     errorStream,
     streamEnId,
     renombrar,
@@ -356,7 +356,7 @@ export default function Chat() {
           mensajes={conversacionActiva?.mensajes ?? []}
           cargando={cargando && !!conversacionId}
           esperando={streamAqui && estadoStream === 'esperando'}
-          agenteActivo={streamAqui ? agenteActivo : null}
+          actividad={streamAqui ? actividad : null}
           transmitiendo={streamAqui && estadoStream === 'transmitiendo'}
           textoParcial={streamAqui ? textoParcial : ''}
           error={streamAqui && estadoStream === 'error' ? errorStream : null}

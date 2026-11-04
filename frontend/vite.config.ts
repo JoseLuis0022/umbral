@@ -23,6 +23,19 @@ export default defineConfig(({ mode }) => {
      */
     base: env.VITE_BASE_URL || '/',
     plugins: [react()],
+    /*
+     * En desarrollo, todo lo que empieza con /api se reenvía al backend
+     * (FastAPI en el puerto 8000). Así el navegador cree que front y back son
+     * el mismo origen y no hace falta CORS — igual que en el VPS, donde el
+     * reverse proxy servirá los dos bajo el mismo dominio.
+     *
+     * El stream SSE del chat también pasa por aquí sin problema.
+     */
+    server: {
+      proxy: {
+        '/api': { target: env.VITE_API_PROXY || 'http://localhost:8000' },
+      },
+    },
     build: {
       rollupOptions: {
         output: {

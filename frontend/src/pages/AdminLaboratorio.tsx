@@ -28,14 +28,9 @@ import {
 import { PanelPlegable } from '../components/shell';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { useAuth } from '../context/AuthContext';
 import { listarCorpus, listarDocumentos } from '../services/corpus.service';
-import type { Corpus } from '../types';
-import {
-  enviarMensaje,
-  type MetadatosNodo,
-  type ParametrosModelo,
-} from '../services/chat.service';
+import type { ActividadAgente, Corpus, ResumenConsulta } from '../types';
+import { enviarMensaje, type ParametrosModelo } from '../services/chat.service';
 
 const NIVELES_VALIDOS: NivelPensamiento[] = ['ninguno', 'bajo', 'medio', 'alto'];
 
@@ -52,14 +47,11 @@ const AIRE_SALTO = 8;
  * Laboratorio de modelos (/admin/laboratorio).
  *
  * Es el modo desarrollador del asistente: a la izquierda una conversación de
- * prueba con streaming real, a la derecha los parámetros que viajan al flujo
- * dentro de `metadata`. En móvil el panel se convierte en cajón; en escritorio
- * se pliega a un carril de iconos —uno por grupo de parámetros— que además dice
- * el valor vigente de cada uno al pasar el cursor (ver `CarrilParametros`).
- *
- * NOTA DE COPY: en esta pantalla ninguna cadena VISIBLE nombra la tecnología
- * que hay detrás (se presenta como maqueta de demostración). En los comentarios
- * sí se nombra —n8n, Postgres—: aquí es información técnica correcta y útil.
+ * prueba con streaming real, a la derecha los parámetros que viajan al backend
+ * en `parametros` (solo un admin puede mandarlos). En móvil el panel se
+ * convierte en cajón; en escritorio se pliega a un carril de iconos —uno por
+ * grupo de parámetros— que además dice el valor vigente de cada uno al pasar el
+ * cursor (ver `CarrilParametros`).
  *
  * Cuatro decisiones que explican el resto del archivo:
  *
@@ -73,23 +65,23 @@ const AIRE_SALTO = 8;
  *    la comunidad: lo que se prueba aquí es basura de laboratorio y ensuciaría
  *    la auditoría de /admin/conversaciones.
  *
- *  - **Borrar la memoria = estrenar `sessionId`.** El flujo guarda el contexto
- *    en Postgres indexado por ese identificador, así que vaciar los mensajes de
- *    la pantalla no borra nada del lado del servidor. Lo que corta el contexto
- *    de verdad es cambiar la llave.
+ *  - **Borrar la memoria = estrenar `sessionId`.** El backend reanuda la
+ *    sesión del agente asociada a ese identificador, así que vaciar los
+ *    mensajes de la pantalla no borra nada del lado del servidor. Lo que corta
+ *    el contexto de verdad es cambiar la llave.
  *
- *  - **La cadena de agentes es el espectáculo.** Cuando el orquestador delega,
- *    el primer texto tarda 3-4 s; `alMetadatos` cuenta en vivo quién está
- *    trabajando, y esa espera deja de ser un hueco en blanco.
+ *  - **El recorrido del agente es el espectáculo.** Antes de escribir, el
+ *    agente lee y busca en el material; `alActividad` cuenta en vivo cada
+ *    herramienta que usa, y al final `alFin` trae el costo y los tokens
+ *    MEDIDOS de la respuesta.
  *
  * El streaming se implementa aquí y no con `useStreamingChat` porque ese hook
- * no expone `parametros` ni `alMetadatos`, que son justo las dos cosas que esta
- * pantalla necesita. La mecánica (buffer en un ref y volcado por frame, carrera
+ * no expone `parametros`, el detalle técnico de cada actividad ni el consumo,
+ * que son justo lo que esta pantalla necesita. La mecánica (buffer en un ref y volcado por frame, carrera
  * entre transmisiones resuelta comparando el controlador vigente) sí es la
  * misma: repintar markdown una vez por fragmento tira el presupuesto de frame.
  */
 export default function AdminLaboratorio() {
-  const { usuario } = useAuth();
   const { push } = useToast();
   const reducido = useReducedMotion();
 
@@ -99,8 +91,8 @@ export default function AdminLaboratorio() {
   );
 
   // El `sessionId` se estrena en cada montaje y NO se persiste: si sobreviviera
-  // al refresh, el flujo recordaría en Postgres una conversación que la
-  // pantalla ya no muestra, y el laboratorio arrancaría con contexto invisible.
+  // al refresh, el backend reanudaría una conversación que la pantalla ya no
+  // muestra, y el laboratorio arrancaría con contexto invisible.
   const [sessionId, setSessionId] = useState(nuevaSesionId);
 
   const [mensajes, setMensajes] = useState<MensajeLab[]>([]);
@@ -223,7 +215,7 @@ export default function AdminLaboratorio() {
       montadoRef.current = false;
       // Cambiar de pantalla a media respuesta: se aborta la petición y se
       // cancela el frame pendiente, o quedaría un setState sobre un componente
-      // muerto y una conexión abierta contra n8n.
+      // muerto y un agente trabajando para nadie en el backend.
       controlRef.current?.abort();
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
@@ -237,28 +229,32 @@ export default function AdminLaboratorio() {
   }, []);
 
   /**
-   * Cada `begin` abre un paso de la cadena y cada `end` lo cierra. Se guarda en
-   * un ref además del estado porque al terminar la respuesta hay que congelar
-   * la cadena dentro del mensaje, y leerla del estado en ese punto daría el
-   * valor del render anterior.
+   * Cada actividad `inicio` abre un paso de la cadena y su `fin` lo cierra
+   * (se emparejan por `id`). Aquí se muestra el dato técnico tal cual —
+   * herramienta y ruta—, porque esta pantalla existe para ver qué hace el
+   * agente; el chat de los estudiantes lo traduce a frases.
+   *
+   * Se guarda en un ref además del estado porque al terminar la respuesta hay
+   * que congelar la cadena dentro del mensaje, y leerla del estado en ese punto
+   * daría el valor del render anterior.
    */
-  const registrarNodo = useCallback((metadatos: MetadatosNodo) => {
-    const clave = metadatos.nodeId ?? metadatos.nodeName ?? 'nodo';
+  const registrarActividad = useCallback((actividad: ActividadAgente) => {
+    const clave = actividad.id;
     const ahora = performance.now();
     const previa = cadenaRef.current;
     const indice = previa.findIndex((p) => p.clave === clave);
 
     let siguiente: PasoAgente[];
-    if (metadatos.fase === 'inicio') {
-      // Un `begin` repetido del mismo nodo no abre fila nueva: el flujo puede
-      // reentrar en un agente y duplicarlo solo ensuciaría la lectura.
+    if (actividad.fase === 'inicio') {
       if (indice !== -1) return;
       siguiente = [
         ...previa,
         {
           clave,
-          nombre: metadatos.nodeName ?? 'Agente',
-          principal: metadatos.principal,
+          nombre: actividad.detalle ? `${actividad.nombre} · ${actividad.detalle}` : actividad.nombre,
+          // Lo que hace el agente principal va al margen; lo que hace un
+          // subagente, indentado debajo de él.
+          principal: actividad.dentroDe === null,
           estado: 'trabajando',
           msInicio: ahora,
         },
@@ -289,25 +285,22 @@ export default function AdminLaboratorio() {
       const t0 = performance.now();
       let msPrimerFragmento: number | null = null;
       let fragmentos = 0;
+      let consumo: ResumenConsulta | undefined;
 
       const instrucciones = parametrosVigentes.systemPrompt.trim();
-      // Caracteres que salen de aquí en esta vuelta. El historial NO se manda
-      // (el flujo guarda la conversación por su cuenta), así que la entrada es
-      // exactamente la última pregunta más las instrucciones del sistema.
+      // Respaldo para el simulador, que no reporta tokens: la última pregunta
+      // más las instrucciones del sistema. Con el backend real se usan los
+      // tokens MEDIDOS del evento `fin`.
       const caracteresEntrada =
         (historial[historial.length - 1]?.contenido.length ?? 0) + instrucciones.length;
 
-      // `corpusId` todavía no vive en `ParametrosModelo` — lo añade el
-      // orquestador en chat.service. La intersección lo deja pasar sin `any` y
-      // sin romper el día que la propiedad exista: el tipo será idéntico.
-      const parametrosEnvio: ParametrosModelo & { corpusId?: string } = {
+      const parametrosEnvio: ParametrosModelo = {
         corpusId: parametrosVigentes.corpusId || undefined,
         modelo: parametrosVigentes.modelo,
         temperatura: parametrosVigentes.temperatura,
         nivelPensamiento: parametrosVigentes.nivelPensamiento,
         // Vacío = "no mandes nada", no "manda una cadena vacía": un
-        // systemPrompt en blanco dentro del payload puede sobrescribir el que
-        // el flujo ya tenga configurado.
+        // systemPrompt en blanco reemplazaría el del perfil por nada.
         systemPrompt: instrucciones || undefined,
         reiniciarMemoria: memoriaReiniciadaRef.current || undefined,
       };
@@ -315,10 +308,10 @@ export default function AdminLaboratorio() {
       const resultado = await enviarMensaje({
         mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
         conversacionId: sessionId,
-        usuario: usuario
-          ? { id: usuario.id, nombre: usuario.nombre, area: usuario.area }
-          : undefined,
         parametros: parametrosEnvio,
+        alFin: (resumen) => {
+          consumo = resumen;
+        },
         senal: control.signal,
         alFragmento: (_fragmento, acumulado) => {
           if (msPrimerFragmento === null) msPrimerFragmento = performance.now() - t0;
@@ -329,7 +322,7 @@ export default function AdminLaboratorio() {
           // esqueleto. Del segundo en adelante React descarta el mismo valor.
           setEstado((previo) => (previo === 'esperando' ? 'transmitiendo' : previo));
         },
-        alMetadatos: registrarNodo,
+        alActividad: registrarActividad,
       });
 
       if (frameRef.current !== null) {
@@ -352,10 +345,11 @@ export default function AdminLaboratorio() {
         fragmentos,
         caracteres: resultado.texto.length,
         caracteresEntrada,
+        consumo,
       };
 
-      // Un agente que se quedó "trabajando" es un ciclo que el flujo nunca
-      // cerró (o una transmisión cortada): se cierra al terminar la respuesta
+      // Una actividad que se quedó "trabajando" es una herramienta cuyo fin
+      // nunca llegó (transmisión cortada): se cierra al terminar la respuesta
       // para no dejar un punto latiendo para siempre en el resumen.
       const cierre = performance.now();
       const cadena = cadenaRef.current.map((paso) =>
@@ -389,7 +383,7 @@ export default function AdminLaboratorio() {
         ]);
       }
     },
-    [sessionId, usuario, parametrosVigentes, volcar, registrarNodo]
+    [sessionId, parametrosVigentes, volcar, registrarActividad]
   );
 
   /* ------------------------------- Acciones ------------------------------ */
@@ -420,7 +414,7 @@ export default function AdminLaboratorio() {
   /**
    * Reintento tras un error. Se recorta el hilo hasta la última pregunta y se
    * vuelve a pedir: reenviar sin recortar dejaría dos respuestas al mismo
-   * mensaje, y el flujo de n8n ya tiene la pregunta en su memoria.
+   * mensaje, y la sesión del agente ya tiene la pregunta en su memoria.
    */
   const reintentar = useCallback(() => {
     // `puedePreguntar` también aquí: la base pudo desaparecer de /admin/corpus
@@ -440,7 +434,7 @@ export default function AdminLaboratorio() {
    * Estrena `sessionId` y deja el hilo en blanco. Devuelve la llave nueva.
    *
    * Lo comparten "Borrar memoria" y el cambio de base de conocimiento porque
-   * son el mismo problema: el contexto que el flujo guarda del lado del
+   * son el mismo problema: el contexto que el agente guarda del lado del
    * servidor ya no corresponde a lo que la pantalla muestra, y lo único que lo
    * corta de verdad es cambiar la llave.
    *
@@ -463,8 +457,8 @@ export default function AdminLaboratorio() {
     setEstado('inactivo');
 
     // El `sessionId` nuevo ya corta el contexto por sí solo. La bandera viaja
-    // además en el próximo mensaje para que el flujo sepa que fue deliberado y
-    // no una sesión perdida.
+    // además en el próximo mensaje (`reiniciarMemoria`) y le dice al backend
+    // que no reanude nada aunque encuentre una sesión.
     memoriaReiniciadaRef.current = true;
     return nueva;
   }, []);
