@@ -1,0 +1,19 @@
+# Datos: copia del agente de Imágenes desde OneDrive (PDFs, entregas del equipo,
+# transcripciones con nombres de compañeros). Son datos, no código: no van al repo.
+/agente-imagenes/
+
+# Backend
+backend/.venv/
+backend/.env
+backend/lab.db*
+backend/.claude-runtime/
+__pycache__/
+*.pyc
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+.DS_Store

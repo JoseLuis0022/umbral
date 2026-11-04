@@ -1,0 +1,249 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Sistema visual de Aurora al Día.
+ *
+ * Mecánica tomada del sistema de diseño de SGO CUSOL (manual "Apple-Feel":
+ * superficies planas + hairlines, sombras en capas, radios anidados, escala
+ * tipográfica cerrada, motion por springs). Colorimetría tomada del Manual de
+ * Identidad Gráfica 2024 de la Aurora — NO se copia la paleta de CUSOL.
+ *
+ * Solo tema claro. No responder a prefers-color-scheme.
+ */
+:root {
+  color-scheme: light;
+
+  /* Tipografía — punto único de sustitución. Cambiar aquí cambia toda la app.
+
+     UNA sola familia (Google Sans) para todo: interfaz, títulos, cuerpo, texto
+     generado por el agente y documentos. Se probó separar los títulos en una
+     serif y se descartó: la jerarquía de este sistema ya la construyen el
+     tamaño y el peso, y meter una segunda clase de letra sumaba un ajuste
+     óptico que mantener sin resolver ningún problema que existiera.
+
+     Se autoaloja con fontsource (ver src/main.tsx). La app es interna: no puede
+     quedar colgada de una petición al CDN de Google en cada carga. Detrás va el
+     stack del sistema como respaldo, para que un fallo de carga no cambie las
+     métricas de golpe. */
+  --aurora-fuente-principal: 'Google Sans Variable', -apple-system, BlinkMacSystemFont,
+    'SF Pro Text', system-ui, sans-serif;
+  --aurora-fuente-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+  /* Superficies — la neutra es CÁLIDA (derivada de Warm Gray 9 C), no el gris
+     azulado de macOS. Es la diferencia que hace que el sistema se sienta de la
+     Aurora y no un clon de CUSOL con otro acento. */
+  --bg: #f7f6f4;          /* piedra-50  — lienzo de la app */
+  --surface-1: #ffffff;   /* tarjetas, filas, sidebar */
+  --surface-2: #ffffff;   /* barras fijas (topbar) */
+  --surface-3: #ffffff;   /* capas flotantes (modal, drawer, toast) */
+
+  /* Hairlines teñidos de cálido, nunca negro puro al 10% */
+  --hairline: rgba(35, 32, 29, 0.09);
+  --hairline-strong: rgba(35, 32, 29, 0.14); /* separador de fila en tablas densas */
+
+  /* Texto — jerarquía por peso y tamaño; el color solo separa 3 niveles.
+     text-1 y text-2 cumplen AA sobre --surface-1; text-3 es exclusivamente
+     para texto no esencial (metadatos, placeholders, sufijos). */
+  --text-1: #23201d; /* piedra-900 */
+  --text-2: #6b625a; /* piedra-600 */
+  --text-3: #aba49b; /* piedra-400 */
+
+  /* Marca / acción primaria.
+     --accent es el rojo institucional Pantone 185 C, sin desaturar: viste
+     rellenos (botón primario, píldora activa, indicador de tab).
+     --accent-fg es el mismo rojo bajado a 700 para TEXTO e ICONOS sobre fondo
+     claro — #E00034 sobre blanco queda por debajo de 4.5:1 y un enlace en ese
+     tono falla AA. Regla: relleno → --accent; tinta → --accent-fg. */
+  --accent: #e00034;
+  --accent-fg: #a30026;
+  --accent-strong: #a30026; /* hover / pressed de acciones primarias */
+  --accent-soft: rgba(224, 0, 52, 0.09);
+
+  /* Semántica de estatus. El rojo de RIESGO es deliberadamente terroso y
+     apagado (#8F2E22): si el peligro usara el rojo de marca, el mismo color
+     significaría "haz clic aquí" y "cuidado con esto" en la misma pantalla.
+     Todo indicador de estatus refuerza además con forma e icono, nunca color solo. */
+  --status-green: #1e7a4f;
+  --status-green-soft: rgba(30, 122, 79, 0.11);
+  --status-blue: #1f5f8b;
+  --status-blue-soft: rgba(31, 95, 139, 0.1);
+  --status-amber: #8a5a00;
+  --status-amber-soft: rgba(138, 90, 0, 0.11);
+  --status-red: #8f2e22;
+  --status-red-soft: rgba(143, 46, 34, 0.1);
+  --status-gray: #6b625a;
+  --status-gray-soft: rgba(107, 98, 90, 0.09);
+
+  /* Sombras en capas (2 sombras superpuestas, nunca una sola dura) y teñidas
+     de cálido para no ensuciar los fondos piedra. */
+  --shadow-1: 0 1px 2px rgba(35, 32, 29, 0.05), 0 1px 3px rgba(35, 32, 29, 0.06);
+  --shadow-2: 0 2px 4px rgba(35, 32, 29, 0.05), 0 4px 12px rgba(35, 32, 29, 0.09);
+  --shadow-3: 0 8px 16px rgba(35, 32, 29, 0.07), 0 16px 40px rgba(35, 32, 29, 0.14);
+}
+
+/*
+ * CRÍTICO: todo estilo global va dentro de @layer base.
+ * Una regla sin capa le gana SIEMPRE a una regla con capa, sin importar la
+ * especificidad — las capas de cascada la ignoran. Un `body { color }` suelto
+ * aquí anularía silenciosamente utilidades de Tailwind como `text-white` en
+ * los botones. Nunca escribas CSS global fuera de @layer en este archivo.
+ */
+@layer base {
+  * {
+    border-color: var(--hairline);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-1);
+    font-family: var(--aurora-fuente-principal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+
+  /* El body NUNCA hace scroll. El único scroll real vive en el <main> del
+     AppShell. Sin `overflow:hidden` en ambos ejes, macOS deja pasar el rebote
+     elástico al documento completo en cuanto el <main> llega a su límite, y
+     visualmente TODA la página (sidebar + topbar incluidos) se desliza. */
+  html,
+  body {
+    overflow: hidden;
+  }
+
+  /*
+   * Aire para el recorte de `line-clamp-*`.
+   *
+   * Esos utilitarios aplican `overflow: hidden`, y en Google Sans los glifos de
+   * peso 600 sobresalen un pelo a la IZQUIERDA de su origen (lateral izquierdo
+   * negativo). El resultado es que la primera letra de cada línea sale rebanada
+   * en vertical: se ve en cualquier título de tarjeta que envuelva a dos
+   * renglones. Con Source Sans 3 no pasaba, así que apareció al cambiar de
+   * fuente, no al escribir las tarjetas.
+   *
+   * El padding le da 2 px de margen al recorte y el margen negativo se los
+   * quita a la caja, así que ni el texto se mueve ni el ancho cambia: lo único
+   * que crece es la zona donde el navegador tiene permiso de dibujar.
+   */
+  [class*='line-clamp-'] {
+    padding-inline: 2px;
+    margin-inline: -2px;
+  }
+
+  /* Cifras que cambian: folios, montos, fechas, KPIs — siempre tabular, para
+     que no bailen los dígitos al actualizarse.
+     Con Google Sans esta regla pasó de ser un cinturón a ser el único freno:
+     Source Sans 3 dibujaba cifras de ancho fijo por defecto, y Google Sans las
+     dibuja PROPORCIONALES (trae `tnum`, pero hay que pedirlo). Toda cifra que
+     se actualice en vivo necesita la clase; sin ella ahora sí baila. */
+  .tabular-nums,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Foco visible siempre. Nunca outline:none sin reemplazo. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Latido de espera para movimiento reducido: sustituye al barrido del skeleton
+   sin desplazar nada. Ver la excepción de más abajo. */
+@keyframes pulsoEspera {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Reduced motion: se elimina el DESPLAZAMIENTO, nunca el feedback. Los
+   componentes sustituyen movimiento por crossfade de opacidad vía
+   useReducedMotion(); esto es la red de seguridad para animaciones CSS. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /*
+   * EXCEPCIÓN: las señales de que algo está EN CURSO.
+   *
+   * La regla de arriba es correcta como red de seguridad, pero aplicada a `*`
+   * también apagaba los indicadores de espera: el barrido de todos los
+   * skeletons, el cursor de escritura del chat y del laboratorio, y el punto
+   * que late mientras trabaja un agente. El usuario con movimiento reducido se
+   * quedaba sin ninguna señal de "esto está cargando", que es justo lo que el
+   * manual prohíbe: se quita el desplazamiento, nunca el feedback.
+   *
+   * Lo que sigue no devuelve el movimiento: devuelve la señal en su forma más
+   * quieta posible, un latido de opacidad lento. Cero desplazamiento, cero
+   * escala, y suficientemente pausado (2.4 s) para no llamar la atención.
+   */
+  [class*='animate-[shimmer']::before {
+    display: none !important;
+  }
+
+  [class*='animate-[shimmer'],
+  .animate-parpadeo,
+  .animate-latido,
+  .animate-pulse,
+  .animate-brillo {
+    animation: pulsoEspera 2.4s ease-in-out infinite !important;
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
+    transform: none !important;
+  }
+
+  /* El giro de "procesando" sí se detiene —es rotación pura— pero el icono se
+     queda visible y toma el mismo latido. */
+  .animate-spin {
+    animation: pulsoEspera 2.4s ease-in-out infinite !important;
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
+    transform: none !important;
+  }
+}
+
+/*
+ * Preferencias de interfaz (ver src/context/PreferenciasContext.tsx).
+ * Se activan por atributo en <html>, así ninguna pantalla necesita saber que
+ * existen. Van fuera de @layer base a propósito: deben poder ganarle a las
+ * utilidades de Tailwind que fijan el padding de las celdas.
+ */
+
+/* Tamaño de tipografía: escala la interfaz completa, no solo el texto —
+   es lo que hace el ajuste de tamaño del sistema operativo, y evita que el
+   texto crezca dentro de contenedores que no crecen con él. */
+html[data-texto='pequeno'] #root { zoom: 0.94; }
+html[data-texto='grande'] #root { zoom: 1.1; }
+
+/* Densidad: aprieta el ritmo vertical donde de verdad se nota, que son las
+   listas largas y las tablas. Aplicarla a TODA la interfaz volvería ilegibles
+   los bloques de lectura (guías, transcripciones), que no ganan nada con ello. */
+html[data-densidad='compacta'] table td,
+html[data-densidad='compacta'] table th {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}

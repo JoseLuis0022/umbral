@@ -1,0 +1,56 @@
+/*
+ * Fuente principal de la interfaz — subsets latin y latin-ext únicamente.
+ *
+ * fontsource publica un solo CSS con los ~30 alfabetos de la familia (etíope,
+ * bengalí, jemer, telugu…), y el empaquetador se los lleva todos: cerca de
+ * 2 MB de woff2 que esta app nunca pinta, porque toda la interfaz y todo el
+ * contenido simulado están en español. Aquí se declaran a mano las cuatro
+ * caras que sí se usan — redonda y cursiva, en latin y latin-ext — copiadas
+ * del paquete a src/assets/fuentes/ para que Vite las versione con hash.
+ *
+ * PUNTO DE SUSTITUCIÓN TIPOGRÁFICA: cuando la Dirección de Comunicación
+ * Institucional entregue los archivos de la fuente institucional
+ * (Aurora) o de la auxiliar del manual (Myriad Pro), se reemplazan
+ * estos cuatro @font-face y se actualiza --aurora-fuente-principal en
+ * src/index.css. Ningún componente conoce el nombre de la familia.
+ */
+
+/* google-sans-latin-ext-wght-normal */
+@font-face {
+  font-family: 'Google Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url(./google-sans-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* google-sans-latin-wght-normal */
+@font-face {
+  font-family: 'Google Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url(./google-sans-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* google-sans-latin-ext-wght-italic */
+@font-face {
+  font-family: 'Google Sans Variable';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url(./google-sans-latin-ext-wght-italic.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* google-sans-latin-wght-italic */
+@font-face {
+  font-family: 'Google Sans Variable';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url(./google-sans-latin-wght-italic.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

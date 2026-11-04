@@ -1,0 +1,5 @@
+# Reescritura de aplicación de una sola página.
+# Sin esto, recargar el navegador en /al-dia o /admin/corpus devuelve 404:
+# el hosting busca un archivo con ese nombre y no existe, porque el
+# enrutamiento vive en el cliente. Lo leen Netlify y Cloudflare Pages.
+/*    /index.html   200
