@@ -22,11 +22,13 @@ No existe alias `@/` (pese al comentario de `src/components/ui/index.ts`): todos
 
 ## Arquitectura
 
-El `README.md` documenta a fondo el contrato con n8n, el despliegue y las convenciones de producto. Lo que sigue es solo el mapa mental que cuesta reconstruir leyendo archivos sueltos.
+Este front es la capa 1 del laboratorio de agentes; el backend vive en `../backend` (FastAPI + Claude Agent SDK). El `README.md` documenta el protocolo del chat, el despliegue y las convenciones de producto. Lo que sigue es solo el mapa mental que cuesta reconstruir leyendo archivos sueltos.
 
 ### Una sola frontera: `src/services/`
 
-**Lo único real del proyecto es `chat.service.ts`.** Todo lo demás (auth, corpus, guías, auditoría, tablero) está simulado en el frontend sobre `simulacion.ts`, que aporta latencia artificial de 200–600 ms, persistencia en `localStorage` bajo el prefijo `aurora-aldia:` y generación de ids.
+**Lo real del proyecto es el login (`auth.service.ts`) y el chat (`chat.service.ts`).** Los dos hablan con el backend por `api.ts`, que es el ÚNICO archivo que hace `fetch`: pone el token, usa la URL base `/api` (Vite la reenvía al puerto 8000) y avisa a `AuthContext` cuando el backend responde 401. Todo lo demás (corpus, guías, auditoría, tablero, lista de conversaciones) está simulado en el frontend sobre `simulacion.ts`, que aporta latencia artificial de 200–600 ms, persistencia en `localStorage` bajo el prefijo `aurora-aldia:` y generación de ids.
+
+**El rol lo decide el backend.** El front solo muestra u oculta según `useAuth()`; no existe forma de elegir o cambiar de rol desde el navegador, y no hay que reintroducirla. La identidad nunca viaja en el cuerpo de una petición: sale del token.
 
 La regla que sostiene el diseño: **ninguna pantalla toca `localStorage` ni datos semilla directamente**. Siempre va por un servicio que devuelve promesas, para que el día que exista backend se cambie el servicio y no la pantalla. Al añadir una capacidad, el servicio es el primer archivo, no el último.
 
@@ -39,18 +41,20 @@ La latencia artificial no es un descuido: sin ella los estados de carga nunca se
 ```
 Chat.tsx / AdminLaboratorio.tsx
   └─ useStreamingChat            (acumula fragmentos y los vuelca 1× por frame con rAF;
-     │                            aborta la transmisión anterior y en desmontaje)
+     │                            aborta la transmisión anterior y en desmontaje;
+     │                            traduce cada actividad a una frase con lib/actividad.ts)
      └─ chat.service.enviarMensaje
-          ├─ respuestasFijas.ts   ← GANA a los dos motores
-          ├─ POST a VITE_N8N_CHAT_URL   (si la variable existe)
-          └─ simulador interno          (si no)
+          ├─ POST /api/chat → SSE del backend   (por defecto)
+          └─ simulador local                    (VITE_CHAT_SIMULADO=1)
+             Los dos emiten los MISMOS eventos y pasan por la misma función `aplicar`.
 ```
 
-- `enviarMensaje()` **nunca lanza**: siempre resuelve un `ResultadoEnvio` (`completo | cancelado | error`).
-- El servicio detecta cuatro formas de respuesta por el **cuerpo**, no por el `Content-Type` (NDJSON en streaming, SSE, `{"output":…}` de una pieza, texto plano). La cabecera del archivo es la documentación canónica.
-- El historial **no** se manda: n8n lo guarda en su propia memoria indexada por `sessionId` (= `conversacionId`).
-- `AdminLaboratorio` **duplica a propósito** la mecánica de streaming en vez de usar `useStreamingChat`, porque el hook no expone `parametros` ni `alMetadatos`. Un cambio en el protocolo hay que aplicarlo en los dos sitios.
-- Escotilla de desarrollo: escribir **"forzar error"** en modo simulado provoca el estado de error de la pantalla.
+- El protocolo son cinco eventos SSE: `inicio`, `texto`, `actividad`, `fin`, `error`. Están tipados en `src/types/index.ts` y deben coincidir con `backend/app/protocolo.py`: **si cambias un lado, cambia el otro.**
+- `enviarMensaje()` **nunca lanza**: siempre resuelve un `ResultadoEnvio` (`completo | cancelado | error`), con `resumen` (costo y tokens medidos) cuando llegó el `fin`.
+- El historial **no** se manda: el backend reanuda la sesión del agente por `conversacionId`.
+- El chat de estudiantes **nunca muestra rutas ni nombres de herramientas**: `lib/actividad.ts` los traduce ("Leyendo el resumen de la Clase 12…"). El Laboratorio sí muestra el dato técnico, porque es una pantalla para medir.
+- `AdminLaboratorio` **duplica a propósito** la mecánica de streaming en vez de usar `useStreamingChat`, porque necesita `parametros`, el detalle de cada actividad y el consumo. Un cambio en el protocolo hay que aplicarlo en los dos sitios.
+- Escotilla de desarrollo: con `VITE_CHAT_SIMULADO=1`, escribir **"forzar error"** provoca el estado de error de la pantalla.
 
 ### Contextos: el orden importa
 
@@ -92,5 +96,6 @@ El rojo de marca `#E00034` (`bg-accent`, y `text-accent-fg` #A30026 como tinta, 
 - **`DataTable` no soporta ordenamiento nativo.** `TablaImpacto` (tablero) resuelve el clic por delegación sobre el `<th>` **usando su posición**, contra un arreglo `CAMPOS` paralelo a las columnas, y escribe `aria-sort` sobre el DOM ya renderizado. Si reordenas columnas, reordena `CAMPOS`.
 - **`tablero.service.ts` no entrega `ahorroCosto`** por fila aunque el análisis lo tenga; `TablaImpacto` lo lee de forma opcional y la columna encenderá sola cuando se agregue.
 - **Los PDF de la semilla no traen archivo** (no hay binarios en el repo): el visor muestra su estado de error a propósito.
-- **`VITE_N8N_CHAT_URL` se hornea en el bundle** al compilar. En una URL pública ese endpoint necesita autenticación o restricción por origen en n8n.
-- El acceso institucional (Entra ID / MSAL) **no está implementado**; el botón existe rotulado "Disponible en la siguiente versión". Cualquier contraseña sirve; el correo solo decide con qué perfil se entra.
+- **Todo lo `VITE_*` se hornea en el bundle** al compilar: nunca pongas un secreto en una variable `VITE_`.
+- **`chat.service.ts` se reescribió para quitar un carácter NUL** que tenía el original (un centinela `\0` del parser de n8n). Si una herramienta se niega a editar un archivo "con bytes nulos", búscalo con `tr -dc '\000' < archivo | wc -c`.
+- La base de conocimiento y la temperatura del Laboratorio **se ignoran en el backend**; los controles siguen en pantalla.
