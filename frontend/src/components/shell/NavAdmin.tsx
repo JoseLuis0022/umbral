@@ -43,7 +43,7 @@ export const ENTRADAS_ADMIN: EntradaAdmin[] = [
 ];
 
 const CLASES_ENLACE =
-  'rounded-control px-3 py-1.5 font-ui text-14 font-medium transition-colors duration-150';
+  'whitespace-nowrap rounded-control px-2.5 py-1.5 font-ui text-14 font-medium transition-colors duration-150 sm:px-3';
 
 export function NavAdmin() {
   return (
@@ -134,7 +134,10 @@ function MenuPlegado() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: dur.fast } }}
             transition={springSnappy}
-            className="absolute left-0 top-full z-50 mt-1.5 w-60 rounded-tarjeta border border-hairline bg-surface-3 p-1.5 shadow-3"
+            // En teléfono el botón queda a media barra: anclado a él, el menú
+            // se saldría por un borde u otro. Ahí se fija bajo la cabecera con
+            // el mismo margen lateral que el contenido.
+            className="fixed inset-x-4 top-16 z-50 mt-1.5 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full sm:w-60 rounded-tarjeta border border-hairline bg-surface-3 p-1.5 shadow-3"
           >
             <p className="px-2.5 pb-1 pt-1 font-ui text-12 text-text-3">{copy.administracion}</p>
             {ENTRADAS_ADMIN.map(({ a, etiqueta, icono: Icono }) => {

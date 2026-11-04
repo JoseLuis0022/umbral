@@ -70,12 +70,12 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
           navegador a mantener una capa de `backdrop-filter` de 100vw × 64 px y
           reprocesarla cada vez que algo cambiaba debajo, transiciones de ruta
           incluidas. El color no cambia: sin nada detrás, el 85 % resuelve igual. */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-hairline bg-surface-2/85 px-4 lg:px-6">
-        <div className="flex min-w-0 items-center gap-6">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-hairline bg-surface-2/85 px-4 lg:px-6">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           <NavLink to="/chat" className="shrink-0" aria-label="Ir al inicio">
             <MarcaProducto />
           </NavLink>
-          <nav className="flex min-w-0 items-center gap-1">
+          <nav className="flex min-w-0 items-center gap-0.5 sm:gap-1">
             <EnlaceNav to="/chat">{copyNav.inicio}</EnlaceNav>
             <EnlaceNav to="/al-dia">{copyNav.alDia}</EnlaceNav>
             {esAdmin && <NavAdmin />}
@@ -86,11 +86,25 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
           {/* Icono, no botón con texto: con las cinco entradas de
               administración en la barra, un botón rotulado se comía el ancho
               justo donde hace falta. `aria-label` conserva el nombre completo
-              para quien no ve el icono. */}
-          <IconButton aria-label={copyChat.nuevaSesion} title={copyChat.nuevaSesion} onClick={() => navigate('/chat')}>
+              para quien no ve el icono.
+
+              Por debajo de `md` los dos se esconden: en un teléfono no caben
+              junto a la navegación sin encimarse. "Sesión nueva" ya existe en
+              la barra del chat y Ajustes pasa al menú del avatar. */}
+          <IconButton
+            className="hidden md:inline-flex"
+            aria-label={copyChat.nuevaSesion}
+            title={copyChat.nuevaSesion}
+            onClick={() => navigate('/chat')}
+          >
             <SquarePen size={18} />
           </IconButton>
-          <IconButton aria-label={copyAjustes.titulo} title={copyAjustes.titulo} onClick={() => navigate('/ajustes')}>
+          <IconButton
+            className="hidden md:inline-flex"
+            aria-label={copyAjustes.titulo}
+            title={copyAjustes.titulo}
+            onClick={() => navigate('/ajustes')}
+          >
             <Settings size={18} />
           </IconButton>
 
@@ -140,7 +154,7 @@ function EnlaceNav({ to, children }: { to: string; children: ReactNode }) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'rounded-control px-3 py-1.5 font-ui text-14 font-medium transition-colors duration-150',
+          'whitespace-nowrap rounded-control px-2.5 py-1.5 font-ui text-14 font-medium transition-colors duration-150 sm:px-3',
           isActive ? 'bg-accent-soft text-accent-fg' : 'text-text-2 hover:bg-accent-soft hover:text-text-1'
         )
       }

@@ -654,7 +654,7 @@ export default function AdminLaboratorio() {
             className="flex min-h-0 flex-col overflow-hidden rounded-tarjeta border border-hairline bg-surface-1 shadow-1"
           >
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline px-4 py-2 lg:px-5">
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <span className="shrink-0 font-ui text-12 text-text-3">{copyLab.sesionEtiqueta}</span>
                 <code className="min-w-0 truncate font-mono text-12 text-text-2" title={sessionId}>
                   {sessionId}
@@ -669,13 +669,14 @@ export default function AdminLaboratorio() {
                 </IconButton>
               </div>
 
-              <div className="flex min-w-0 shrink items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {/* En el hueco donde antes se rotulaba el motor va ahora la base
                     consultada: en una demostración, saber CON QUÉ documentos se
                     respondió importa más que con qué pieza de infraestructura. */}
                 {corpusElegido && (
+                  // En teléfono no cabe: se lee en el cajón de Parámetros.
                   <span
-                    className="flex min-w-0 shrink items-center gap-1.5 font-ui text-12 text-text-3"
+                    className="hidden max-w-[16rem] min-w-0 shrink items-center gap-1.5 font-ui text-12 text-text-3 sm:flex"
                     title={corpusElegido.nombre}
                   >
                     <Library size={13} strokeWidth={2} className="shrink-0" aria-hidden />

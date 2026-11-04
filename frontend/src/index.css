@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 /*
- * Sistema visual de Aurora al Día.
+ * Sistema visual de Umbral.
  *
  * Mecánica tomada del sistema de diseño de SGO CUSOL (manual "Apple-Feel":
  * superficies planas + hairlines, sombras en capas, radios anidados, escala
- * tipográfica cerrada, motion por springs). Colorimetría tomada del Manual de
- * Identidad Gráfica 2024 de la Aurora — NO se copia la paleta de CUSOL.
+ * tipográfica cerrada, motion por springs). Colorimetría propia: azul cobalto
+ * de acción sobre neutros pizarra fríos — NO se copia la paleta de CUSOL.
  *
  * Solo tema claro. No responder a prefers-color-scheme.
  */
@@ -27,60 +27,61 @@
      quedar colgada de una petición al CDN de Google en cada carga. Detrás va el
      stack del sistema como respaldo, para que un fallo de carga no cambie las
      métricas de golpe. */
-  --aurora-fuente-principal: 'Google Sans Variable', -apple-system, BlinkMacSystemFont,
+  --umbral-fuente-principal: 'Google Sans Variable', -apple-system, BlinkMacSystemFont,
     'SF Pro Text', system-ui, sans-serif;
-  --aurora-fuente-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  --umbral-fuente-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
 
-  /* Superficies — la neutra es CÁLIDA (derivada de Warm Gray 9 C), no el gris
-     azulado de macOS. Es la diferencia que hace que el sistema se sienta de la
-     Aurora y no un clon de CUSOL con otro acento. */
-  --bg: #f7f6f4;          /* piedra-50  — lienzo de la app */
+  /* Superficies — neutra FRÍA (escala pizarra), con un punto de azul para que
+     el lienzo y el acento cobalto se lean como una sola familia. */
+  --bg: #f5f7fa;          /* pizarra-50 — lienzo de la app */
   --surface-1: #ffffff;   /* tarjetas, filas, sidebar */
   --surface-2: #ffffff;   /* barras fijas (topbar) */
   --surface-3: #ffffff;   /* capas flotantes (modal, drawer, toast) */
 
-  /* Hairlines teñidos de cálido, nunca negro puro al 10% */
-  --hairline: rgba(35, 32, 29, 0.09);
-  --hairline-strong: rgba(35, 32, 29, 0.14); /* separador de fila en tablas densas */
+  /* Hairlines teñidos de pizarra, nunca negro puro al 10% */
+  --hairline: rgba(22, 28, 39, 0.09);
+  --hairline-strong: rgba(22, 28, 39, 0.14); /* separador de fila en tablas densas */
 
   /* Texto — jerarquía por peso y tamaño; el color solo separa 3 niveles.
      text-1 y text-2 cumplen AA sobre --surface-1; text-3 es exclusivamente
      para texto no esencial (metadatos, placeholders, sufijos). */
-  --text-1: #23201d; /* piedra-900 */
-  --text-2: #6b625a; /* piedra-600 */
-  --text-3: #aba49b; /* piedra-400 */
+  --text-1: #161c27; /* pizarra-900 */
+  --text-2: #535e70; /* pizarra-600 */
+  --text-3: #97a1b2; /* pizarra-400 */
 
   /* Marca / acción primaria.
-     --accent es el rojo institucional Pantone 185 C, sin desaturar: viste
-     rellenos (botón primario, píldora activa, indicador de tab).
-     --accent-fg es el mismo rojo bajado a 700 para TEXTO e ICONOS sobre fondo
-     claro — #E00034 sobre blanco queda por debajo de 4.5:1 y un enlace en ese
-     tono falla AA. Regla: relleno → --accent; tinta → --accent-fg. */
-  --accent: #e00034;
-  --accent-fg: #a30026;
-  --accent-strong: #a30026; /* hover / pressed de acciones primarias */
-  --accent-soft: rgba(224, 0, 52, 0.09);
+     --accent es el azul cobalto (azul-500): viste rellenos (botón primario,
+     píldora activa, indicador de tab); el texto blanco encima pasa AA (5.4:1).
+     --accent-fg es el mismo azul bajado a 700 para TEXTO e ICONOS sobre fondo
+     claro, con margen holgado sobre 4.5:1 también en superficies teñidas.
+     Regla: relleno → --accent; tinta → --accent-fg. */
+  --accent: #2f5fe4;
+  --accent-fg: #1d41a3;
+  --accent-strong: #1d41a3; /* hover / pressed de acciones primarias */
+  --accent-soft: rgba(47, 95, 228, 0.09);
 
   /* Semántica de estatus. El rojo de RIESGO es deliberadamente terroso y
-     apagado (#8F2E22): si el peligro usara el rojo de marca, el mismo color
+     apagado (#8F2E22): si el peligro usara el color de marca, el mismo color
      significaría "haz clic aquí" y "cuidado con esto" en la misma pantalla.
+     Por la misma razón el azul INFORMATIVO es petróleo (#17707F) y no cobalto:
+     un aviso no debe leerse como un botón.
      Todo indicador de estatus refuerza además con forma e icono, nunca color solo. */
   --status-green: #1e7a4f;
   --status-green-soft: rgba(30, 122, 79, 0.11);
-  --status-blue: #1f5f8b;
-  --status-blue-soft: rgba(31, 95, 139, 0.1);
+  --status-blue: #17707f;
+  --status-blue-soft: rgba(23, 112, 127, 0.1);
   --status-amber: #8a5a00;
   --status-amber-soft: rgba(138, 90, 0, 0.11);
   --status-red: #8f2e22;
   --status-red-soft: rgba(143, 46, 34, 0.1);
-  --status-gray: #6b625a;
-  --status-gray-soft: rgba(107, 98, 90, 0.09);
+  --status-gray: #535e70;
+  --status-gray-soft: rgba(83, 94, 112, 0.09);
 
   /* Sombras en capas (2 sombras superpuestas, nunca una sola dura) y teñidas
-     de cálido para no ensuciar los fondos piedra. */
-  --shadow-1: 0 1px 2px rgba(35, 32, 29, 0.05), 0 1px 3px rgba(35, 32, 29, 0.06);
-  --shadow-2: 0 2px 4px rgba(35, 32, 29, 0.05), 0 4px 12px rgba(35, 32, 29, 0.09);
-  --shadow-3: 0 8px 16px rgba(35, 32, 29, 0.07), 0 16px 40px rgba(35, 32, 29, 0.14);
+     de pizarra para no ensuciar los fondos fríos. */
+  --shadow-1: 0 1px 2px rgba(22, 28, 39, 0.05), 0 1px 3px rgba(22, 28, 39, 0.06);
+  --shadow-2: 0 2px 4px rgba(22, 28, 39, 0.05), 0 4px 12px rgba(22, 28, 39, 0.09);
+  --shadow-3: 0 8px 16px rgba(22, 28, 39, 0.07), 0 16px 40px rgba(22, 28, 39, 0.14);
 }
 
 /*
@@ -104,7 +105,7 @@
   body {
     background-color: var(--bg);
     color: var(--text-1);
-    font-family: var(--aurora-fuente-principal);
+    font-family: var(--umbral-fuente-principal);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: none;

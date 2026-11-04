@@ -22,7 +22,7 @@ import { FichaAdjunto } from './BarraEntrada';
  * tablas, y una tabla dentro de una burbuja con esquinas redondeadas se ve
  * apretada y obliga a un scroll horizontal innecesario.
  *
- * El rojo de marca no aparece en ninguna de las dos. Si la burbuja del usuario
+ * El color de marca no aparece en ninguna de las dos. Si la burbuja del usuario
  * fuera roja competiría con el botón de enviar, y en esta pantalla el único
  * rojo sólido es ese botón.
  */

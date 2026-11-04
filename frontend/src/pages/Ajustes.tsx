@@ -152,7 +152,7 @@ export default function Ajustes() {
   if (!usuario) return null;
 
   /**
-   * Restablecer borra TODO el almacenamiento con prefijo `aurora-aldia:`, lo que
+   * Restablecer borra TODO el almacenamiento con prefijo `umbral:`, lo que
    * incluye la sesión. Por eso recarga en /login: dejar la app en pie con una
    * sesión que ya no existe en el almacenamiento produce una pantalla a medias
    * imposible de explicar en una demostración.
@@ -174,7 +174,7 @@ export default function Ajustes() {
 
   return (
     <>
-      <PageEnter className="mx-auto flex max-w-2xl flex-col gap-8">
+      <PageEnter className="mx-auto w-full flex max-w-2xl flex-col gap-8">
         <PageHeader
           title={copy.titulo}
           subtitle={copy.subtitulo}

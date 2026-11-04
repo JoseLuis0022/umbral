@@ -47,7 +47,7 @@ export const PARAMETROS_POR_DEFECTO: ParametrosLab = {
   systemPrompt: '',
 };
 
-/** Clave de localStorage (el hook le antepone el prefijo `aurora-aldia:`). */
+/** Clave de localStorage (el hook le antepone el prefijo `umbral:`). */
 export const CLAVE_PARAMETROS = 'laboratorio:parametros';
 
 /**

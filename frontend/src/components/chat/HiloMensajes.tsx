@@ -168,7 +168,7 @@ export function HiloMensajes({
 
               {/* El error no borra lo que ya se leyó: el fragmento parcial se
                   queda arriba y el aviso se suma debajo con el reintento.
-                  Tono rojo de RIESGO (--status-red), nunca el rojo de marca. */}
+                  Tono rojo de RIESGO (--status-red), nunca el color de marca. */}
               {error && (
                 <div role="alert">
                   <Banner

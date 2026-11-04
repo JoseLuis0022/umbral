@@ -80,7 +80,7 @@ export function Field({
 }
 
 // h-10 / px-3.5: con aire suficiente para el pulgar sin llegar a verse
-// hinchado. El anillo de foco es el rojo de marca al 9%, no un halo azul.
+// hinchado. El anillo de foco es el azul de marca al 9%, no el halo del navegador.
 const baseInput =
   'h-10 w-full rounded-control border border-hairline bg-surface-1 px-3.5 font-ui text-15 text-text-1 placeholder:text-text-3 transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft';
 

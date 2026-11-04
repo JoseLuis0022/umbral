@@ -13,7 +13,7 @@ import type { Rol } from '../types';
 
 export const marca = {
   nombre: 'Umbral',
-  universidad: 'Universidad Aurora Ciudad de México',
+  universidad: 'Universidad Aurora',
   descriptor: 'Asistente interno',
 };
 

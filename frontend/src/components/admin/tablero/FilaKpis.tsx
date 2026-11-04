@@ -133,7 +133,7 @@ export function FilaKpis({ resumen, periodoEtiqueta }: { resumen: ResumenTablero
       />
 
       {/*
-        El riesgo NO puede vestir el rojo de marca. `KpiCard` fija el badge del
+        El riesgo NO puede vestir el color de marca. `KpiCard` fija el badge del
         icono en `bg-accent-soft`/`text-accent-fg`, así que aquí se repinta al
         rojo terroso de estatus mediante el hijo — es un parche local a la
         espera de que `KpiCard` acepte un `tono` (ver reporte). Cuando no hay

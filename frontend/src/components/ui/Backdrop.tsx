@@ -40,11 +40,11 @@ export function Backdrop({ onClick, className }: { onClick?: () => void; classNa
   return (
     <div
       className={cn(
-        'absolute inset-0 backdrop-blur-xl transition-opacity duration-200 ease-aurora',
+        'absolute inset-0 backdrop-blur-xl transition-opacity duration-200 ease-umbral',
         visible ? 'opacity-100' : 'opacity-0',
         className
       )}
-      style={{ backgroundColor: 'rgba(35, 32, 29, 0.28)' }}
+      style={{ backgroundColor: 'rgba(22, 28, 39, 0.28)' }}
       onClick={onClick}
       aria-hidden
     />

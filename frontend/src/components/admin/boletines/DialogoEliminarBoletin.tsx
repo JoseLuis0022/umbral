@@ -21,7 +21,7 @@ const TEXTO = {
  * Confirmación de retiro.
  *
  * El botón peligroso NOMBRA la acción ("Eliminar boletín", no "Sí") y usa
- * `variant="destructive"`, que es el rojo terroso de estatus: el rojo de marca
+ * `variant="destructive"`, que es el rojo terroso de estatus: el color de marca
  * sigue significando "acción principal", nunca "cuidado".
  *
  * El título del boletín se repite dentro del diálogo porque el editor queda

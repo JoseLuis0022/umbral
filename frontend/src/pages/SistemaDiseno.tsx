@@ -45,10 +45,10 @@ export function SistemaDiseno() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <PageEnter className="mx-auto flex max-w-[1400px] flex-col gap-8 px-4 py-8 lg:px-8">
+      <PageEnter className="mx-auto w-full flex max-w-[1400px] flex-col gap-8 px-4 py-8 lg:px-8">
         <PageHeader
           title="Sistema de diseño"
-          subtitle="Referencia viva · identidad Aurora sobre la mecánica Apple-feel de CUSOL"
+          subtitle="Referencia viva · identidad Umbral sobre la mecánica Apple-feel de CUSOL"
           actions={
             <>
               <Button variant="secondary" size="sm" onClick={() => push({ message: 'Exportando referencia…' })}>
@@ -65,14 +65,14 @@ export function SistemaDiseno() {
           Todo lo que ves aquí usa los tokens de <strong>src/index.css</strong>. Cambia una variable y se repinta la app entera.
         </Banner>
 
-        <Seccion titulo="Color" descripcion="Rojo Pantone 185 C para marca y acción. El riesgo usa un rojo terroso aparte, para que un mismo color nunca signifique 'haz clic' y 'cuidado'.">
+        <Seccion titulo="Color" descripcion="Azul cobalto para marca y acción. El riesgo usa un rojo terroso y la información un azul petróleo, para que un mismo color nunca signifique 'haz clic' y 'cuidado'.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Muestra nombre="accent" valor="#E00034" clase="bg-accent" />
-            <Muestra nombre="accent-fg" valor="#A30026" clase="bg-accent-strong" />
+            <Muestra nombre="accent" valor="#2F5FE4" clase="bg-accent" />
+            <Muestra nombre="accent-fg" valor="#1D41A3" clase="bg-accent-strong" />
             <Muestra nombre="riesgo" valor="#8F2E22" clase="bg-status-red" />
             <Muestra nombre="éxito" valor="#1E7A4F" clase="bg-status-green" />
             <Muestra nombre="aviso" valor="#8A5A00" clase="bg-status-amber" />
-            <Muestra nombre="info" valor="#1F5F8B" clase="bg-status-blue" />
+            <Muestra nombre="info" valor="#17707F" clase="bg-status-blue" />
           </div>
         </Seccion>
 
@@ -96,7 +96,7 @@ export function SistemaDiseno() {
           </Card>
         </Seccion>
 
-        <Seccion titulo="Elevación y radios" descripcion="Tres capas de sombra, cada una con dos sombras superpuestas y teñidas de cálido. Los radios se anidan: modal › tarjeta › control › celda.">
+        <Seccion titulo="Elevación y radios" descripcion="Tres capas de sombra, cada una con dos sombras superpuestas y teñidas de pizarra. Los radios se anidan: modal › tarjeta › control › celda.">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-tarjeta bg-surface-1 p-6 shadow-1">
               <p className="font-ui text-14 font-semibold text-text-1">Elevación 1</p>
@@ -180,7 +180,7 @@ export function SistemaDiseno() {
           </Card>
         </Seccion>
 
-        <Seccion titulo="Formularios" descripcion="Validación incremental, al salir del campo. El anillo de foco es el rojo de marca al 9%, no un halo azul de navegador.">
+        <Seccion titulo="Formularios" descripcion="Validación incremental, al salir del campo. El anillo de foco es el color de marca al 9%, no un halo azul de navegador.">
           <Card className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
             <Field label="Nombre del corpus" required hint="Aparece en la tarjeta de administración.">
               <Input placeholder="Gobernanza de IA" valid />

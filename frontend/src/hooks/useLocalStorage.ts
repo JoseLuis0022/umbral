@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { leer, escribir } from '../services/simulacion';
 
 /**
- * Estado de React respaldado en localStorage, bajo el prefijo `aurora-aldia:`.
+ * Estado de React respaldado en localStorage, bajo el prefijo `umbral:`.
  * Para preferencias de interfaz que deben sobrevivir al refresh (panel lateral
  * colapsado, densidad, orden de las guías).
  */

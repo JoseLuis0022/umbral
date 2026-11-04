@@ -8,10 +8,8 @@
  * caras que sí se usan — redonda y cursiva, en latin y latin-ext — copiadas
  * del paquete a src/assets/fuentes/ para que Vite las versione con hash.
  *
- * PUNTO DE SUSTITUCIÓN TIPOGRÁFICA: cuando la Dirección de Comunicación
- * Institucional entregue los archivos de la fuente institucional
- * (Aurora) o de la auxiliar del manual (Myriad Pro), se reemplazan
- * estos cuatro @font-face y se actualiza --aurora-fuente-principal en
+ * PUNTO DE SUSTITUCIÓN TIPOGRÁFICA: para cambiar de familia, se reemplazan
+ * estos cuatro @font-face y se actualiza --umbral-fuente-principal en
  * src/index.css. Ningún componente conoce el nombre de la familia.
  */
 

@@ -11,8 +11,8 @@ type MotionSafeButtonProps = Omit<
   'onAnimationStart' | 'onAnimationEnd' | 'onDrag' | 'onDragStart' | 'onDragEnd'
 >;
 
-// El rojo institucional sólido se reserva para la acción PRIMARIA. Si dos
-// botones rojos compiten en la misma pantalla, ninguno es primario.
+// El azul de marca sólido se reserva para la acción PRIMARIA. Si dos
+// botones azules compiten en la misma pantalla, ninguno es primario.
 const VARIANTS = {
   primary:
     'bg-accent text-white shadow-1 hover:bg-accent-strong hover:shadow-2 disabled:bg-bg disabled:text-text-3 disabled:shadow-none disabled:border disabled:border-hairline',

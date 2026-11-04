@@ -28,7 +28,7 @@ export function RutaProtegida({ children, soloAdmin }: { children: ReactNode; so
 
   if (soloAdmin && !esAdmin) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-16">
+      <div className="mx-auto w-full max-w-xl px-4 py-16">
         <div className="rounded-tarjeta border border-hairline bg-surface-1">
           <EmptyState
             icon={ShieldAlert}

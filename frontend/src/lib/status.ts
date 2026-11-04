@@ -3,7 +3,7 @@
 // Regla del sistema: NINGÚN componente decide un color comparando strings por
 // su cuenta. Todo valor de estatus que aparezca en cualquier pantalla se
 // resuelve aquí a una de 5 familias. Cuando se defina el vocabulario de
-// estatus definitivo de Aurora al Día, se agrega aquí y toda la app lo hereda.
+// estatus definitivo de Umbral, se agrega aquí y toda la app lo hereda.
 
 export type StatusFamily = 'green' | 'blue' | 'amber' | 'red' | 'gray';
 

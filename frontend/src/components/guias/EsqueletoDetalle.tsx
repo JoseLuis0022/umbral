@@ -18,7 +18,7 @@ import { Skeleton } from '../ui';
  */
 export function EsqueletoDetalle({ conCabecera = true }: { conCabecera?: boolean } = {}) {
   return (
-    <div className="mx-auto flex max-w-[44rem] flex-col">
+    <div className="mx-auto w-full flex max-w-[44rem] flex-col">
       {conCabecera && (
         <>
           <Skeleton className="h-8 w-28 rounded-control" />

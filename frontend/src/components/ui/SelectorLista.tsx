@@ -337,7 +337,7 @@ export function SelectorLista<T>({
           strokeWidth={2}
           aria-hidden
           className={cn(
-            'shrink-0 text-text-3 transition-transform duration-150 ease-aurora',
+            'shrink-0 text-text-3 transition-transform duration-150 ease-umbral',
             abierto && 'rotate-180'
           )}
         />

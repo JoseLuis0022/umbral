@@ -167,7 +167,7 @@ export function EditorSystemPrompt({
             <Button variant="secondary" size="sm" onClick={() => setConfirmando(false)}>
               {copyLab.editorDescartarNo}
             </Button>
-            {/* `destructive` y no el rojo de marca: descartar es una pérdida, no
+            {/* `destructive` y no el color de marca: descartar es una pérdida, no
                 la acción que la pantalla quiere que hagas. */}
             <Button variant="destructive" size="sm" onClick={descartar}>
               {copyLab.editorDescartarSi}

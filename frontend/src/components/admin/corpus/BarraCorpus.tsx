@@ -80,10 +80,12 @@ export function BarraCorpus({
         )}
       </div>
 
-      {/* Altura fija: el hueco existe siempre, se llene o no. */}
-      <div className="flex h-9 items-center gap-3">
+      {/* Altura fija: el hueco existe siempre, se llene o no. En teléfono la
+          fila baja completa bajo el título y la barra de progreso cede ancho
+          antes que el botón: si no, el botón se sale de la tarjeta. */}
+      <div className="flex h-9 w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
         {indexando > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="whitespace-nowrap font-ui text-12 tabular-nums text-status-blue">
               {textos.indexando(indexando)}
             </span>
@@ -93,7 +95,7 @@ export function BarraCorpus({
               aria-valuenow={progreso}
               aria-valuemin={0}
               aria-valuemax={100}
-              className="h-1 w-20 overflow-hidden rounded-full bg-status-blue-soft"
+              className="h-1 w-20 shrink overflow-hidden rounded-full bg-status-blue-soft"
             >
               <motion.div
                 className="h-full w-full origin-left rounded-full bg-status-blue"

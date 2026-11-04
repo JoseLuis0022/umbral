@@ -98,7 +98,10 @@ export function EditorBoletin({
           <ArrowLeft size={18} />
         </IconButton>
 
-        <div className="min-w-0 flex-1">
+        {/* En teléfono el título se queda con su renglón (junto a la flecha) y
+            las acciones bajan al siguiente, alineadas a la derecha: compartir
+            fila dejaba el título en tres letras y unos puntos suspensivos. */}
+        <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-0">
           {/* tabIndex -1: destino de foco al abrir, no parada del tabulador. */}
           <h2
             ref={encabezado}
@@ -113,7 +116,7 @@ export function EditorBoletin({
           <p className="truncate font-ui text-12 text-text-3">{estadoLinea}</p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <AnimatePresence initial={false}>
             {sucio && (
               <motion.span
@@ -133,7 +136,7 @@ export function EditorBoletin({
           <Button variant="ghost" size="sm" type="button" onClick={onDescartar} disabled={!sucio || guardando}>
             {copy.descartar}
           </Button>
-          {/* Único relleno rojo interactivo de la pantalla. */}
+          {/* Único relleno de acento interactivo de la pantalla. */}
           <Button variant="primary" size="sm" type="button" onClick={onGuardar} disabled={!sucio} loading={guardando}>
             {esNuevo ? TEXTO.publicar : copy.guardarCambios}
           </Button>

@@ -62,7 +62,7 @@ export const copyLab = {
   instruccionesEditar: 'Editar instrucciones',
   instruccionesAbrir: 'Abrir el editor de instrucciones del sistema',
   instruccionesPlaceholder:
-    'Eres el asistente de gobernanza de la Aurora. Responde en español, cita la normativa aplicable y di cuándo no estás seguro…',
+    'Eres el asistente de gobernanza de la Universidad Aurora. Responde en español, cita la normativa aplicable y di cuándo no estás seguro…',
   instruccionesGuardadas: 'Instrucciones guardadas.',
   contador: (usados: number, tope: number) => `${usados} / ${tope} caracteres`,
   contadorCasiLleno: 'Te quedan pocos caracteres.',
