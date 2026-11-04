@@ -207,6 +207,7 @@ async def _consultar_sdk(
                     registro.sesion_sdk = m.data.get("session_id")
                     registro.modelo = m.data.get("model")
                     registro.fuente_llave = m.data.get("apiKeySource")
+                    log.info("sesión %s · modelo %s · credencial %s", registro.sesion_sdk, registro.modelo, registro.fuente_llave)
                     if registro.fuente_llave not in (None, "ANTHROPIC_API_KEY"):
                         log.warning("El agente no está usando la API key del laboratorio: %s", registro.fuente_llave)
                 continue
