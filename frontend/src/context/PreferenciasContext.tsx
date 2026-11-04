@@ -61,14 +61,14 @@ const DEFECTOS = {
 const CSS_PREFERENCIAS = `
 /* Contraste alto: sube los dos niveles de texto secundario y engrosa los
    hairlines. Se toca la VARIABLE, no los componentes, así que la app entera
-   cambia sin que ninguna pantalla se entere. text-3 pasa a ser el gris
-   institucional (#82786F → aquí #6B625A) porque el #ABA49B de reposo es
-   deliberadamente tenue y no llega a 4.5:1. */
+   cambia sin que ninguna pantalla se entere. text-3 pasa a pizarra-600
+   (#535E70) porque el #97A1B2 de reposo es deliberadamente tenue y no llega
+   a 4.5:1. */
 html[data-contraste='alto'] {
-  --text-2: #4a433d;
-  --text-3: #6b625a;
-  --hairline: rgba(35, 32, 29, 0.18);
-  --hairline-strong: rgba(35, 32, 29, 0.3);
+  --text-2: #3e4757;
+  --text-3: #535e70;
+  --hairline: rgba(22, 28, 39, 0.18);
+  --hairline-strong: rgba(22, 28, 39, 0.3);
 }
 
 /* Movimiento reducido forzado. Es la misma red de seguridad que ya tiene

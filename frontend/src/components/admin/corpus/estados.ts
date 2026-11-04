@@ -11,7 +11,7 @@ import { admin as copy } from '../../../copy';
  * nunca se genera y el elemento sale sin color, sin ningún error en consola ni
  * en el typecheck. Es el bug más caro de encontrar de todo el stack.
  *
- * El error usa `status-red` (#8F2E22, terroso) y jamás el rojo de marca: si el
+ * El error usa `status-red` (#8F2E22, terroso) y jamás el color de marca: si el
  * peligro y la acción primaria compartieran color, el mismo rojo significaría
  * "haz clic aquí" y "algo salió mal" en la misma pantalla.
  */

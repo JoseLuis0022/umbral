@@ -19,7 +19,10 @@ export function BarraAnalisis({ titulo, analisis }: { titulo: string; analisis?:
         // En móvil los tres indicadores se reparten el ancho; en escritorio se
         // agrupan a la derecha separados por hairlines verticales, para que se
         // lean como un solo bloque de veredicto y no como tres tarjetas.
-        <div className="grid shrink-0 grid-cols-3 gap-3 lg:flex lg:items-center lg:gap-0 lg:divide-x lg:divide-hairline">
+        // Por debajo de `sm` el icono de cada indicador se oculta (el primer
+        // <span> de IndicadorAnalisis): a 393 px, icono + "Ahorro de tiempo"
+        // no caben en un tercio del ancho y el tercero se salía de la tarjeta.
+        <div className="grid shrink-0 grid-cols-3 gap-2 sm:gap-3 lg:flex [&>*>span:first-child]:hidden sm:[&>*>span:first-child]:flex lg:items-center lg:gap-0 lg:divide-x lg:divide-hairline">
           <IndicadorAnalisis clase="riesgo" etiqueta={copy.riesgo} nivel={analisis.riesgo} className="lg:pr-5" />
           <IndicadorAnalisis
             clase="ahorroTiempo"

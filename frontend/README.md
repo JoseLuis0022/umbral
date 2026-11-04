@@ -1,6 +1,6 @@
 # Umbral
 
-Asistente interno de la **Universidad Aurora Ciudad de México**, para
+Asistente interno de la **Universidad Aurora**, para
 personal administrativo y profesorado. Resuelve dudas del día a día sobre las
 herramientas institucionales (Copilot, Outlook, Teams, Brightspace) y sobre la
 política de IA de la Universidad, y publica guías cortas en la sección *Al día*.
@@ -165,7 +165,7 @@ guías y métricas. Los servicios simulados comparten tres reglas
 
 - **Latencia artificial de 200–600 ms**, a propósito. Sin ella los estados de
   carga nunca se ven y se acaban construyendo pantallas que no los contemplan.
-- **Persistencia en `localStorage`** bajo el prefijo `aurora-aldia:`. Lo que
+- **Persistencia en `localStorage`** bajo el prefijo `umbral:`. Lo que
   cambias sobrevive al refresh. *Ajustes → Restablecer datos de demostración*
   borra todas esas claves y devuelve la app a su semilla.
 - **La pantalla nunca toca `localStorage`**: siempre va por el servicio, que
@@ -320,11 +320,11 @@ Son deliberadas y conviene respetarlas.
 - **Una sola familia tipográfica** (Google Sans, autoalojada con fontsource —
   la app es interna y no puede colgar de una petición al CDN de Google). La
   jerarquía se construye con tamaño y peso, nunca cambiando de letra.
-- **El rojo de marca (#E00034) nunca significa riesgo.** Viste la marca y las
-  acciones primarias; el riesgo usa `--status-red` (#8F2E22), un rojo terroso
-  aparte. Un mismo color no puede querer decir "haz clic" y "cuidado". Como
-  relleno va `bg-accent`; como tinta, `text-accent-fg` (#A30026), porque el rojo
-  institucional sobre blanco no llega a 4.5:1 como texto. **Un solo botón
+- **El azul de marca (#2F5FE4) nunca significa estatus.** Viste la marca y las
+  acciones primarias; el riesgo usa `--status-red` (#8F2E22), un rojo terroso,
+  y la información `--status-blue` (#17707F), un azul petróleo. Un mismo color
+  no puede querer decir "haz clic" y "cuidado". Como relleno va `bg-accent`;
+  como tinta, `text-accent-fg` (#1D41A3), más oscuro para holgura de contraste. **Un solo botón
   primario por pantalla.**
 - **Solo tema claro.** No se responde a `prefers-color-scheme` ni se
   reintroduce un bloque de modo oscuro sin pedirlo.

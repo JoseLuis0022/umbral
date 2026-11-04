@@ -1,70 +1,67 @@
 /** @type {import('tailwindcss').Config} */
 
 /*
- * Tokens de color tomados del Manual de Identidad Gráfica 2024 de la
- * Universidad Aurora Ciudad de México.
+ * Tokens de color del sistema: azul cobalto de acción sobre neutros pizarra.
  *
- * Colores institucionales (restricción dura, no modificar):
- *   rojo   #E00034  Pantone 185 C   — color primario de marca
- *   gris   #82786F  Warm Gray 9 C   — texto secundario
- *   negro  #000000  negro puro      — el manual pide negro, no negro tintado
+ * Colores de marca:
+ *   azul     #2F5FE4  azul-500     — color primario de marca y acción
+ *   pizarra  #6E7A8D  pizarra-500  — neutro de referencia de la escala fría
  *
- * DECISIÓN DE DISEÑO — rojo de marca vs. rojo semántico
- * -----------------------------------------------------
- * El rojo institucional (#E00034) identifica a la marca y viste las acciones
+ * DECISIÓN DE DISEÑO — azul de marca vs. colores semánticos
+ * ---------------------------------------------------------
+ * El azul de marca (#2F5FE4) identifica al producto y viste las acciones
  * primarias de la interfaz (botón "Enviar", "Guardar cambios", elemento activo).
- * Si además lo usáramos para señalar peligro o riesgo alto, el mismo color
- * significaría dos cosas opuestas en la misma pantalla: "haz clic aquí" y
- * "cuidado con esto". Por eso el riesgo se comunica con `semantic.riesgo`
- * (#8F2E22), un rojo terroso claramente más apagado y oscuro, imposible de
- * confundir con el rojo de marca aun de reojo. Los indicadores de riesgo
- * refuerzan además la codificación con forma e icono, nunca solo con color.
+ * Si un estatus compartiera ese tono, el mismo color significaría dos cosas en
+ * la misma pantalla: "haz clic aquí" y "fíjate en esto". Por eso el riesgo usa
+ * `semantic.riesgo` (#8F2E22), un rojo terroso, y la información
+ * `semantic.info` (#17707F), un azul petróleo claramente más verde y apagado
+ * que el cobalto. Los indicadores refuerzan además con forma e icono, nunca
+ * solo con color.
  *
  * ESTRUCTURA DEL TEMA
  * -------------------
  * Hay dos familias de tokens y sirven para cosas distintas:
  *
- *   `aurora.*` / `semantic.*` — la PALETA de marca, con sus escalas completas.
+ *   `marca.*` / `semantic.*` — la PALETA de marca, con sus escalas completas.
  *     Es la fuente de verdad documental y se usa en piezas de marca puntuales.
  *
  *   `bg` / `surface` / `text` / `hairline` / `accent` / `status` — los tokens
  *     SEMÁNTICOS de interfaz, apuntando a variables CSS de src/index.css. Es lo
- *     que usan los componentes: un componente nunca dice "rojo-500", dice
- *     "accent"; nunca dice "piedra-600", dice "text-2". Cambiar un valor en
+ *     que usan los componentes: un componente nunca dice "azul-500", dice
+ *     "accent"; nunca dice "pizarra-600", dice "text-2". Cambiar un valor en
  *     index.css repinta la app entera sin tocar un solo componente.
  *
  * La mecánica no cromática (escala tipográfica cerrada, radios anidados,
  * elevación en 3 capas, curvas de motion) viene del sistema de SGO CUSOL.
  */
 
-const rojo = {
-  DEFAULT: '#E00034',
-  50: '#FFF1F4',
-  100: '#FFE1E7',
-  200: '#FFC4D0',
-  300: '#FF97AC',
-  400: '#F85277',
-  500: '#E00034',
-  600: '#C4002D',
-  700: '#A30026', // hover / pressed de acciones primarias, y tinta de enlaces
-  800: '#7D001D',
-  900: '#5A0015',
+const azul = {
+  DEFAULT: '#2F5FE4',
+  50: '#EEF3FE',
+  100: '#DCE6FD',
+  200: '#BCCFFB',
+  300: '#8EADF7',
+  400: '#5B85F0',
+  500: '#2F5FE4',
+  600: '#2450C8',
+  700: '#1D41A3', // hover / pressed de acciones primarias, y tinta de enlaces
+  800: '#1A3682',
+  900: '#152A61',
 };
 
-// Escala neutra cálida derivada de Warm Gray 9 C (#82786F): fondos,
-// bordes y superficies. El 500 es exactamente el gris institucional.
-const piedra = {
-  25: '#FCFBFA',
-  50: '#F7F6F4',
-  100: '#EFEDEA',
-  200: '#E3DFDA',
-  300: '#CFC9C2',
-  400: '#ABA49B',
-  500: '#82786F',
-  600: '#6B625A',
-  700: '#544E48',
-  800: '#3B3631',
-  900: '#23201D',
+// Escala neutra fría con un punto de azul: fondos, bordes y superficies.
+const pizarra = {
+  25: '#FBFCFD',
+  50: '#F5F7FA',
+  100: '#ECEFF4',
+  200: '#DEE3EB',
+  300: '#C7CFDB',
+  400: '#97A1B2',
+  500: '#6E7A8D',
+  600: '#535E70',
+  700: '#3E4757',
+  800: '#2A313D',
+  900: '#161C27',
 };
 
 export default {
@@ -111,7 +108,7 @@ export default {
     },
 
     // Elevación en 3 capas. Cada nivel son DOS sombras superpuestas (nunca una
-    // sola dura) y todas teñidas de cálido: 1 reposo, 2 hover, 3 flotante.
+    // sola dura) y todas teñidas de pizarra: 1 reposo, 2 hover, 3 flotante.
     boxShadow: {
       1: 'var(--shadow-1)',
       2: 'var(--shadow-2)',
@@ -122,17 +119,15 @@ export default {
     extend: {
       colors: {
         // — Paleta de marca (documental) —
-        aurora: {
-          rojo,
-          gris: '#82786F',
-          negro: '#000000',
-          piedra,
+        marca: {
+          azul,
+          pizarra,
         },
         semantic: {
           riesgo: { DEFAULT: '#8F2E22', 50: '#FBF0EE', 100: '#F5DDD9', 700: '#6E2119' },
           exito: { DEFAULT: '#1E7A4F', 50: '#EBF6F0', 100: '#D3EBE0', 700: '#155C3B' },
           aviso: { DEFAULT: '#8A5A00', 50: '#FBF3E4', 100: '#F4E4C4', 700: '#6B4600' },
-          info: { DEFAULT: '#1F5F8B', 50: '#ECF3F8', 100: '#D3E4F0', 700: '#174A6D' },
+          info: { DEFAULT: '#17707F', 50: '#EAF5F6', 100: '#CFE8EB', 700: '#11545F' },
         },
 
         // — Tokens semánticos de interfaz (lo que usan los componentes) —
@@ -174,14 +169,14 @@ export default {
         // UNA sola familia para todo (Google Sans): interfaz, títulos, cuerpo,
         // texto del agente y documentos. La jerarquía se construye con tamaño y
         // peso, no cambiando de letra.
-        sans: ['var(--aurora-fuente-principal)'],
-        ui: ['var(--aurora-fuente-principal)'],
-        mono: ['var(--aurora-fuente-mono)'],
+        sans: ['var(--umbral-fuente-principal)'],
+        ui: ['var(--umbral-fuente-principal)'],
+        mono: ['var(--umbral-fuente-mono)'],
       },
 
       transitionTimingFunction: {
         // Curva única de la app para transiciones CSS (las de JS usan springs).
-        aurora: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        umbral: 'cubic-bezier(0.32, 0.72, 0, 1)',
       },
 
       keyframes: {

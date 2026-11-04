@@ -38,7 +38,7 @@ export function Interruptor({
       <span
         className={cn(
           'relative block h-[26px] w-11 rounded-full transition-colors duration-150',
-          encendido ? 'bg-accent' : 'bg-aurora-piedra-300'
+          encendido ? 'bg-accent' : 'bg-marca-pizarra-300'
         )}
       >
         <motion.span

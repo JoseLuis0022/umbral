@@ -180,7 +180,7 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
             <Button variant="secondary" size="sm" onClick={() => setEliminando(null)}>
               {copyLocal.cancelar}
             </Button>
-            {/* Destructivo con --status-red, nunca con el rojo de marca. */}
+            {/* Destructivo con --status-red, nunca con el color de marca. */}
             <Button
               variant="destructive"
               size="sm"

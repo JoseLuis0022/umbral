@@ -45,7 +45,7 @@ export function VistaPreviaBoletin({ guia }: { guia: Guia }) {
     .filter((_, i) => guia.pasos[i].titulo.trim() || guia.pasos[i].contenido.trim());
 
   return (
-    <div className="mx-auto flex max-w-[44rem] flex-col px-5 py-6">
+    <div className="mx-auto w-full flex max-w-[44rem] flex-col px-5 py-6">
       <Banner tone="neutral" className="mb-6">
         {TEXTO.aviso}
       </Banner>

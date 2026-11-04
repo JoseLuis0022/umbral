@@ -185,7 +185,10 @@ export default function AlDia() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <FiltroCategorias valor={categoria} onCambiar={setCategoria} etiqueta={TEXTO.filtrarCategoria} />
 
-        <div className="flex items-center gap-3 pr-1">
+        {/* En teléfono este grupo baja a su propio renglón: ahí el conteo va a
+            la izquierda, alineado con las categorías, y no tras el hueco
+            reservado del aviso, que lo dejaba flotando con sangría. */}
+        <div className="flex w-full items-center justify-between gap-3 pr-1 sm:w-auto sm:justify-end">
           {/* Hueco reservado y solo crossfade de opacidad: montándose y
               desmontándose dentro del flujo, este aviso empujaba el conteo de
               guías a un lado y otro en cada recarga. */}
@@ -199,7 +202,7 @@ export default function AlDia() {
           >
             {TEXTO.actualizando}
           </motion.span>
-          <span className="font-ui text-12 tabular-nums text-text-3">
+          <span className="order-first font-ui text-12 tabular-nums text-text-3 sm:order-none">
             {/* Espacio duro mientras no hay nada que contar: un "0 guías" que
                 dura medio segundo y luego dice "5" se lee como un error. */}
             {estado === 'cargando' ? ' ' : TEXTO.conteo(visibles.length)}

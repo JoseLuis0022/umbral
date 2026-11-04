@@ -95,7 +95,7 @@ export function PanelPlegable({
   children,
 }: {
   /**
-   * Clave de `localStorage` (bajo el prefijo `aurora-aldia:`). Una por pantalla:
+   * Clave de `localStorage` (bajo el prefijo `umbral:`). Una por pantalla:
    * es lo que hace que plegar Auditoría no pliegue Corpus.
    */
   clave: string;
@@ -179,7 +179,7 @@ export function PanelPlegable({
         // El desplazamiento cambia de 4 px a centrado en el carril, y sin
         // transición ese salto de 6 px ocurría en un fotograma mientras el
         // borde al que el botón se ancla sí venía viajando suave.
-        className="absolute top-1.5 z-20 transition-[left,right] duration-200 ease-aurora motion-reduce:transition-none"
+        className="absolute top-1.5 z-20 transition-[left,right] duration-200 ease-umbral motion-reduce:transition-none"
         style={esIzquierda ? { right: desplazamiento } : { left: desplazamiento }}
       >
         {/* La ayuda sale hacia la columna de trabajo, nunca hacia dentro del
@@ -240,7 +240,7 @@ export function PanelPlegable({
         aria-hidden={plegado}
         style={{ width: anchoDesplegado }}
         className={cn(
-          'absolute inset-y-0 transition-[opacity,visibility] duration-150 ease-aurora',
+          'absolute inset-y-0 transition-[opacity,visibility] duration-150 ease-umbral',
           esIzquierda ? 'left-0' : 'right-0',
           plegado ? 'invisible opacity-0' : 'delay-[80ms] motion-reduce:delay-0'
         )}

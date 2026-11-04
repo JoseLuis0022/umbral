@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, LogOut, Repeat, User, type LucideIcon } from 'lucide-react';
+import { ChevronDown, LogOut, Repeat, Settings, User, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { springSnappy, dur } from '../../lib/motion';
 import { useAuth } from '../../context/AuthContext';
 import { PERFILES_DEMO } from '../../data/usuarios';
-import { perfil as copy } from '../../copy';
+import { perfil as copy, ajustes as copyAjustes } from '../../copy';
 
 /**
  * Menú del avatar: identidad y sesión, nada más.
@@ -60,7 +60,7 @@ export function MenuUsuario() {
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-ui text-12 font-semibold text-accent-fg">
           {usuario.iniciales}
         </span>
-        <ChevronDown size={14} className={cn('text-text-3 transition-transform duration-150 ease-aurora', abierto && 'rotate-180')} />
+        <ChevronDown size={14} className={cn('hidden text-text-3 sm:block transition-transform duration-150 ease-umbral', abierto && 'rotate-180')} />
       </button>
 
       <AnimatePresence>
@@ -82,6 +82,12 @@ export function MenuUsuario() {
               <ElementoMenu icono={User} onClick={() => { setAbierto(false); navigate('/perfil'); }}>
                 {copy.titulo}
               </ElementoMenu>
+              {/* Solo en teléfono: ahí la cabecera esconde su botón de Ajustes. */}
+              <div className="md:hidden">
+                <ElementoMenu icono={Settings} onClick={() => { setAbierto(false); navigate('/ajustes'); }}>
+                  {copyAjustes.titulo}
+                </ElementoMenu>
+              </div>
             </div>
 
             {otrosPerfiles.length > 0 && (

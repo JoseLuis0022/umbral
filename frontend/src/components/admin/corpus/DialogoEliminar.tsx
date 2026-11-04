@@ -16,7 +16,7 @@ const textos = {
  * Confirmación de borrado.
  *
  * El botón peligroso NOMBRA la acción ("Eliminar documento", no "Sí") y usa
- * `variant="destructive"`, que es el rojo terroso de estatus: el rojo de marca
+ * `variant="destructive"`, que es el rojo terroso de estatus: el color de marca
  * sigue significando "acción principal", nunca "cuidado".
  *
  * El nombre del archivo se repite dentro del diálogo porque el menú desde el

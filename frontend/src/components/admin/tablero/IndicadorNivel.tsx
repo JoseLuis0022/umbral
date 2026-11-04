@@ -55,8 +55,8 @@ const TONO_ATENCION: Tono = {
   segmento: 'bg-status-amber',
   segmentoApagado: 'bg-status-amber/20',
 };
-// Rojo TERROSO (--status-red), NUNCA el rojo de marca: si el peligro usara el
-// rojo institucional, el mismo color significaría "haz clic aquí" y "cuidado
+// Rojo TERROSO (--status-red), NUNCA el azul de marca ni un rojo vivo: si el peligro
+// compartiera tono con la acción, el mismo color significaría "haz clic aquí" y "cuidado
 // con esto" en la misma pantalla.
 const TONO_PELIGRO: Tono = {
   texto: 'text-status-red',

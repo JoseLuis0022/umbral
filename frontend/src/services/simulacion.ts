@@ -11,7 +11,7 @@
  *    es lo que hace que una demostración se sienta un producto y no un mockup.
  */
 
-export const PREFIJO = 'aurora-aldia:';
+export const PREFIJO = 'umbral:';
 
 export function esperar(minMs = 200, maxMs = 600) {
   const ms = minMs + Math.random() * (maxMs - minMs);

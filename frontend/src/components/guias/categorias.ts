@@ -9,9 +9,9 @@ import type { CategoriaGuia } from '../../types';
  * clase construida en tiempo de ejecución simplemente no se genera y el color
  * desaparece sin ningún error visible.
  *
- * Gobernanza usa `status-red`, el rojo terroso de riesgo, y no el rojo de
- * marca: es la categoría que impone obligaciones, y el rojo institucional está
- * reservado para "haz clic aquí". Que compartieran color haría que la etiqueta
+ * Gobernanza usa `status-red`, el rojo terroso de riesgo, y ninguna categoría
+ * usa el azul de marca: es la categoría que impone obligaciones, y el acento
+ * está reservado para "haz clic aquí". Que compartieran color haría que la etiqueta
  * pareciera un botón.
  */
 export const CATEGORIAS: CategoriaGuia[] = ['Correo', 'Documentos', 'Reuniones', 'TI', 'Gobernanza'];

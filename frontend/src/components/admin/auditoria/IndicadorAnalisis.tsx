@@ -35,8 +35,8 @@ const TONO_ATENCION: Tono = {
   segmento: 'bg-status-amber',
   segmentoApagado: 'bg-status-amber/20',
 };
-// Rojo TERROSO (--status-red), nunca el rojo de marca: si el peligro usara el
-// rojo institucional, el mismo color significaría "haz clic aquí" y "cuidado
+// Rojo TERROSO (--status-red), nunca el azul de marca ni un rojo vivo: si el peligro
+// compartiera tono con la acción, el mismo color significaría "haz clic aquí" y "cuidado
 // con esto" en la misma pantalla.
 const TONO_PELIGRO: Tono = {
   texto: 'text-status-red',
@@ -134,7 +134,9 @@ export function IndicadorAnalisis({
         <Icono size={16} strokeWidth={nivel === 'medio' ? 2 : 2.25} aria-hidden />
       </span>
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="whitespace-nowrap font-ui text-12 leading-none text-text-3">{etiqueta}</span>
+        {/* En teléfono la etiqueta puede partirse: "Ahorro de tiempo" no cabe en
+            un tercio de 360 px y chocaba con el indicador vecino. */}
+        <span className="font-ui text-12 leading-tight text-text-3 sm:whitespace-nowrap sm:leading-none">{etiqueta}</span>
         <div className="flex items-center gap-1.5">
           <span className={cn('font-ui text-13 font-semibold leading-none', tono.texto)}>{nivel}</span>
           {/* Escala de tres segmentos: el nivel sigue siendo legible sin color. */}

@@ -13,7 +13,7 @@ const PASO = 0.05;
  * teclado (flechas, Inicio/Fin), el arrastre con inercia del sistema y el
  * anuncio correcto en lectores de pantalla. Lo único que se reemplaza es la
  * pintura — la pista se dibuja con un gradiente de fondo, así que el tramo
- * recorrido se ve en rojo de marca sin un solo div extra.
+ * recorrido se ve en el color de marca sin un solo div extra.
  *
  * La caja del input mide 24 px de alto aunque la pista visible mida 6: es lo
  * que hace que el pulgar tenga dónde caer sin engordar el diseño.

@@ -95,7 +95,7 @@ export function FormularioBoletin({
   const mostrarErrorTitulo = (mostrarErrores || tituloTocado) && errorTitulo;
 
   return (
-    <div className="mx-auto flex max-w-[46rem] flex-col gap-6 px-5 py-5">
+    <div className="mx-auto w-full flex max-w-[46rem] flex-col gap-6 px-5 py-5">
       <Field
         label={TEXTO.titulo}
         required

@@ -367,7 +367,7 @@ export function TablaImpacto({
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
     enlace.href = url;
-    enlace.download = `aurora-al-dia-impacto-${periodo}-${new Date().toISOString().slice(0, 10)}.csv`;
+    enlace.download = `umbral-impacto-${periodo}-${new Date().toISOString().slice(0, 10)}.csv`;
     // El enlace se inserta en el documento antes de pulsarlo y la URL se libera
     // en el siguiente tick: Firefox y Safari ignoran el clic de un ancla que no
     // está en el DOM, y revocar la URL en la misma vuelta del bucle de eventos

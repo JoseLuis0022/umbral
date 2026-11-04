@@ -1,14 +1,14 @@
 ---
 name: apple-feel-design
 description: >
-  Reglas de diseño "Apple-Feel" para la maqueta de Aurora al Día (Vite + React +
+  Reglas de diseño "Apple-Feel" para la maqueta de Umbral (Vite + React +
   TypeScript + Tailwind + Framer Motion). Léela antes de construir o revisar
   cualquier pantalla TSX del proyecto: cubre rendimiento percibido, motion y
   microinteracciones con springs, sistema visual (espaciado, tipografía,
   profundidad, accesibilidad) y los 5 estados obligatorios de cada pantalla
   (vacío, cargando, parcial, error, ideal). Úsala como checklist de calidad
   antes de dar por terminada una pantalla.
-metadata: { "tags": "diseño, apple-feel, motion, framer-motion, tailwind, aurora" }
+metadata: { "tags": "diseño, apple-feel, motion, framer-motion, tailwind, umbral" }
 ---
 
 
@@ -17,7 +17,7 @@ metadata: { "tags": "diseño, apple-feel, motion, framer-motion, tailwind, auror
 Manual de referencia para construir sistemas web que se sientan frescos, fluidos y pulidos.
 La referencia viva de los componentes vive en la ruta `/sistema-diseno` de la app. Dividido en 4 pilares: **Rendimiento**, **Motion**, **Diseño Visual**, y **Estados & Resiliencia**.
 
-Este manual aplica a **todas** las pantallas TSX de la maqueta de Aurora al Día.
+Este manual aplica a **todas** las pantallas TSX de la maqueta de Umbral.
 Se heredó del sistema de SGO CUSOL, donde se escribió y se probó a lo largo de
 15 pantallas; aquí se conserva la mecánica y se cambia la colorimetría. Cada pantalla nueva o modificada debe pasar por el checklist final antes de considerarse terminada.
 
@@ -161,7 +161,7 @@ Las transiciones explican de dónde viene y a dónde va cada cosa:
 
 ### 3.4 Dark mode de verdad
 
-> **NO APLICA EN ESTE PROYECTO.** Aurora al Día es **solo tema claro**: no se
+> **NO APLICA EN ESTE PROYECTO.** Umbral es **solo tema claro**: no se
 > implementa modo oscuro ni se responde a `prefers-color-scheme`. No
 > reintroducir un bloque `@media (prefers-color-scheme: dark)` en
 > `src/index.css` sin que el usuario lo pida explícitamente.
@@ -176,16 +176,16 @@ Las transiciones explican de dónde viene y a dónde va cada cosa:
 - Contraste mínimo AA (4.5:1 en texto)
 - Focus visible y bien diseñado. Nunca `outline: none` sin reemplazo
 
-### 3.6 El rojo de marca no es un color más
+### 3.6 El azul de marca no es un color más
 
 Restricción específica de este proyecto, encima del manual general:
 
-- **Relleno → `bg-accent` (#E00034). Tinta → `text-accent-fg` (#A30026).**
-  El rojo institucional sobre blanco no alcanza 4.5:1 como texto; como relleno
-  con texto blanco encima da 4.98:1 y sí cumple.
-- **Un solo botón `variant="primary"` por pantalla.** Si dos rojos compiten,
+- **Relleno → `bg-accent` (#2F5FE4). Tinta → `text-accent-fg` (#1D41A3).**
+  Como relleno con texto blanco encima da 5.4:1; para texto e iconos se usa el
+  700, que conserva margen también sobre superficies teñidas.
+- **Un solo botón `variant="primary"` por pantalla.** Si dos azules compiten,
   ninguno es la acción principal.
-- **El riesgo NO usa el rojo de marca.** `--status-red` es un rojo terroso
+- **El riesgo NO usa el color de marca.** `--status-red` es un rojo terroso
   aparte (#8F2E22), deliberadamente apagado: si peligro y acción primaria
   compartieran color, el mismo rojo significaría "haz clic aquí" y "cuidado con
   esto" en la misma pantalla.

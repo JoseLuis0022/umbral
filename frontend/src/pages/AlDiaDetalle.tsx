@@ -129,7 +129,7 @@ export default function AlDiaDetalle() {
 
   if (estado === 'error') {
     return (
-      <div className="mx-auto max-w-[44rem]">
+      <div className="mx-auto w-full max-w-[44rem]">
         <VolverAlDia />
         <div className="mt-6 rounded-tarjeta border border-hairline bg-surface-1">
           <ErrorState
@@ -144,7 +144,7 @@ export default function AlDiaDetalle() {
 
   if (estado === 'noExiste') {
     return (
-      <div className="mx-auto max-w-[44rem]">
+      <div className="mx-auto w-full max-w-[44rem]">
         <VolverAlDia />
         <div className="mt-6 rounded-tarjeta border border-hairline bg-surface-1">
           <EmptyState
@@ -174,7 +174,7 @@ export default function AlDiaDetalle() {
     // Los tres bloques son estables entre el estado parcial y el ideal: la
     // cascada de entrada corre una sola vez y el cuerpo se rellena dentro del
     // mismo hueco, sin volver a animar la cabecera.
-    <PageEnter className="mx-auto flex max-w-[44rem] flex-col">
+    <PageEnter className="mx-auto w-full flex max-w-[44rem] flex-col">
       <VolverAlDia />
 
       <header className="mt-6">

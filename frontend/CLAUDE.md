@@ -26,7 +26,7 @@ El `README.md` documenta a fondo el contrato con n8n, el despliegue y las conven
 
 ### Una sola frontera: `src/services/`
 
-**Lo único real del proyecto es `chat.service.ts`.** Todo lo demás (auth, corpus, guías, auditoría, tablero) está simulado en el frontend sobre `simulacion.ts`, que aporta latencia artificial de 200–600 ms, persistencia en `localStorage` bajo el prefijo `aurora-aldia:` y generación de ids.
+**Lo único real del proyecto es `chat.service.ts`.** Todo lo demás (auth, corpus, guías, auditoría, tablero) está simulado en el frontend sobre `simulacion.ts`, que aporta latencia artificial de 200–600 ms, persistencia en `localStorage` bajo el prefijo `umbral:` y generación de ids.
 
 La regla que sostiene el diseño: **ninguna pantalla toca `localStorage` ni datos semilla directamente**. Siempre va por un servicio que devuelve promesas, para que el día que exista backend se cambie el servicio y no la pantalla. Al añadir una capacidad, el servicio es el primer archivo, no el último.
 
@@ -79,7 +79,7 @@ Las imágenes que el markdown referencia como `/guias/…` las reubica `resolver
 - `src/lib/motion.ts` — springs y duraciones desde una fuente única. Nada de transiciones ad-hoc en un componente.
 - `src/components/ui/` — sistema de diseño; se importa desde su `index.ts`. **Si un componente no aparece en `/_dev/sistema-diseno`, no existe en el sistema.**
 
-El rojo de marca `#E00034` (`bg-accent`, y `text-accent-fg` #A30026 como tinta, por contraste) **nunca significa riesgo**: el riesgo usa `--status-red` (#8F2E22). Un solo botón primario por pantalla. Solo tema claro — no reintroduzcas `prefers-color-scheme` sin que te lo pidan.
+El azul de marca `#2F5FE4` (`bg-accent`, y `text-accent-fg` #1D41A3 como tinta, por contraste) **nunca significa estatus**: el riesgo usa `--status-red` (#8F2E22) y la información `--status-blue`, un petróleo (#17707F) distinto del cobalto. Un solo botón primario por pantalla. Solo tema claro — no reintroduzcas `prefers-color-scheme` sin que te lo pidan.
 
 `.claude/skills/apple-feel-design/SKILL.md` es el manual de diseño del proyecto y su checklist final. Léelo antes de construir o revisar cualquier pantalla TSX. De ahí sale la regla de **los cinco estados obligatorios** (vacío, cargando, parcial, error, ideal): ninguna vista está terminada si solo existe el caso ideal, y los skeletons llevan la altura real del contenido para que el layout no brinque.
 

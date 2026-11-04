@@ -125,7 +125,7 @@ export function VisorDocumento({
                   transition={{ duration: dur.fast, ease }}
                   className="mb-5"
                 >
-                  {/* Rojo terroso de estatus, nunca el rojo de marca: el
+                  {/* Rojo terroso de estatus, nunca el color de marca: el
                       peligro y la acción primaria no comparten color. */}
                   <Banner
                     tone="red"
