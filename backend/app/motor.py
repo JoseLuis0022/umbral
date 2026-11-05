@@ -286,9 +286,12 @@ def construir_opciones(
     # Sin prompt propio = el agente de la laptop: prompt de Claude Code + CLAUDE.md.
     system_prompt: Any = prompt if prompt is not None else {"type": "preset", "preset": "claude_code"}
 
+    # Sin Bash, las únicas puertas a los archivos son Read/Grep/Glob: se
+    # confinan a la carpeta del agente (con Bash eso ya no basta: etapa 2, sandbox).
+    confinar = "Bash" not in perfil.herramientas
     hooks: Any = None
-    if perfil.rutas_bloqueadas:
-        hooks = {"PreToolUse": [hook_rutas_bloqueadas(cwd, perfil.rutas_bloqueadas)]}
+    if perfil.rutas_bloqueadas or confinar:
+        hooks = {"PreToolUse": [hook_rutas_bloqueadas(cwd, perfil.rutas_bloqueadas, solo_dentro=confinar)]}
 
     return ClaudeAgentOptions(
         cwd=str(cwd),

@@ -26,12 +26,14 @@ def _rutas_de(entrada: dict[str, Any], cwd: Path) -> list[Path]:
         if isinstance(valor, str) and valor:
             p = Path(valor)
             rutas.append((p if p.is_absolute() else cwd / p).resolve())
-    # Glob: el patrón puede traer la carpeta ("Prácticas/**/*.pdf").
+    # Glob/Grep: el patrón puede traer la carpeta ("Prácticas/**/*.pdf")
+    # o ser absoluto ("/Users/…/backend/*.env").
     patron = entrada.get("pattern")
-    if isinstance(patron, str) and "/" in patron:
+    if isinstance(patron, str) and ("/" in patron or patron.startswith("~")):
         base = patron.split("*", 1)[0]
         if base:
-            rutas.append((cwd / base).resolve())
+            p = Path(base).expanduser()
+            rutas.append((p if p.is_absolute() else cwd / p).resolve())
     return rutas
 
 
@@ -39,12 +41,31 @@ def _dentro(ruta: Path, carpeta: Path) -> bool:
     return ruta == carpeta or carpeta in ruta.parents
 
 
-def hook_rutas_bloqueadas(cwd: Path, bloqueadas: tuple[str, ...]) -> HookMatcher:
+def _negar(motivo: str) -> dict[str, Any]:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": motivo,
+        }
+    }
+
+
+def hook_rutas_bloqueadas(cwd: Path, bloqueadas: tuple[str, ...], solo_dentro: bool = False) -> HookMatcher:
+    """Niega rutas de `bloqueadas` y, con `solo_dentro`, CUALQUIER ruta fuera de `cwd`.
+
+    `solo_dentro` es para los perfiles sin Bash (consulta, invitados): sin él,
+    Read/Grep/Glob aceptan rutas absolutas o con "../", y una pregunta del tipo
+    "lee ../backend/.env" entregaría la API key y el secreto de las sesiones.
+    """
+    cwd = cwd.resolve()
     carpetas = [(cwd / b).resolve() for b in bloqueadas]
 
     async def revisar(entrada_hook: Any, _tool_use_id: str | None, _ctx: HookContext) -> dict[str, Any]:
         entrada = entrada_hook.get("tool_input") or {}
         for ruta in _rutas_de(entrada, cwd):
+            if solo_dentro and not _dentro(ruta, cwd):
+                return _negar("Solo puedes leer el material del curso, dentro de su carpeta.")
             if any(_dentro(ruta, c) for c in carpetas):
                 return {
                     "hookSpecificOutput": {
