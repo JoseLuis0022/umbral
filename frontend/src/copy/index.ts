@@ -106,6 +106,10 @@ export const chat = {
   enCola: 'En cola',
   enColaDetalle: 'Se enviará cuando termine la respuesta actual.',
   quitarDeCola: 'Quitar de la cola',
+  quitarTodos: 'Quitar todos',
+  enColaCuenta: (n: number) => (n === 1 ? '1 mensaje en cola' : `${n} mensajes en cola`),
+  enColaJuntos: 'Se enviarán juntos cuando termine la respuesta actual.',
+  colaLlena: (n: number) => `La cola admite hasta ${n} mensajes. Espera a que termine la respuesta.`,
   /** Lo que se le manda al agente al pulsar "Continuar": su sesión tiene todo lo que ya hizo. */
   textoContinuar: 'Continúa la tarea desde donde te quedaste. Revisa primero lo que ya quedó hecho para no repetirlo.',
   errorTrabajoPerdido: 'Esta respuesta se perdió porque el servidor se reinició mientras trabajaba. Vuelve a pedirla.',

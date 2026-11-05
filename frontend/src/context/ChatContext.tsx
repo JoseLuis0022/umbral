@@ -30,6 +30,9 @@ const PERFIL_BASE = 'consulta';
 
 const CLAVE = 'conversaciones';
 
+/** Mensajes que caben en la cola de una conversación. */
+const MAX_COLA = 5;
+
 /** Cada cuánto se pregunta por los trabajos que corren sin nadie mirando. */
 const SONDEO_MS = 3000;
 /** Una tarea que tardó menos que esto no merece sonido ni notificación. */
@@ -138,7 +141,7 @@ type ChatCtx = {
   /** Fijar, archivar o marcar como (no) leída. */
   marcar: (id: string, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => void;
   /** Saca un mensaje de la cola antes de que se mande. */
-  quitarDeCola: (conversacionId: string, mensajeId: string) => void;
+  quitarDeCola: (conversacionId: string, mensajeId: string | null) => void;
   renombrar: (id: string, titulo: string) => void;
   eliminar: (id: string) => void;
   reaccionar: (conversacionId: string, mensajeId: string, reaccion: 'positiva' | 'negativa') => void;
@@ -578,21 +581,24 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     for (const conv of todas) {
       if (!conv.cola?.length || conv.trabajoPendiente || conv.errorPendiente) continue;
       if (despachandoRef.current.has(conv.id) || (stream.activo && streamEnId === conv.id)) continue;
-      const [siguiente, ...resto] = conv.cola;
+      // Todo lo encolado sale JUNTO, en un solo mensaje (como en Claude): el
+      // agente lo lee de una vez y no gasta una respuesta por cada línea.
+      const encolados = conv.cola;
+      const adjuntosJuntos = encolados.flatMap((m) => m.adjuntos ?? []);
       const creadoEn = new Date().toISOString();
       const mensaje: Mensaje = {
-        id: siguiente.id,
+        id: encolados[0].id,
         rol: 'usuario',
-        contenido: siguiente.contenido,
+        contenido: encolados.map((m) => m.contenido).filter(Boolean).join('\n\n'),
         creadoEn,
-        adjuntos: siguiente.adjuntos,
+        adjuntos: adjuntosJuntos.length ? adjuntosJuntos : undefined,
         reaccion: null,
       };
       const historial = [...conv.mensajes, mensaje];
       despachandoRef.current.add(conv.id);
       actualizar((previo) =>
         previo.map((c) =>
-          c.id === conv.id ? { ...c, cola: resto.length ? resto : undefined, mensajes: historial, ultimoMensajeEn: creadoEn } : c
+          c.id === conv.id ? { ...c, cola: undefined, mensajes: historial, ultimoMensajeEn: creadoEn } : c
         )
       );
       // Abierta: se responde en vivo (soltando otra que estuviera en vivo).
@@ -611,12 +617,13 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     }
   }, [actualizar, cargando, lanzarEnSegundoPlano, responder, soltarPrimerPlano, stream.activo, streamEnId, todas, turnoCola]);
 
+  /** `mensajeId` null = vaciar la cola entera. */
   const quitarDeCola = useCallback(
-    (conversacionId: string, mensajeId: string) => {
+    (conversacionId: string, mensajeId: string | null) => {
       actualizar((previo) =>
         previo.map((c) => {
           if (c.id !== conversacionId) return c;
-          const cola = (c.cola ?? []).filter((m) => m.id !== mensajeId);
+          const cola = mensajeId === null ? [] : (c.cola ?? []).filter((m) => m.id !== mensajeId);
           return { ...c, cola: cola.length ? cola : undefined };
         })
       );
@@ -725,6 +732,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           despachandoRef.current.has(destino.id) ||
           destino.cola?.length)
       ) {
+        if ((destino.cola?.length ?? 0) >= MAX_COLA) {
+          push({ message: copyChat.colaLlena(MAX_COLA), tone: 'default' });
+          return null;
+        }
         const enCola = { id: idNuevo('m'), contenido, adjuntos: preparados.length ? fichasDe(preparados) : undefined, creadoEn: new Date().toISOString() };
         actualizar((previo) => previo.map((c) => (c.id === destino.id ? { ...c, cola: [...(c.cola ?? []), enCola] } : c)));
         return destino.id;
@@ -775,7 +786,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       void responder(actual.id, historial);
       return actual.id;
     },
-    [activaId, actualizar, responder, soltarPrimerPlano, stream.activo, streamEnId, usuario]
+    [activaId, actualizar, push, responder, soltarPrimerPlano, stream.activo, streamEnId, usuario]
   );
 
   const regenerar = useCallback(() => {
