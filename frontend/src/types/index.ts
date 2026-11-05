@@ -45,6 +45,11 @@ export interface Mensaje {
   reaccion?: 'positiva' | 'negativa' | null;
   /** Lo que hizo el agente antes y durante la respuesta: razonamiento y pasos. */
   proceso?: ItemProceso[];
+  /**
+   * Milisegundos entre el envío y el primer token, medidos en el navegador
+   * ("Pensó 8 s"). Es dato de interfaz: no viaja al backend.
+   */
+  pensoMs?: number;
 }
 
 export type NivelAnalisis = 'bajo' | 'medio' | 'alto';

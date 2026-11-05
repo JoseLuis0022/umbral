@@ -92,6 +92,8 @@ type ChatCtx = {
   cambiarAjusteModelo: (ajuste: Partial<AjusteModelo>) => void;
   /** Sub-agente que está trabajando ahora mismo, o `null`. */
   actividad: string | null;
+  /** Lo que tardó el primer token de la respuesta en curso ("Pensó 8 s"); `null` mientras espera. */
+  pensoMs: number | null;
   errorStream: string | null;
   /** En qué conversación está transmitiendo, para no pintar el parcial en otra. */
   streamEnId: string | null;
@@ -132,6 +134,21 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       vivo = false;
     };
   }, [puedeAjustarModelo]);
+
+  /*
+   * "Pensó 8 s": se mide AQUÍ, en el navegador, del envío al primer token. Es
+   * lo que la persona esperó viendo el isotipo, que es lo que el rótulo
+   * cuenta. No toca el protocolo ni `useStreamingChat`: se observa el paso de
+   * `esperando` a `transmitiendo` que el hook ya publica.
+   */
+  const inicioEsperaRef = useRef<number | null>(null);
+  const pensoRef = useRef<number | null>(null);
+  const [pensoMs, setPensoMs] = useState<number | null>(null);
+  useEffect(() => {
+    if (stream.estado !== 'transmitiendo' || pensoRef.current !== null || inicioEsperaRef.current === null) return;
+    pensoRef.current = performance.now() - inicioEsperaRef.current;
+    setPensoMs(pensoRef.current);
+  }, [stream.estado]);
 
   const [todas, setTodas] = useState<Conversacion[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -214,6 +231,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             }
           : undefined;
 
+      inicioEsperaRef.current = performance.now();
+      pensoRef.current = null;
+      setPensoMs(null);
+
       const resultado = await stream.iniciar({
         conversacionId,
         mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
@@ -239,6 +260,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           creadoEn,
           reaccion: null,
           proceso: resultado.proceso.length ? resultado.proceso : undefined,
+          pensoMs: pensoRef.current ?? undefined,
         };
         actualizar((previo) =>
           previo.map((c) =>
@@ -387,6 +409,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       ajusteModelo,
       cambiarAjusteModelo,
       actividad: stream.actividad,
+      pensoMs,
       errorStream: stream.error,
       streamEnId,
       renombrar,
@@ -408,6 +431,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       ajusteModelo,
       cambiarAjusteModelo,
       stream.actividad,
+      pensoMs,
       stream.error,
       regenerar,
       reintentar,

@@ -8,7 +8,7 @@ export {
   BurbujaUsuario,
   RespuestaAsistente,
   RespuestaEnVivo,
-  EsqueletoRespuesta,
+  EsperaRespuesta,
   EsqueletoHilo,
 } from './BurbujaMensaje';
 export { copyLocal, primerNombre } from './copyLocal';

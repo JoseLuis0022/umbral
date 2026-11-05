@@ -62,9 +62,17 @@ export const copyLocal = {
 
   // Proceso del agente
   pensamientoEnVivo: 'Pensando…',
-  procesoListo: (pasos: number) => (pasos === 1 ? 'Proceso · 1 paso' : `Proceso · ${pasos} pasos`),
+  procesoTitulo: 'Proceso',
+  procesoPenso: (segundos: number) => `Pensó ${segundos} s`,
+  procesoBusquedas: (n: number) => (n === 1 ? '1 búsqueda' : `${n} búsquedas`),
+  procesoLecturas: (n: number) => (n === 1 ? '1 lectura' : `${n} lecturas`),
+  procesoPasos: (n: number) => (n === 1 ? '1 paso' : `${n} pasos`),
   procesoSoloPensamiento: 'Pensamiento',
   procesoVer: 'Ver el proceso del agente',
+  pasoListo: 'Listo',
+  pasoFallo: 'No se completó',
+  verMas: 'Ver más',
+  verMenos: 'Ver menos',
   quitarAdjunto: (nombre: string) => `Quitar ${nombre}`,
   adjuntosNota: 'Las imágenes se reducen en tu navegador y el servidor no las guarda.',
 

@@ -11,7 +11,7 @@ import { copyLocal } from './copyLocal';
 import {
   BurbujaUsuario,
   EsqueletoHilo,
-  EsqueletoRespuesta,
+  EsperaRespuesta,
   RespuestaAsistente,
   RespuestaEnVivo,
 } from './BurbujaMensaje';
@@ -32,6 +32,8 @@ type Props = {
   textoParcial: string;
   /** Proceso en vivo del agente (razonamiento y pasos). */
   proceso?: ItemProceso[];
+  /** Lo que tardó el primer token ("Pensó 8 s"). */
+  pensoMs?: number | null;
   error: string | null;
   soloLectura: boolean;
   onReintentar: () => void;
@@ -60,6 +62,7 @@ export function HiloMensajes({
   transmitiendo,
   textoParcial,
   proceso = [],
+  pensoMs,
   error,
   soloLectura,
   onReintentar,
@@ -74,6 +77,17 @@ export function HiloMensajes({
   const ocupado = esperando || transmitiendo;
   const hayVivo = esperando || textoParcial.length > 0;
   const ultimaAsistente = mensajes.map((m) => m.rol).lastIndexOf('asistente');
+
+  // El Proceso de la respuesta viva es UNO solo aunque cambie de pieza (de la
+  // espera al texto): si se abre mientras espera, sigue abierto al llegar el
+  // primer token. Y el isotipo de la espera y el de la cabecera comparten
+  // `layoutId` por turno, para que uno se encoja hasta ser el otro.
+  const [procesoAbierto, setProcesoAbierto] = useState(false);
+  const alternarProceso = useCallback(() => setProcesoAbierto((a) => !a), []);
+  useEffect(() => {
+    if (!hayVivo) setProcesoAbierto(false);
+  }, [hayVivo]);
+  const idIsotipo = `isotipo-respuesta-${conversacionId ?? 'nueva'}-${mensajes.length}`;
 
   const irAlFondo = useCallback(
     (suave: boolean) => {
@@ -166,8 +180,26 @@ export function HiloMensajes({
                 )
               )}
 
-              {esperando && !textoParcial && <EsqueletoRespuesta actividad={actividad} proceso={proceso} />}
-              {textoParcial && <RespuestaEnVivo texto={textoParcial} proceso={proceso} transmitiendo={transmitiendo} />}
+              {esperando && !textoParcial && (
+                <EsperaRespuesta
+                  actividad={actividad}
+                  proceso={proceso}
+                  layoutId={idIsotipo}
+                  procesoAbierto={procesoAbierto}
+                  onAlternarProceso={alternarProceso}
+                />
+              )}
+              {textoParcial && (
+                <RespuestaEnVivo
+                  texto={textoParcial}
+                  proceso={proceso}
+                  transmitiendo={transmitiendo}
+                  pensoMs={pensoMs}
+                  layoutId={idIsotipo}
+                  procesoAbierto={procesoAbierto}
+                  onAlternarProceso={alternarProceso}
+                />
+              )}
 
               {/* El error no borra lo que ya se leyó: el fragmento parcial se
                   queda arriba y el aviso se suma debajo con el reintento.

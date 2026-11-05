@@ -121,7 +121,7 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
       transition={springSnappy}
       className="group flex flex-col gap-1"
     >
-      {mensaje.proceso && <ProcesoAgente items={mensaje.proceso} enVivo={false} />}
+      {mensaje.proceso && <ProcesoAgente items={mensaje.proceso} modo="terminado" pensoMs={mensaje.pensoMs} />}
       <Markdown>{mensaje.contenido}</Markdown>
 
       <div
@@ -172,62 +172,97 @@ export const RespuestaEnVivo = memo(function RespuestaEnVivo({
   texto,
   proceso,
   transmitiendo,
+  pensoMs,
+  layoutId,
+  procesoAbierto,
+  onAlternarProceso,
 }: {
   texto: string;
   proceso: ItemProceso[];
   transmitiendo: boolean;
+  pensoMs?: number | null;
+  layoutId?: string;
+  procesoAbierto?: boolean;
+  onAlternarProceso?: () => void;
 }) {
+  // El paso que está corriendo AHORA, si el agente pausó a media respuesta
+  // para usar una herramienta: la burbujita lo dice en vez de quedarse muda.
+  let pasoActivo: string | null = null;
+  for (let i = proceso.length - 1; i >= 0; i--) {
+    const item = proceso[i];
+    if (item.tipo === 'paso' && item.estado === 'trabajando') {
+      pasoActivo = item.descripcion;
+      break;
+    }
+  }
+
   return (
     <div className="relative">
       {/* Mientras transmite, el texto se OCULTA al lector de pantalla y en su
           lugar se anuncia una vez que el asistente está escribiendo: el hilo es
           un `role="log"` y, sin esto, cada fragmento se leería en voz alta. */}
       {transmitiendo && <span role="status" className="sr-only">{copyLocal.escribiendo}</span>}
-      {/* Ya hay texto: el panel queda quieto ("Proceso · N pasos") y la
-          burbujita de abajo es la que dice que sigue trabajando. */}
-      <ProcesoAgente items={proceso} enVivo={false} />
-      <div aria-hidden={transmitiendo}>
+      <ProcesoAgente
+        items={proceso}
+        modo="transmitiendo"
+        pensoMs={pensoMs}
+        layoutId={layoutId}
+        abierto={procesoAbierto}
+        onAlternar={onAlternarProceso}
+      />
+      {/* El texto entra con opacidad (180 ms) mientras el isotipo se encoge
+          hasta la cabecera del Proceso. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.18, ease }}
+        aria-hidden={transmitiendo}
+      >
         {/* Por bloques: solo el último —el que crece— se vuelve a analizar. */}
         <MarkdownEnVivo>{texto}</MarkdownEnVivo>
-      </div>
+      </motion.div>
       {/* La burbujita sigue ahí mientras el agente esté activo: también cuando
           se pausa a media respuesta para leer otro archivo. Es CSS (ver
           IndicadorPensando): el componente se re-renderiza por frame. */}
-      {transmitiendo && <BurbujaTrabajando etiqueta={copyLocal.escribiendo} className="mt-2" />}
+      {transmitiendo && (
+        <BurbujaTrabajando etiqueta={copyLocal.escribiendo} actividad={pasoActivo} className="mt-3" />
+      )}
     </div>
   );
 });
 
 /**
- * Espera antes del primer fragmento. Las barras miden 16 px con 6 px de
- * separación: exactamente el interlineado de 22 px del cuerpo, para que al
- * llegar el texto real la altura no cambie y el hilo no brinque.
+ * Espera antes del primer fragmento: el isotipo de Umbral vivo y la frase de lo
+ * que el agente está haciendo ("Leyendo el resumen de la Clase 12…"), ya
+ * redactada por `lib/actividad.ts`. Sin barras de skeleton: un chat no sabe
+ * cuánto medirá la respuesta y un esqueleto promete una forma falsa.
  *
- * `actividad` sustituye el "Pensando…" genérico por lo que el agente está
- * haciendo ("Leyendo el resumen de la Clase 12…"), ya redactado por
- * `lib/actividad.ts`. Buscar en el material cuesta segundos de silencio, y
- * decir *qué* está haciendo es la diferencia entre una espera que se entiende
- * y una que parece un cuelgue.
+ * Es la cabecera viva del Proceso: con un clic se abren los pasos que lleva.
  */
-export function EsqueletoRespuesta({
+export function EsperaRespuesta({
   actividad,
   proceso = [],
+  layoutId,
+  procesoAbierto,
+  onAlternarProceso,
 }: {
   actividad?: string | null;
   proceso?: ItemProceso[];
+  layoutId?: string;
+  procesoAbierto?: boolean;
+  onAlternarProceso?: () => void;
 }) {
+  // Sin `role="status"`: ya vive dentro del `role="log"` del hilo, y anidar
+  // dos regiones anunciables hace que el mismo aviso se lea dos veces.
   return (
-    // Sin `role="status"`: ya vive dentro del `role="log"` del hilo, y anidar
-    // dos regiones anunciables hace que el mismo aviso se lea dos veces.
-    <div className="flex flex-col gap-3">
-      {/* La cabecera del panel ES el indicador: isotipo vivo + paso actual. */}
-      <ProcesoAgente items={proceso} enVivo actual={actividad} />
-      <div className="flex flex-col gap-1.5" aria-hidden>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-[92%]" />
-        <Skeleton className="h-4 w-[68%]" />
-      </div>
-    </div>
+    <ProcesoAgente
+      items={proceso}
+      modo="esperando"
+      actual={actividad}
+      layoutId={layoutId}
+      abierto={procesoAbierto}
+      onAlternar={onAlternarProceso}
+    />
   );
 }
 
