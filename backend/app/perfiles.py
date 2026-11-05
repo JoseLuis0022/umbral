@@ -55,9 +55,9 @@ PERFILES: dict[str, Perfil] = {
         presupuesto_usd=0.75,
         # Entregas calificadas del equipo: no se comparten con la clase.
         rutas_bloqueadas=("Prácticas",),
-        # El que el CLI usaba por defecto (visto en los logs): mismo
-        # comportamiento, ahora escrito y visible en el selector.
-        modelo="claude-opus-5-5",
+        # Sonnet: en las pruebas costó ~3× menos que Opus por pregunta
+        # ($0.035 contra $0.11) con respuestas de buena calidad para consulta.
+        modelo="claude-sonnet-5-5",
     ),
     "generador": Perfil(
         id="generador",
