@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from . import archivos, db, rutas_admin, rutas_auth, rutas_chat
+from . import archivos, db, rutas_admin, rutas_auth, rutas_chat, rutas_conversaciones
 from .config import ajustes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s · %(message)s")
@@ -45,6 +45,7 @@ app.include_router(rutas_auth.router, prefix="/api")
 app.include_router(rutas_chat.router, prefix="/api")
 app.include_router(rutas_admin.router, prefix="/api")
 app.include_router(archivos.router, prefix="/api")
+app.include_router(rutas_conversaciones.router, prefix="/api")
 
 
 @app.get("/api/salud", tags=["salud"])

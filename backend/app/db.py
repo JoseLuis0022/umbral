@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS consultas (
 CREATE INDEX IF NOT EXISTS consultas_usuario_fecha ON consultas (usuario_id, creado_en);
 CREATE INDEX IF NOT EXISTS consultas_fecha ON consultas (creado_en);
 
+-- Conversaciones del chat, una fila por conversación con su documento JSON
+-- completo (mensajes, proceso, archivos, fijada, cola…): el chat siempre lee
+-- y escribe la conversación entera, así que el formato es el mismo del front.
+-- Antes vivían solo en el localStorage de cada navegador.
+CREATE TABLE IF NOT EXISTS conversaciones (
+    id              TEXT PRIMARY KEY,
+    usuario_id      TEXT NOT NULL,
+    datos           TEXT NOT NULL,
+    actualizado_en  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS conversaciones_usuario ON conversaciones (usuario_id, actualizado_en);
+
 -- Factor de corrección del precio estimado por modelo (ver precios.py): se
 -- recalibra con el costo real que reporta el agente al terminar cada consulta.
 CREATE TABLE IF NOT EXISTS precios_calibrados (
@@ -163,6 +175,9 @@ def actualizar_usuario(usuario_id: str, *, rol: str | None = None, hash_: str | 
 
 def eliminar_usuario(usuario_id: str) -> None:
     with conexion() as con:
+        # Su historial de chat se va con la cuenta (la auditoría de consultas se
+        # conserva: es el registro del gasto, y ya mostraba "Cuenta eliminada").
+        con.execute("DELETE FROM conversaciones WHERE usuario_id = ?", (usuario_id,))
         con.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
 
 
@@ -232,6 +247,35 @@ def cerrar_huerfanas() -> int:
             "UPDATE consultas SET estado = 'error', error = COALESCE(error, 'interrumpido') WHERE estado = 'corriendo'"
         )
         return cursor.rowcount
+
+
+def conversaciones_de(usuario_id: str) -> list[dict[str, Any]]:
+    with conexion() as con:
+        filas = con.execute(
+            "SELECT datos FROM conversaciones WHERE usuario_id = ? ORDER BY actualizado_en DESC", (usuario_id,)
+        ).fetchall()
+    return [json.loads(f["datos"]) for f in filas]
+
+
+def dueno_conversacion(conversacion_id: str) -> str | None:
+    with conexion() as con:
+        fila = con.execute("SELECT usuario_id FROM conversaciones WHERE id = ?", (conversacion_id,)).fetchone()
+    return fila["usuario_id"] if fila else None
+
+
+def guardar_conversacion(usuario_id: str, conversacion_id: str, datos: dict[str, Any]) -> None:
+    with conexion() as con:
+        con.execute(
+            "INSERT INTO conversaciones (id, usuario_id, datos, actualizado_en) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET datos = excluded.datos, actualizado_en = excluded.actualizado_en "
+            "WHERE conversaciones.usuario_id = excluded.usuario_id",
+            (conversacion_id, usuario_id, json.dumps(datos, ensure_ascii=False), ahora()),
+        )
+
+
+def eliminar_conversacion(usuario_id: str, conversacion_id: str) -> None:
+    with conexion() as con:
+        con.execute("DELETE FROM conversaciones WHERE id = ? AND usuario_id = ?", (conversacion_id, usuario_id))
 
 
 def factores_precio() -> dict[str, float]:

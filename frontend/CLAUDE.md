@@ -35,10 +35,12 @@ Este front es la capa 1 del laboratorio de agentes; el backend vive en `../backe
 | `auditoria.service.ts` | `GET /api/admin/consultas`, `/consultas/{id}`, `/resumen` | Auditoría (`/admin/conversaciones`), Tablero |
 | `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=` · `GET /api/archivos?ruta=` (origen `chat`) | Corpus · tarjetas de archivo del chat |
 | `modelos.service.ts` | `GET /api/modelos` | Laboratorio |
+| `conversaciones.service.ts` | `GET/PUT/DELETE /api/conversaciones` | Historial del chat |
+| `trabajos.service.ts` | `GET /api/trabajos`, `POST /api/trabajos/{id}/detener` | Chat (tareas en segundo plano) |
 
 `/api/admin/*` exige el permiso **`auditoria`** (solo el rol `admin`). Los binarios del corpus (PDF) se piden con `pedir()` y se pasan como Blob: un `src`/`href` directo no lleva el header Authorization.
 
-Lo único simulado es la **lista de conversaciones** del panel del chat (`ChatContext` + `data/conversaciones.ts`), persistida con `simulacion.ts` en `localStorage` bajo el prefijo `umbral:`.
+**El historial del chat vive en el servidor** (`conversaciones.service.ts` → `GET/PUT/DELETE /api/conversaciones`, un documento JSON por conversación; el dueño lo decide el token). `localStorage` (prefijo `umbral:`) es solo una copia para pintar la lista al instante: `ChatContext` sube cada cambio (PUT tras 600 ms, `keepalive` al ocultar la pestaña) y al cargar o volver a la pestaña trae la lista del servidor — gana la del servidor salvo cambios locales sin subir; una local que el servidor nunca vio se sube (así se migró el historial que vivía solo en el navegador) y una que sí vio y ya no está se borró en otro dispositivo. Ya no caduca.
 
 **El rol lo decide el backend.** El front solo muestra u oculta según `useAuth()`; no existe forma de elegir o cambiar de rol desde el navegador, y no hay que reintroducirla. La identidad nunca viaja en el cuerpo de una petición: sale del token.
 
@@ -76,7 +78,7 @@ Chat.tsx / AdminLaboratorio.tsx
 En `App.tsx`, de fuera hacia dentro: `PreferenciasProvider` → `AuthProvider` → `ToastProvider` → `ChatProvider`.
 
 - `PreferenciasProvider` va primero porque escribe atributos `data-*` en `<html>` (densidad, tamaño de texto, contraste, movimiento) y deben estar puestos antes del primer pintado.
-- `ChatProvider` cuelga por encima de las rutas —no dentro de `/chat`— para que el historial no se recargue al ir a otra pantalla y volver. El historial persiste pero **caduca a las 12 h**, y las semillas de `data/conversaciones.ts` recalculan sus fechas hacia atrás desde "ahora" en cada arranque para que la demostración siempre tenga los cuatro grupos temporales y los dos modos.
+- `ChatProvider` cuelga por encima de las rutas —no dentro de `/chat`— para que el historial no se recargue al ir a otra pantalla y volver. Ya no hay conversaciones semilla ni caducidad: el historial es el del servidor.
 
 `RutaProtegida` guarda sesión y rol; con `soloAdmin`, un usuario sin permiso **ve una explicación**, no una redirección muda.
 

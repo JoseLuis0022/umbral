@@ -9,11 +9,11 @@ import {
   type ReactNode,
 } from 'react';
 import type { Adjunto, ArchivoCompartido, Conversacion, ItemProceso, Mensaje, ModeloDisponible, PerfilAgente } from '../types';
-import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
 import { listarModelos } from '../services/modelos.service';
 import { enviarMensaje, type ParametrosModelo, type ResultadoEnvio } from '../services/chat.service';
 import { detenerTrabajo, listarTrabajos } from '../services/trabajos.service';
+import { eliminarConversacion, guardarConversacion, listarConversaciones } from '../services/conversaciones.service';
 import { cerrarProceso, conActividad, conPensamiento } from '../lib/proceso';
 import { notificar, pedirPermisoAvisos, sonarTermino } from '../lib/avisos';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -39,27 +39,21 @@ const SONDEO_MS = 3000;
 const AVISO_DESDE_MS = 15_000;
 
 /**
- * El historial persiste, pero CADUCA a las 12 horas.
- *
- * Las semillas de `conversaciones.ts` calculan sus fechas hacia atrás desde
- * "ahora" en cada arranque, justamente para que la demostración siempre tenga
- * casos de los cuatro grupos (Hoy / Ayer / Últimos 7 días / Anteriores). Si
- * guardáramos esas fechas para siempre, al día siguiente TODA la lista sería
- * "Anteriores": la pantalla se vería rota sin estarlo. Guardar con fecha de corte
- * conserva lo que el usuario hizo en su sesión y devuelve el escenario limpio
- * al día siguiente.
+ * Copia LOCAL del historial. La fuente de verdad es el servidor
+ * (`/api/conversaciones`): esta copia solo sirve para pintar la lista al
+ * instante mientras llega la del servidor, y para no perder un cambio si la
+ * red falla (se vuelve a subir en la siguiente sincronización). Ya no caduca.
  */
-const VIGENCIA_MS = 12 * 60 * 60 * 1000;
-
 type Guardado = { guardadoEn: string; conversaciones: Conversacion[] };
 
 function cargarConversaciones(): Conversacion[] {
-  const guardado = leer<Guardado | null>(CLAVE, null);
-  if (guardado?.conversaciones && Date.now() - new Date(guardado.guardadoEn).getTime() < VIGENCIA_MS) {
-    return guardado.conversaciones;
-  }
-  return conversacionesSemilla;
+  return leer<Guardado | null>(CLAVE, null)?.conversaciones ?? [];
 }
+
+/** Ids que el servidor ya conoce: si una falta allá, la borró otro dispositivo (no es nueva). */
+const CLAVE_SINCRONIZADAS = 'chat:sincronizadas';
+/** Espera antes de subir un cambio: varios cambios seguidos viajan en un solo PUT. */
+const ESPERA_SUBIDA_MS = 600;
 
 function guardarConversaciones(lista: Conversacion[]) {
   escribir<Guardado>(CLAVE, { guardadoEn: new Date().toISOString(), conversaciones: lista });
@@ -258,14 +252,154 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     };
   }, []);
 
-  const actualizar = useCallback((transformar: (previo: Conversacion[]) => Conversacion[]) => {
-    setTodas((previo) => {
-      const siguiente = transformar(previo);
-      todasRef.current = siguiente;
-      guardarConversaciones(siguiente);
-      return siguiente;
-    });
+  /*
+   * Sincronización con el servidor. Cada cambio local marca su conversación
+   * como "sucia" y se sube (PUT del documento completo) tras ESPERA_SUBIDA_MS;
+   * un borrado se manda al momento. Si la red falla, queda sucia y se reintenta
+   * en la siguiente sincronización (al cargar o al volver a la pestaña).
+   */
+  const suciasRef = useRef(new Set<string>());
+  const temporizadoresRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const sincronizadasRef = useRef(new Set<string>(leer<string[]>(CLAVE_SINCRONIZADAS, [])));
+  const usuarioIdRef = useRef(usuario?.id);
+  usuarioIdRef.current = usuario?.id;
+
+  const marcarSincronizada = useCallback((id: string, conocida: boolean) => {
+    if (conocida) sincronizadasRef.current.add(id);
+    else sincronizadasRef.current.delete(id);
+    escribir(CLAVE_SINCRONIZADAS, [...sincronizadasRef.current]);
   }, []);
+
+  const subir = useCallback(
+    (id: string, keepalive = false) => {
+      const conv = todasRef.current.find((c) => c.id === id);
+      if (!conv || conv.usuarioId !== usuarioIdRef.current) return;
+      guardarConversacion(conv, keepalive)
+        .then(() => {
+          marcarSincronizada(id, true);
+          // Si cambió mientras subía, sigue sucia: ya hay otra subida programada.
+          if (todasRef.current.find((c) => c.id === id) === conv) suciasRef.current.delete(id);
+        })
+        .catch(() => undefined /* queda sucia: se reintenta al sincronizar */);
+    },
+    [marcarSincronizada]
+  );
+
+  const programarSubida = useCallback(
+    (id: string) => {
+      suciasRef.current.add(id);
+      clearTimeout(temporizadoresRef.current.get(id));
+      temporizadoresRef.current.set(
+        id,
+        setTimeout(() => {
+          temporizadoresRef.current.delete(id);
+          subir(id);
+        }, ESPERA_SUBIDA_MS)
+      );
+    },
+    [subir]
+  );
+
+  /** Sube YA lo pendiente (al ocultar la pestaña): `keepalive` deja terminar el envío aunque se cierre. */
+  const subirPendientes = useCallback(() => {
+    for (const [id, t] of temporizadoresRef.current) {
+      clearTimeout(t);
+      subir(id, true);
+    }
+    temporizadoresRef.current.clear();
+  }, [subir]);
+
+  const actualizar = useCallback(
+    (transformar: (previo: Conversacion[]) => Conversacion[]) => {
+      setTodas((previo) => {
+        const siguiente = transformar(previo);
+        todasRef.current = siguiente;
+        guardarConversaciones(siguiente);
+        // Qué cambió: las transformaciones solo crean objetos nuevos para las
+        // conversaciones que tocan, así que basta comparar referencias.
+        const antes = new Map(previo.map((c) => [c.id, c]));
+        const despues = new Set(siguiente.map((c) => c.id));
+        const cambiadas = siguiente.filter((c) => antes.get(c.id) !== c).map((c) => c.id);
+        const borradas = previo.filter((c) => !despues.has(c.id)).map((c) => c.id);
+        // Fuera del updater (React puede llamarlo dos veces en desarrollo).
+        queueMicrotask(() => {
+          cambiadas.forEach(programarSubida);
+          for (const id of borradas) {
+            clearTimeout(temporizadoresRef.current.get(id));
+            temporizadoresRef.current.delete(id);
+            suciasRef.current.delete(id);
+            void eliminarConversacion(id)
+              .then(() => marcarSincronizada(id, false))
+              .catch(() => undefined);
+          }
+        });
+        return siguiente;
+      });
+    },
+    [marcarSincronizada, programarSubida]
+  );
+
+  /*
+   * Traer el historial del servidor: al entrar y cada vez que la pestaña vuelve
+   * a estar visible (así se ve lo que se hizo en otro dispositivo).
+   *  - La del servidor gana, salvo que aquí haya un cambio sin subir.
+   *  - Una local que el servidor no tiene: si nunca se subió, es nueva (o es
+   *    la MIGRACIÓN del historial que vivía solo en este navegador) y se sube;
+   *    si ya se había subido, la borraron en otro dispositivo y se quita.
+   *  - Las de otras cuentas que hubieran quedado en este navegador se descartan.
+   */
+  useEffect(() => {
+    const usuarioId = usuario?.id;
+    if (!usuarioId) return;
+    let vivo = true;
+    const sincronizar = async () => {
+      let remotas: Conversacion[];
+      try {
+        remotas = await listarConversaciones();
+      } catch {
+        return; // sin red: se queda la copia local y se reintenta después
+      }
+      if (!vivo) return;
+      remotas.forEach((c) => sincronizadasRef.current.add(c.id));
+      escribir(CLAVE_SINCRONIZADAS, [...sincronizadasRef.current]);
+      setTodas((previo) => {
+        const porId = new Map(remotas.map((c) => [c.id, c]));
+        const resultado: Conversacion[] = [];
+        const porSubir: string[] = [];
+        for (const local of previo) {
+          if (local.usuarioId !== usuarioId) continue;
+          const remota = porId.get(local.id);
+          if (remota) {
+            porId.delete(local.id);
+            if (suciasRef.current.has(local.id)) {
+              resultado.push(local);
+              porSubir.push(local.id);
+            } else resultado.push(remota);
+          } else if (!sincronizadasRef.current.has(local.id) || suciasRef.current.has(local.id)) {
+            resultado.push(local);
+            porSubir.push(local.id);
+          }
+        }
+        resultado.push(...porId.values()); // creadas en otro dispositivo
+        todasRef.current = resultado;
+        guardarConversaciones(resultado);
+        queueMicrotask(() => porSubir.forEach(programarSubida));
+        return resultado;
+      });
+    };
+    void sincronizar();
+    const alCambiarVisibilidad = () => {
+      if (document.visibilityState === 'visible') void sincronizar();
+      else subirPendientes();
+    };
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    window.addEventListener('pagehide', subirPendientes);
+    return () => {
+      vivo = false;
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+      window.removeEventListener('pagehide', subirPendientes);
+    };
+  }, [programarSubida, subirPendientes, usuario?.id]);
 
   const conversaciones = useMemo(() => {
     if (!usuario) return [];
