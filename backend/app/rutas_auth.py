@@ -62,7 +62,7 @@ async def _mandar_enlace(usuario: db.Usuario) -> None:
     token = secrets.token_urlsafe(32)
     db.guardar_verificacion(_hash_token(token), usuario.id, datetime.now(timezone.utc) + timedelta(hours=HORAS_VALIDEZ_ENLACE))
     url = f"{correo.leer_config().url_publica}/verificar?token={token}"
-    asunto, cuerpo_html, cuerpo_texto = correo.correo_verificacion(usuario.nombre, url, HORAS_VALIDEZ_ENLACE)
+    asunto, cuerpo_html, cuerpo_texto = correo.correo_verificacion(usuario.nombre, usuario.correo, url, HORAS_VALIDEZ_ENLACE)
     await correo.enviar(usuario.correo, asunto, cuerpo_html, cuerpo_texto)
 
 

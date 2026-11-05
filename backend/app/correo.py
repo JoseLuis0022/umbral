@@ -17,6 +17,7 @@ import html
 import logging
 import smtplib
 import ssl
+from pathlib import Path
 from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -100,6 +101,10 @@ def _enviar_sincrono(cfg: ConfigCorreo, para: str, asunto: str, cuerpo_html: str
         msg["Reply-To"] = cfg.contacto
     msg.set_content(cuerpo_texto)
     msg.add_alternative(cuerpo_html, subtype="html")
+    if f"cid:{CID_LOGO}" in cuerpo_html:
+        # Incrustado en el mensaje (no un enlace): se ve aunque Umbral no esté
+        # publicado y no depende de que el cliente cargue imágenes remotas.
+        msg.get_payload()[1].add_related(LOGO_PNG, "image", "png", cid=f"<{CID_LOGO}>", filename="umbral.png")
     try:
         with smtplib.SMTP_SSL(SERVIDOR_SMTP, PUERTO_SMTP, context=ssl.create_default_context(), timeout=20) as smtp:
             smtp.login(cfg.usuario or "", cfg.contrasena or "")
@@ -122,89 +127,107 @@ async def enviar(para: str, asunto: str, cuerpo_html: str, cuerpo_texto: str) ->
 
 
 # ── Plantillas ───────────────────────────────────────────────────────────────
-# HTML de correo: tablas y estilos EN LÍNEA (Gmail y Outlook ignoran <style> y
-# casi todo el CSS moderno). Ancho fijo de 560 px, que se lee bien en teléfono.
+# Estilo de los correos transaccionales serios (GitHub, Linear, Stripe): fondo
+# blanco, logo pequeño, el contenido en una caja con borde fino de 1 px y sin
+# sombras, título de peso normal, frases cortas, un solo botón y un pie gris
+# que explica POR QUÉ te llegó. Tablas y estilos en línea: Gmail y Outlook
+# ignoran <style> y casi todo el CSS moderno. 544 px de ancho, como GitHub.
 
-AZUL = "#2F5FE4"
-TINTA = "#0F172A"
-GRIS = "#475569"
-SUAVE = "#94A3B8"
+LOGO_PNG = (Path(__file__).parent / "recursos" / "logo-correo.png").read_bytes()
+CID_LOGO = "logo-umbral"
+
+AZUL = "#2F5FE4"          # acento de Umbral
+AZUL_BORDE = "#1D41A3"    # tinta del acento (borde del botón)
+TEXTO = "#1E293B"
+TEXTO_2 = "#475569"
+TEXTO_3 = "#64748B"
+BORDE = "#E2E8F0"
+FUENTE = "-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif"
 
 
-def _plantilla(titulo: str, parrafos: list[str], boton: tuple[str, str] | None, pie: str) -> str:
-    cuerpo = "".join(
-        f'<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:{GRIS};">{p}</p>' for p in parrafos
+def _p(contenido: str, *, color: str = TEXTO, tam: int = 14, alto: int = 22, margen: str = "0 0 16px") -> str:
+    return f'<p style="margin:{margen};font-size:{tam}px;line-height:{alto}px;color:{color};">{contenido}</p>'
+
+
+def _boton(texto: str, url: str) -> str:
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;"><tr>'
+        f'<td style="border-radius:6px;background:{AZUL};border:1px solid {AZUL_BORDE};">'
+        f'<a href="{html.escape(url)}" target="_blank" style="display:inline-block;padding:10px 20px;font-family:{FUENTE};'
+        f'font-size:14px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:6px;">'
+        f"{html.escape(texto)}</a></td></tr></table>"
     )
-    accion = ""
-    if boton:
-        texto, url = boton
-        accion = (
-            f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td '
-            f'style="border-radius:12px;background:{AZUL};"><a href="{html.escape(url)}" '
-            f'style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;'
-            f'text-decoration:none;border-radius:12px;">{html.escape(texto)}</a></td></tr></table>'
-            f'<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:{SUAVE};">Si el botón no funciona, '
-            f'copia este enlace en tu navegador:<br><a href="{html.escape(url)}" style="color:{AZUL};word-break:break-all;">'
-            f"{html.escape(url)}</a></p>"
-        )
+
+
+def _plantilla(*, previa: str, titulo: str, caja: str, pie: str) -> str:
+    """`previa`: el texto que la bandeja muestra junto al asunto (no se ve al abrir)."""
     return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
 <title>{html.escape(titulo)}</title></head>
-<body style="margin:0;padding:0;background:#F4F6FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:32px 16px;">
-<tr><td align="center">
-  <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
-    <tr><td style="padding:0 8px 20px;">
-      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-        <td style="width:36px;height:36px;border-radius:10px;background:{AZUL};text-align:center;vertical-align:middle;
-                   font-size:18px;font-weight:700;color:#ffffff;">M</td>
-        <td style="padding-left:10px;font-size:16px;font-weight:600;color:{TINTA};">Umbral</td>
-      </tr></table>
+<body style="margin:0;padding:0;background:#ffffff;font-family:{FUENTE};-webkit-font-smoothing:antialiased;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">{html.escape(previa)}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center" style="padding:32px 16px 40px;">
+  <table role="presentation" width="544" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:544px;table-layout:fixed;">
+    <tr><td style="padding:0 0 24px;">
+      <img src="cid:{CID_LOGO}" width="32" height="32" alt="Umbral" style="display:block;border:0;outline:none;width:32px;height:32px;">
     </td></tr>
-    <tr><td style="background:#ffffff;border-radius:20px;padding:36px 32px;
-                   box-shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);">
-      <h1 style="margin:0 0 16px;font-size:22px;line-height:30px;font-weight:700;color:{TINTA};">{html.escape(titulo)}</h1>
-      {cuerpo}
-      {accion}
-    </td></tr>
-    <tr><td style="padding:20px 8px 0;font-size:12px;line-height:18px;color:{SUAVE};">{pie}</td></tr>
+    <tr><td style="padding:0 0 16px;font-size:24px;line-height:32px;font-weight:400;color:{TEXTO};">{html.escape(titulo)}</td></tr>
+    <tr><td style="border:1px solid {BORDE};border-radius:6px;padding:24px;font-family:{FUENTE};">{caja}</td></tr>
+    <tr><td style="padding:16px 0 0;">{_p(pie, color=TEXTO_3, tam=12, alto=18, margen="0")}</td></tr>
+    <tr><td style="padding:24px 0 0;"><div style="border-top:1px solid {BORDE};line-height:1px;font-size:1px;">&nbsp;</div></td></tr>
+    <tr><td style="padding:16px 0 0;">{_p("<strong style='color:" + TEXTO_2 + ";font-weight:600;'>Umbral</strong> · Asistente de estudio de Procesamiento Digital de Imágenes", color=TEXTO_3, tam=12, alto=18, margen="0")}</td></tr>
   </table>
 </td></tr></table>
 </body></html>"""
 
 
-def correo_verificacion(nombre: str, url: str, horas: int) -> tuple[str, str, str]:
+def correo_verificacion(nombre: str, para: str, url: str, horas: int) -> tuple[str, str, str]:
     """(asunto, html, texto) del correo para confirmar la cuenta."""
-    primer = html.escape(nombre.split()[0] if nombre.strip() else "")
-    asunto = "Confirma tu correo para entrar a Umbral"
-    cuerpo = _plantilla(
-        f"Hola{', ' + primer if primer else ''}: confirma tu correo",
-        [
-            "Gracias por registrarte en <strong>Umbral</strong>, el asistente de estudio de Procesamiento Digital "
-            "de Imágenes.",
-            "Para activar tu cuenta, confirma que este correo es tuyo:",
-        ],
-        ("Confirmar mi correo", url),
-        f"El enlace vence en {horas} horas. Si no creaste esta cuenta, ignora este correo: sin confirmar, nadie puede usarla.",
+    primer = nombre.split()[0] if nombre.strip() else ""
+    saludo = f"Hola, {html.escape(primer)}:" if primer else "Hola:"
+    asunto = "Confirma tu correo para Umbral"
+    caja = (
+        _p(saludo)
+        + _p(f"Para terminar de crear tu cuenta de Umbral, confirma que <strong>{html.escape(para)}</strong> es tu correo.")
+        + _boton("Confirmar correo", url)
+        + _p("Al confirmarlo podrás usar Umbral en modo invitado.", color=TEXTO_2, margen="0 0 16px")
+        + _p(
+            f'¿El botón no funciona? Copia este enlace en tu navegador:<br>'
+            f'<a href="{html.escape(url)}" style="color:{AZUL};text-decoration:none;word-break:break-all;overflow-wrap:anywhere;">{html.escape(url)}</a>',
+            color=TEXTO_3,
+            tam=12,
+            alto=18,
+            margen="0",
+        )
     )
+    pie = (
+        f"Recibes este correo porque se creó una cuenta de Umbral con esta dirección. El enlace vence en {horas} horas. "
+        "Si no fuiste tú, ignóralo: sin confirmar, nadie puede usar la cuenta."
+    )
+    cuerpo = _plantilla(previa="Confirma tu correo para terminar de crear tu cuenta de Umbral.", titulo="Confirma tu correo", caja=caja, pie=pie)
     texto = (
-        f"Hola{', ' + nombre.split()[0] if nombre.strip() else ''}:\n\n"
-        "Gracias por registrarte en Umbral. Para activar tu cuenta, abre este enlace:\n\n"
-        f"{url}\n\nVence en {horas} horas. Si no creaste esta cuenta, ignora este correo."
+        f"{'Hola, ' + primer + ':' if primer else 'Hola:'}\n\n"
+        f"Para terminar de crear tu cuenta de Umbral, confirma que {para} es tu correo abriendo este enlace:\n\n"
+        f"{url}\n\n"
+        f"El enlace vence en {horas} horas. Si no fuiste tú, ignora este correo: sin confirmar, nadie puede usar la cuenta.\n\n"
+        "— Umbral · Asistente de estudio de Procesamiento Digital de Imágenes"
     )
     return asunto, cuerpo, texto
 
 
 def correo_prueba(para: str) -> tuple[str, str, str]:
     asunto = "Prueba de correo de Umbral"
-    cuerpo = _plantilla(
-        "El correo de Umbral funciona",
-        [
-            f"Este mensaje llegó a <strong>{html.escape(para)}</strong> usando la contraseña de aplicación que "
-            "configuraste.",
-            "A partir de ahora, quien se registre recibirá su enlace de verificación con este mismo diseño.",
-        ],
-        None,
-        "Lo mandaste tú desde Ajustes → Correo.",
+    caja = (
+        _p(f"Umbral ya puede enviar correos desde <strong>{html.escape(para)}</strong>.")
+        + _p("Así verán el correo de confirmación quienes se registren.", color=TEXTO_2, margen="0")
     )
-    return asunto, cuerpo, f"El correo de Umbral funciona: este mensaje llegó a {para}."
+    cuerpo = _plantilla(
+        previa=f"Umbral ya puede enviar correos desde {para}.",
+        titulo="Tu correo de envío funciona",
+        caja=caja,
+        pie="Enviaste esta prueba desde Ajustes → Registro público.",
+    )
+    texto = f"Umbral ya puede enviar correos desde {para}.\n\nEnviaste esta prueba desde Ajustes → Registro público."
+    return asunto, cuerpo, texto
