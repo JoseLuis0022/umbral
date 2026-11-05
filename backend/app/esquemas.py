@@ -135,7 +135,7 @@ def publico(usuario: db.Usuario) -> Yo:
     )
 
 
-# ── Administración: auditoría ──────────────────────────────────────
+# ── Administración: auditoría y corpus ──────────────────────────────────────
 
 
 class UsuarioAuditoria(Modelo):
@@ -209,3 +209,34 @@ class ResumenAuditoria(Modelo):
     por_usuario: list[ResumenUsuario]
     por_modelo: list[ResumenModelo]
     por_dia: list[ResumenDia]
+
+
+TipoArchivo = Literal["md", "txt", "html", "pdf", "otro"]
+
+
+class ArchivoCorpus(Modelo):
+    ruta: str  # relativa a la carpeta del agente, con "/"
+    nombre: str
+    tipo: TipoArchivo
+    tamano_bytes: int
+    modificado: str
+
+
+class ColeccionCorpus(Modelo):
+    id: str
+    nombre: str
+    descripcion: str
+    sensible: bool = False
+    archivos: list[ArchivoCorpus]
+
+
+class Corpus(Modelo):
+    colecciones: list[ColeccionCorpus]
+
+
+class ContenidoArchivo(Modelo):
+    ruta: str
+    nombre: str
+    tipo: TipoArchivo
+    tamano_bytes: int
+    contenido: str

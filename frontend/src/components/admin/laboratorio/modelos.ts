@@ -35,10 +35,6 @@ export const MODELOS: ModeloCatalogo[] = [
 export const MAX_SYSTEM_PROMPT = 4000;
 
 export const PARAMETROS_POR_DEFECTO: ParametrosLab = {
-  // Sin base elegida: es la primera decisión de la pantalla y no se adivina
-  // por el usuario. Preseleccionar la primera de la lista escondería justo la
-  // elección que aquí manda.
-  corpusId: '',
   modelo: MODELOS[1].id,
   // 0.30 y no 0.70: este asistente cita normativa, y en normativa la
   // creatividad es un defecto. Quien quiera explorar, sube el control.
@@ -50,12 +46,6 @@ export const PARAMETROS_POR_DEFECTO: ParametrosLab = {
 /** Clave de localStorage (el hook le antepone el prefijo `umbral:`). */
 export const CLAVE_PARAMETROS = 'laboratorio:parametros';
 
-/**
- * `corpusId` queda FUERA de la comparación a propósito: "Restablecer
- * parámetros" devuelve los ajustes del modelo a su valor de fábrica, no
- * deshace la elección de base de conocimiento. Borrarla obligaría a volver a
- * elegirla —y a perder el hilo— por pulsar un botón que promete otra cosa.
- */
 export function sonParametrosPorDefecto(p: ParametrosLab): boolean {
   return (
     p.modelo === PARAMETROS_POR_DEFECTO.modelo &&

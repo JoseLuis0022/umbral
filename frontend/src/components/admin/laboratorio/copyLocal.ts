@@ -30,26 +30,17 @@ export const copyLab = {
   /** Cada icono del carril dice qué grupo es y en qué valor está ahora mismo. */
   carrilValor: (etiqueta: string, valor: string) => `${etiqueta}: ${valor}`,
   carrilAbrirSeccion: 'Pulsa para desplegar el panel aquí.',
-  carrilSinElegir: 'sin elegir',
   carrilInstruccionesPuestas: 'puestas',
   carrilInstruccionesVacias: 'sin instrucciones',
   avisoAlcance:
     'Todo lo que ajustes aquí vale solo para esta sesión de pruebas. No cambia el asistente que usa la comunidad ni entra a su historial.',
 
   // ── Base de conocimiento (primera decisión) ──
-  corpusEtiqueta: 'Base de conocimiento',
-  corpusAyuda: 'Es la primera decisión: define qué documentos consulta el asistente en esta prueba.',
-  corpusPlaceholder: 'Elige una base…',
-  corpusCargando: 'Cargando bases de conocimiento…',
-  corpusError: 'No pudimos cargar las bases de conocimiento.',
-  corpusReintentar: 'Reintentar',
-  corpusVacio: 'Todavía no hay bases de conocimiento. Crea una en Corpus y vuelve a esta pantalla.',
-  corpusPendiente: 'Elige una base para poder preguntar.',
-  corpusAbrir: 'Elegir base de conocimiento',
-  // El conteo de documentos llega DESPUÉS de la lista (es una consulta aparte):
-  // hasta entonces la opción no miente con un cero, se calla.
-  corpusDocumentos: (n: number) => (n === 1 ? '1 documento' : `${n} documentos`),
-  corpusCambiado: (nombre: string) => `Ahora consultas «${nombre}». La conversación empieza de cero.`,
+  corpusEtiqueta: 'Fuente de consulta',
+  corpusAyuda:
+    'El agente busca siempre en su carpeta completa: resúmenes de clase, apuntes, transcripciones y diapositivas. No hay una base que elegir.',
+  corpusVer: 'Ver los archivos en Corpus',
+  corpusCarril: 'Carpeta del agente',
 
   modeloEtiqueta: 'Modelo',
   modeloAbrir: 'Elegir modelo',
@@ -111,11 +102,6 @@ export const copyLab = {
   vacioTitulo: 'Haz la primera pregunta',
   vacioDetalle:
     'Cambia los parámetros y mira cómo cambia la respuesta. Nada de lo que pruebes aquí entra al historial de la comunidad.',
-  sinCorpusTitulo: 'Elige una base de conocimiento',
-  sinCorpusDetalle:
-    'La prueba consulta los documentos de la base que elijas, así que esa es la primera decisión. Escógela en Parámetros y podrás preguntar.',
-  preparandoTitulo: 'Preparando el laboratorio',
-  preparandoDetalle: 'Estamos trayendo las bases de conocimiento disponibles.',
   ejemplos: [
     '¿Qué es la ecualización de histograma y cómo se calcula?',
     '¿En qué se diferencia un filtro de mediana de uno de promedio?',

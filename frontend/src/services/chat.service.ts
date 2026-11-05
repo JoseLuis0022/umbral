@@ -90,8 +90,6 @@ export interface AdjuntoEnvio {
  * "parametros" (admin); a cualquier otro le responde 403.
  */
 export interface ParametrosModelo {
-  /** Hoy hay una sola base de conocimiento: el backend lo ignora. */
-  corpusId?: string;
   /** Id de modelo de Claude. */
   modelo?: string;
   /** El Agent SDK no expone temperatura: el backend la ignora. */

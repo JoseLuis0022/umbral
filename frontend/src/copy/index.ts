@@ -100,26 +100,6 @@ export const navegacion = {
 };
 
 export const admin = {
-  corpusTitulo: 'Corpus',
-  corpusSubtitulo: 'Bases de conocimiento que alimentan al asistente.',
-  nuevoCorpus: 'Nuevo corpus',
-  documentos: (n: number) => `${n} ${n === 1 ? 'documento' : 'documentos'}`,
-  soltarArchivos: 'Arrastra archivos aquí',
-  soltarDetalle: 'o haz clic para elegirlos. Markdown y PDF, hasta 10 MB.',
-  systemPrompt: 'System prompt',
-  guardarCambios: 'Guardar cambios',
-  cambiosGuardados: 'Cambios guardados',
-  descartar: 'Descartar',
-  reindexar: 'Reindexar',
-  descargar: 'Descargar',
-  eliminarDoc: 'Eliminar documento',
-  visorVacio: 'Elige un documento de la lista para leerlo aquí.',
-  estados: {
-    en_cola: 'En cola',
-    procesando: 'Procesando',
-    indexado: 'Indexado',
-    error: 'Error',
-  },
   conversacionesTitulo: 'Auditoría',
   conversacionesSubtitulo: 'Cada pregunta que se le hizo al agente, con su respuesta, quién la hizo y cuánto costó.',
   filtrarPersona: 'Filtrar por persona',
@@ -223,6 +203,48 @@ export const tablero = {
   colModelo: 'Modelo',
   sinModelo: 'Sin dato',
   verConsultas: 'Ver sus consultas en Auditoría',
+};
+
+/** Corpus real (`/admin/corpus`), leído de `GET /api/admin/corpus`. */
+export const corpus = {
+  titulo: 'Corpus',
+  subtitulo: 'Los archivos reales que el agente consulta, tal como están en su carpeta.',
+  soloLectura:
+    'Solo lectura. Los archivos los mantiene el agente: se actualizan desde la carpeta del agente, no desde aquí.',
+  coleccion: 'Colección',
+  coleccionTitulo: 'Elegir colección',
+  archivos: (n: number) => `${n} ${n === 1 ? 'archivo' : 'archivos'}`,
+  buscarPlaceholder: 'Buscar por nombre…',
+  buscar: 'Buscar archivos por nombre',
+  quitarBusqueda: 'Borrar la búsqueda',
+  sensible: 'Sensible',
+  sensibleDetalle:
+    'Entregas calificadas del equipo. El modo de consulta de los estudiantes no puede leerlas; aquí se muestran solo a quien administra.',
+  plegarLista: 'Plegar la lista de archivos',
+  desplegarLista: 'Desplegar la lista de archivos',
+  errorLista: 'No pudimos leer la carpeta del agente',
+  errorListaDetalle: 'Revisa que el servidor del laboratorio esté encendido y que la carpeta exista.',
+  vacioTitulo: 'La carpeta del agente está vacía',
+  vacioDetalle: 'Cuando el agente procese clases y apuntes, sus archivos aparecerán aquí.',
+  coleccionVacia: 'Esta colección no tiene archivos todavía.',
+  sinResultados: 'Ningún archivo se llama así',
+  sinResultadosDetalle: 'Prueba con otra parte del nombre o cambia de colección.',
+  visorVacioTitulo: 'Ningún archivo abierto',
+  visorVacio: 'Elige un archivo de la lista para leerlo aquí.',
+  errorArchivo: 'No pudimos abrir este archivo',
+  errorArchivoDetalle: 'Puede que se haya movido o que pese demasiado. Intenta de nuevo o descárgalo.',
+  sinVistaTitulo: 'Este archivo no se puede previsualizar',
+  sinVistaDetalle: 'Es un archivo de MATLAB, una imagen o un comprimido. Descárgalo para abrirlo en su programa.',
+  descargar: 'Descargar',
+  descargaFallo: 'No pudimos descargar el archivo. Intenta de nuevo.',
+  modificado: (fecha: string) => `Modificado el ${fecha}`,
+  htmlNota: 'Vista sin scripts ni imágenes externas: así se ve el texto del apunte, no su diseño completo.',
+  pdfPagina: (n: number, total: number) => `Página ${n} de ${total}`,
+  pdfAnterior: 'Página anterior',
+  pdfSiguiente: 'Página siguiente',
+  pdfCargando: 'Abriendo el PDF…',
+  contenido: 'Contenido del archivo',
+  volver: 'Volver a la lista',
 };
 
 export const ajustes = {

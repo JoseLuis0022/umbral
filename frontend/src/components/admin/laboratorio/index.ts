@@ -3,13 +3,12 @@
 export { PanelParametros } from './PanelParametros';
 export { CarrilParametros } from './CarrilParametros';
 export type { SeccionParametros } from './CarrilParametros';
-export { SelectorCorpus } from './SelectorCorpus';
 export { SelectorModelo } from './SelectorModelo';
 export { EditorSystemPrompt } from './EditorSystemPrompt';
 export { ControlTemperatura } from './ControlTemperatura';
 export { CadenaAgentes, ResumenCadena } from './CadenaAgentes';
 export { Metricas } from './Metricas';
-export { HiloPrueba, EstadoVacioLab, EstadoSinCorpus } from './HiloPrueba';
+export { HiloPrueba, EstadoVacioLab } from './HiloPrueba';
 export { EntradaPrueba } from './EntradaPrueba';
 export { copyLab } from './copyLocal';
 export { formatoDuracion, formatoEntero, tokensAprox, CARACTERES_POR_TOKEN } from './formato';
@@ -24,7 +23,6 @@ export {
   nuevaSesionId,
 } from './modelos';
 export type {
-  EstadoCorpus,
   EstadoLab,
   MensajeLab,
   MetricasRespuesta,

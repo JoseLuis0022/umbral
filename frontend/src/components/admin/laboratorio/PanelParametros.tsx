@@ -1,16 +1,15 @@
+import { Link } from 'react-router-dom';
 import { memo, useRef, useState } from 'react';
 import { Info, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { Button, SegmentedControl, useToast } from '../../ui';
 import type { SegmentedOption } from '../../ui';
 import { cn } from '../../../lib/cn';
-import { SelectorCorpus } from './SelectorCorpus';
 import { SelectorModelo } from './SelectorModelo';
 import { ControlTemperatura } from './ControlTemperatura';
 import { EditorSystemPrompt } from './EditorSystemPrompt';
 import { MAX_SYSTEM_PROMPT } from './modelos';
 import { copyLab } from './copyLocal';
-import type { EstadoCorpus, NivelPensamiento, ParametrosLab } from './tipos';
-import type { Corpus } from '../../../types';
+import type { NivelPensamiento, ParametrosLab } from './tipos';
 
 const NIVELES: SegmentedOption[] = [
   { value: 'ninguno', label: copyLab.pensamientoNinguno },
@@ -39,7 +38,7 @@ const RESUMEN_MAXIMO = 160;
 /*
  * `memo`: este panel cuelga de la misma pantalla que el hilo, y esa pantalla se
  * re-renderiza una vez por frame mientras llega texto. Sin la comparación de
- * props, cada frame arrastraba los selectores de base y modelo, el control de
+ * props, cada frame arrastraba el selector de modelo, el control de
  * temperatura (que reconstruye su gradiente), el SegmentedControl con su
  * animación de layout y el editor de instrucciones entero — con su Modal, su
  * portal y su AnimatePresence dentro. Nada de eso cambia durante una
@@ -48,10 +47,6 @@ const RESUMEN_MAXIMO = 160;
 export const PanelParametros = memo(function PanelParametros({
   parametros,
   onCambiar,
-  corpus,
-  estadoCorpus,
-  onReintentarCorpus,
-  conteoDocumentos,
   sessionId,
   ocupado,
   puedeRestablecer,
@@ -61,11 +56,6 @@ export const PanelParametros = memo(function PanelParametros({
 }: {
   parametros: ParametrosLab;
   onCambiar: (cambio: Partial<ParametrosLab>) => void;
-  corpus: Corpus[];
-  estadoCorpus: EstadoCorpus;
-  onReintentarCorpus: () => void;
-  /** Documentos por base. Llega después de la lista; sin él la base sigue siendo elegible. */
-  conteoDocumentos?: Record<string, number>;
   sessionId: string;
   /** Hay una transmisión en curso: borrar la memoria ahora dejaría el hilo a medias. */
   ocupado: boolean;
@@ -101,17 +91,16 @@ export const PanelParametros = memo(function PanelParametros({
         estaría duplicado en el documento. El laboratorio busca el ancla dentro
         del contenedor que scrollea, así que la duplicación no le afecta.
       */}
-      {/* ── 1. Base de conocimiento: la primera decisión ── */}
-      <div data-seccion="corpus">
-        <SelectorCorpus
-          corpus={corpus}
-          estado={estadoCorpus}
-          valor={parametros.corpusId}
-          onCambiar={(corpusId) => onCambiar({ corpusId })}
-          onReintentar={onReintentarCorpus}
-          conteoDocumentos={conteoDocumentos}
-        />
-      </div>
+      {/* ── 1. Fuente: informativa, no se elige ── */}
+      <section data-seccion="corpus" className="flex flex-col gap-1.5">
+        <h3 className="font-ui text-13 font-medium text-text-2">{copyLab.corpusEtiqueta}</h3>
+        <p className="font-ui text-13 leading-relaxed text-text-2">
+          {copyLab.corpusAyuda}{' '}
+          <Link to="/admin/corpus" className="font-medium text-accent-fg underline-offset-2 hover:underline">
+            {copyLab.corpusVer}
+          </Link>
+        </p>
+      </section>
 
       {/* ── 2. Modelo ── */}
       <div data-seccion="modelo">

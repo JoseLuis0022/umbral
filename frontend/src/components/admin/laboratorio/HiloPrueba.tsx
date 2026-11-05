@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { FlaskConical, Library, ScissorsLineDashed } from 'lucide-react';
+import { FlaskConical, ScissorsLineDashed } from 'lucide-react';
 import { Markdown } from '../../Markdown';
 import { EmptyState, Skeleton } from '../../ui';
 import { cn } from '../../../lib/cn';
@@ -181,34 +181,6 @@ function EsqueletoRespuesta({ conCadena }: { conCadena: boolean }) {
         <Skeleton className="h-4 w-[68%]" />
       </div>
     </div>
-  );
-}
-
-/**
- * Estado PREVIO al vacío: todavía no hay base de conocimiento elegida, así que
- * no hay nada contra qué preguntar.
- *
- * Es un estado de "falta un paso", no de "esto no funciona", y por eso dice en
- * una línea cuál es el paso y dónde se da. Sin ejemplos pulsables: cargarían el
- * campo, que está deshabilitado, y eso sí se leería como una pantalla rota.
- */
-export function EstadoSinCorpus({ cargando }: { cargando: boolean }) {
-  return (
-    <EmptyState
-      icon={cargando ? FlaskConical : Library}
-      title={cargando ? copyLab.preparandoTitulo : copyLab.sinCorpusTitulo}
-      description={cargando ? copyLab.preparandoDetalle : copyLab.sinCorpusDetalle}
-      action={
-        cargando ? (
-          // Esqueleto con la forma de una respuesta: la espera se ve como
-          // "viene contenido", no como un hueco.
-          <div className="flex w-full max-w-sm flex-col gap-1.5" aria-hidden>
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[72%]" />
-          </div>
-        ) : undefined
-      }
-    />
   );
 }
 

@@ -24,12 +24,6 @@ export const ESFUERZO_POR_NIVEL: Record<NivelPensamiento, Esfuerzo> = {
 
 /** Lo que el administrador ajusta y lo que se persiste en localStorage. */
 export interface ParametrosLab {
-  /**
-   * Base de conocimiento que se consulta. Es la PRIMERA decisión de la
-   * pantalla: sin ella no se puede preguntar, porque no habría documentos
-   * contra los que responder. Cadena vacía = todavía no se ha elegido.
-   */
-  corpusId: string;
   modelo: string;
   temperatura: number;
   nivelPensamiento: NivelPensamiento;
@@ -45,8 +39,6 @@ export interface ModeloCatalogo {
   etiqueta: string;
 }
 
-/** Ciclo de vida de la lista de bases de conocimiento. */
-export type EstadoCorpus = 'cargando' | 'listo' | 'error';
 
 /**
  * Una actividad del agente (herramienta o subagente), tal como la reporta

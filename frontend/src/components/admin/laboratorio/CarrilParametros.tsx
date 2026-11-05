@@ -1,5 +1,4 @@
 import { Brain, Cpu, Database, Library, Pencil, Thermometer, type LucideIcon } from 'lucide-react';
-import type { Corpus } from '../../../types';
 import { ElementoCarril, ListaCarril } from '../../shell';
 import { MODELOS } from './modelos';
 import { copyLab } from './copyLocal';
@@ -25,7 +24,7 @@ const ETIQUETA_NIVEL: Record<ParametrosLab['nivelPensamiento'], string> = {
  * Carril del laboratorio: un icono por grupo de parámetros.
  *
  * ESTE CARRIL ES DISTINTO A LOS OTROS TRES, y conviene decir por qué. Los de
- * auditoría, boletines y corpus pliegan una LISTA: cada icono es un elemento y
+ * auditoría y corpus pliegan una LISTA: cada icono es un elemento y
  * pulsarlo cambia lo que se está mirando sin desplegar nada. Aquí no hay lista
  * que plegar, hay un formulario, así que un icono no puede "ser" un parámetro:
  * pulsarlo despliega el panel en esa sección.
@@ -40,15 +39,11 @@ const ETIQUETA_NIVEL: Record<ParametrosLab['nivelPensamiento'], string> = {
  */
 export function CarrilParametros({
   parametros,
-  corpus,
   onIr,
 }: {
   parametros: ParametrosLab;
-  corpus: Corpus[];
   onIr: (seccion: SeccionParametros) => void;
 }) {
-  const nombreCorpus =
-    corpus.find((c) => c.id === parametros.corpusId)?.nombre ?? copyLab.carrilSinElegir;
   const nombreModelo =
     MODELOS.find((m) => m.id === parametros.modelo)?.nombre ?? parametros.modelo;
   const instrucciones = parametros.systemPrompt.trim();
@@ -57,7 +52,7 @@ export function CarrilParametros({
     {
       seccion: 'corpus',
       icono: Library,
-      etiqueta: copyLab.carrilValor(copyLab.corpusEtiqueta, nombreCorpus),
+      etiqueta: copyLab.carrilValor(copyLab.corpusEtiqueta, copyLab.corpusCarril),
     },
     {
       seccion: 'modelo',

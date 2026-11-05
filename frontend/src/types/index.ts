@@ -81,37 +81,6 @@ export interface Conversacion {
   contexto?: ContextoSesion;
 }
 
-export interface Corpus {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  /**
-   * Clave del icono en el catálogo de `components/admin/corpus/iconos`. Se
-   * guarda la CLAVE, no el componente: el corpus se persiste en localStorage y
-   * un componente de React no sobrevive a `JSON.stringify`. Si la clave no
-   * existe (catálogo cambiado entre versiones), la tarjeta cae a uno neutro.
-   */
-  icono: string;
-  systemPrompt: string;
-  agentesAsociados: string[];
-  actualizadoEn: string;
-}
-
-export type EstadoDocumento = 'en_cola' | 'procesando' | 'indexado' | 'error';
-
-export interface Documento {
-  id: string;
-  corpusId: string;
-  nombre: string;
-  tipo: 'md' | 'pdf';
-  tamanoBytes: number;
-  estado: EstadoDocumento;
-  progreso?: number; // 0-100, solo mientras procesa
-  mensajeError?: string;
-  contenido?: string; // markdown crudo, o URL del PDF
-  subidoEn: string;
-}
-
 export interface Sesion {
   usuario: Usuario;
   perfiles: PerfilAgente[];

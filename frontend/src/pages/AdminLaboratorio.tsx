@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Library, SlidersHorizontal } from 'lucide-react';
+import { Copy, SlidersHorizontal } from 'lucide-react';
 import { Banner, Button, Drawer, IconButton, PageEnter, useToast } from '../components/ui';
 import { PageHeader } from '../components/shell/PageHeader';
 import {
   CLAVE_PARAMETROS,
   CarrilParametros,
   EntradaPrueba,
-  EstadoSinCorpus,
   EstadoVacioLab,
   HiloPrueba,
   MAX_SYSTEM_PROMPT,
@@ -16,7 +15,6 @@ import {
   copyLab,
   nuevaSesionId,
   sonParametrosPorDefecto,
-  type EstadoCorpus,
   type EstadoLab,
   type MensajeLab,
   type MetricasRespuesta,
@@ -29,8 +27,7 @@ import { PanelPlegable } from '../components/shell';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ESFUERZO_POR_NIVEL } from '../components/admin/laboratorio/tipos';
-import { listarCorpus, listarDocumentos } from '../services/corpus.service';
-import type { ActividadAgente, Corpus, ResumenConsulta } from '../types';
+import type { ActividadAgente, ResumenConsulta } from '../types';
 import { enviarMensaje, type ParametrosModelo } from '../services/chat.service';
 
 const NIVELES_VALIDOS: NivelPensamiento[] = ['ninguno', 'bajo', 'medio', 'alto'];
@@ -56,11 +53,9 @@ const AIRE_SALTO = 8;
  *
  * Cuatro decisiones que explican el resto del archivo:
  *
- *  - **Primero la base de conocimiento, después todo lo demás.** Sin corpus
- *    elegido no hay documentos contra los que responder, así que la entrada
- *    está deshabilitada y el hilo lo explica en una línea. Cambiar de base a
- *    media conversación estrena `sessionId` por el mismo motivo que borrar la
- *    memoria: el contexto guardado venía de otros documentos.
+ *  - **No hay "base de conocimiento" que elegir.** El agente busca siempre en
+ *    su carpeta completa (ver /admin/corpus); el panel lo dice en vez de
+ *    ofrecer un selector que el backend ignoraría.
  *
  *  - **El hilo NO se guarda.** No pasa por `ChatContext` ni por el historial de
  *    la comunidad: lo que se prueba aquí es basura de laboratorio y ensuciaría
@@ -102,17 +97,6 @@ export default function AdminLaboratorio() {
   const [error, setError] = useState<string | null>(null);
   const [cadenaViva, setCadenaViva] = useState<PasoAgente[]>([]);
 
-  // Bases de conocimiento. Se cargan una sola vez por montaje (y por
-  // reintento): la lista es corta y estable, y volver a pedirla en cada render
-  // del panel haría cuatro llamadas por abrir el cajón de móvil.
-  const [corpus, setCorpus] = useState<Corpus[]>([]);
-  const [estadoCorpus, setEstadoCorpus] = useState<EstadoCorpus>('cargando');
-  const [intentoCorpus, setIntentoCorpus] = useState(0);
-  // Cuántos documentos tiene cada base. Es lo que deja elegir entre dos bases
-  // de nombre parecido, y por eso se muestra dentro de cada opción del
-  // desplegable. Va en su propio estado porque llega DESPUÉS de la lista.
-  const [conteoDocumentos, setConteoDocumentos] = useState<Record<string, number>>({});
-
   const [borrador, setBorrador] = useState('');
   const [senalFoco, setSenalFoco] = useState(0);
   const [cajonAbierto, setCajonAbierto] = useState(false);
@@ -131,45 +115,6 @@ export default function AdminLaboratorio() {
 
   const activo = estado === 'esperando' || estado === 'transmitiendo';
 
-  useEffect(() => {
-    // `vigente` evita escribir estado si la pantalla muere (o si se reintenta)
-    // antes de que la promesa resuelva.
-    let vigente = true;
-    setEstadoCorpus('cargando');
-    setConteoDocumentos({});
-    listarCorpus()
-      .then((lista) => {
-        if (!vigente) return;
-        setCorpus(lista);
-        setEstadoCorpus('listo');
-
-        // Estado PARCIAL a propósito: la lista ya se puede usar y el conteo
-        // llega detrás. Esperar a contar los documentos de todas las bases
-        // retrasaría la primera decisión de la pantalla por un dato de apoyo.
-        // Si el conteo falla no se marca error: la base sigue siendo elegible,
-        // simplemente su opción no dice cuántos archivos tiene.
-        Promise.all(lista.map((c) => listarDocumentos(c.id)))
-          .then((listas) => {
-            if (!vigente) return;
-            const mapa: Record<string, number> = {};
-            lista.forEach((c, i) => {
-              mapa[c.id] = listas[i].length;
-            });
-            setConteoDocumentos(mapa);
-          })
-          .catch(() => {
-            /* Dato de apoyo: sin él la opción se pinta sin conteo y ya. */
-          });
-      })
-      .catch(() => {
-        if (!vigente) return;
-        setEstadoCorpus('error');
-      });
-    return () => {
-      vigente = false;
-    };
-  }, [intentoCorpus]);
-
   /**
    * localStorage es entrada NO confiable: una versión anterior de la app pudo
    * dejar ahí un modelo que ya no existe o una temperatura fuera de rango, y un
@@ -178,15 +123,6 @@ export default function AdminLaboratorio() {
    */
   const parametrosVigentes = useMemo<ParametrosLab>(
     () => ({
-      // El corpus guardado se acepta mientras la lista no haya llegado (si no,
-      // al recargar la pantalla parpadearía como "sin elegir" y estrenaría
-      // sesión sola). Ya con la lista en mano, un id que no existe —la base se
-      // borró desde /admin/corpus— vuelve a "sin elegir".
-      corpusId:
-        typeof parametros.corpusId === 'string' &&
-        (estadoCorpus !== 'listo' || corpus.some((c) => c.id === parametros.corpusId))
-          ? parametros.corpusId
-          : '',
       modelo: MODELOS.some((m) => m.id === parametros.modelo)
         ? parametros.modelo
         : PARAMETROS_POR_DEFECTO.modelo,
@@ -201,14 +137,11 @@ export default function AdminLaboratorio() {
           ? parametros.systemPrompt.slice(0, MAX_SYSTEM_PROMPT)
           : '',
     }),
-    [parametros, corpus, estadoCorpus]
+    [parametros]
   );
 
   const enDefecto = sonParametrosPorDefecto(parametrosVigentes);
 
-  const corpusElegido = corpus.find((c) => c.id === parametrosVigentes.corpusId);
-  /** Sin base elegida no se puede preguntar: es la primera decisión, no un extra. */
-  const puedePreguntar = Boolean(corpusElegido);
 
   useEffect(() => {
     montadoRef.current = true;
@@ -298,7 +231,6 @@ export default function AdminLaboratorio() {
         (historial[historial.length - 1]?.contenido.length ?? 0) + instrucciones.length;
 
       const parametrosEnvio: ParametrosModelo = {
-        corpusId: parametrosVigentes.corpusId || undefined,
         modelo: parametrosVigentes.modelo,
         temperatura: parametrosVigentes.temperatura,
         esfuerzo: ESFUERZO_POR_NIVEL[parametrosVigentes.nivelPensamiento],
@@ -395,7 +327,7 @@ export default function AdminLaboratorio() {
     const limpio = borrador.trim();
     // La guarda va aquí además de en el campo deshabilitado: Enter llega a este
     // callback antes de que el navegador aplique el `disabled`.
-    if (!limpio || activo || !puedePreguntar) return;
+    if (!limpio || activo) return;
 
     const pregunta: MensajeLab = {
       id: `lab-u-${Date.now()}`,
@@ -408,7 +340,7 @@ export default function AdminLaboratorio() {
     setBorrador('');
     pegadoRef.current = true;
     void ejecutar(siguiente);
-  }, [borrador, activo, puedePreguntar, mensajes, ejecutar]);
+  }, [borrador, activo, mensajes, ejecutar]);
 
   const detener = useCallback(() => {
     controlRef.current?.abort();
@@ -420,10 +352,7 @@ export default function AdminLaboratorio() {
    * mensaje, y la sesión del agente ya tiene la pregunta en su memoria.
    */
   const reintentar = useCallback(() => {
-    // `puedePreguntar` también aquí: la base pudo desaparecer de /admin/corpus
-    // mientras el error estaba en pantalla, y reintentar contra una base que ya
-    // no existe volvería a fallar sin explicar por qué.
-    if (activo || !puedePreguntar) return;
+    if (activo) return;
     const corte = [...mensajes];
     while (corte.length > 0 && corte[corte.length - 1].rol === 'asistente') corte.pop();
     if (corte.length === 0) return;
@@ -431,15 +360,14 @@ export default function AdminLaboratorio() {
     setMensajes(corte);
     pegadoRef.current = true;
     void ejecutar(corte);
-  }, [activo, puedePreguntar, mensajes, ejecutar]);
+  }, [activo, mensajes, ejecutar]);
 
   /**
    * Estrena `sessionId` y deja el hilo en blanco. Devuelve la llave nueva.
    *
-   * Lo comparten "Borrar memoria" y el cambio de base de conocimiento porque
-   * son el mismo problema: el contexto que el agente guarda del lado del
-   * servidor ya no corresponde a lo que la pantalla muestra, y lo único que lo
-   * corta de verdad es cambiar la llave.
+   * El contexto que el agente guarda del lado del servidor ya no corresponde
+   * a lo que la pantalla muestra, y lo único que lo corta de verdad es cambiar
+   * la llave.
    *
    * Se corta la transmisión Y se suelta el controlador: sin lo segundo, la
    * petición abortada resolvería después y colgaría su respuesta a medias del
@@ -467,26 +395,8 @@ export default function AdminLaboratorio() {
   }, []);
 
   const cambiarParametros = useCallback(
-    (cambio: Partial<ParametrosLab>) => {
-      const anterior = parametrosVigentes.corpusId;
-      setParametros({ ...parametrosVigentes, ...cambio });
-
-      const nuevoCorpus = cambio.corpusId;
-      if (nuevoCorpus === undefined || nuevoCorpus === anterior) return;
-
-      // Cambiar de base a media conversación: lo que el asistente recordaba
-      // salió de OTROS documentos, así que arrastrarlo daría respuestas que
-      // mezclan dos normativas. Sesión nueva.
-      reiniciarSesion();
-
-      // Solo se avisa cuando había una base anterior: en la primera elección no
-      // se ha reiniciado nada que el usuario pueda echar de menos.
-      if (anterior) {
-        const nombre = corpus.find((c) => c.id === nuevoCorpus)?.nombre ?? '';
-        push({ message: copyLab.corpusCambiado(nombre), tone: 'success' });
-      }
-    },
-    [parametrosVigentes, setParametros, reiniciarSesion, corpus, push]
+    (cambio: Partial<ParametrosLab>) => setParametros({ ...parametrosVigentes, ...cambio }),
+    [parametrosVigentes, setParametros]
   );
 
   const borrarMemoria = useCallback(() => {
@@ -496,15 +406,9 @@ export default function AdminLaboratorio() {
   }, [reiniciarSesion, push]);
 
   const restablecer = useCallback(() => {
-    // La base elegida se conserva: "restablecer parámetros" habla de los
-    // ajustes del modelo, no de con qué documentos se prueba. Borrarla
-    // obligaría a volver a elegirla —y tiraría el hilo— por pulsar un botón que
-    // promete otra cosa.
-    setParametros({ ...PARAMETROS_POR_DEFECTO, corpusId: parametrosVigentes.corpusId });
+    setParametros({ ...PARAMETROS_POR_DEFECTO });
     push({ message: copyLab.restablecerHecho, tone: 'success' });
-  }, [setParametros, parametrosVigentes.corpusId, push]);
-
-  const reintentarCorpus = useCallback(() => setIntentoCorpus((n) => n + 1), []);
+  }, [setParametros, push]);
 
   const usarEjemplo = useCallback((pregunta: string) => {
     setBorrador(pregunta);
@@ -620,10 +524,6 @@ export default function AdminLaboratorio() {
     <PanelParametros
       parametros={parametrosVigentes}
       onCambiar={cambiarParametros}
-      corpus={corpus}
-      estadoCorpus={estadoCorpus}
-      onReintentarCorpus={reintentarCorpus}
-      conteoDocumentos={conteoDocumentos}
       sessionId={sessionId}
       ocupado={activo}
       puedeRestablecer={!enDefecto}
@@ -673,19 +573,6 @@ export default function AdminLaboratorio() {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                {/* En el hueco donde antes se rotulaba el motor va ahora la base
-                    consultada: en una demostración, saber CON QUÉ documentos se
-                    respondió importa más que con qué pieza de infraestructura. */}
-                {corpusElegido && (
-                  // En teléfono no cabe: se lee en el cajón de Parámetros.
-                  <span
-                    className="hidden max-w-[16rem] min-w-0 shrink items-center gap-1.5 font-ui text-12 text-text-3 sm:flex"
-                    title={corpusElegido.nombre}
-                  >
-                    <Library size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-                    <span className="truncate">{corpusElegido.nombre}</span>
-                  </span>
-                )}
                 {/* Solo por debajo de lg: a partir de ahí el panel de parámetros
                     está siempre a la vista y el cajón no existe. */}
                 <Button
@@ -703,9 +590,7 @@ export default function AdminLaboratorio() {
               ref={hiloRef}
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-6"
             >
-              {!puedePreguntar ? (
-                <EstadoSinCorpus cargando={estadoCorpus === 'cargando'} />
-              ) : hiloVacio ? (
+              {hiloVacio ? (
                 <EstadoVacioLab onEjemplo={usarEjemplo} />
               ) : (
                 <HiloPrueba
@@ -732,7 +617,7 @@ export default function AdminLaboratorio() {
                         variant="secondary"
                         size="sm"
                         onClick={reintentar}
-                        disabled={activo || !puedePreguntar}
+                        disabled={activo}
                       >
                         {copyLab.reintentar}
                       </Button>
@@ -749,10 +634,6 @@ export default function AdminLaboratorio() {
                 onEnviar={enviar}
                 onDetener={detener}
                 transmitiendo={activo}
-                bloqueado={!puedePreguntar}
-                motivoBloqueo={
-                  estadoCorpus === 'cargando' ? copyLab.corpusCargando : copyLab.corpusPendiente
-                }
                 senalFoco={senalFoco}
               />
             </footer>
@@ -768,7 +649,6 @@ export default function AdminLaboratorio() {
             carril={({ desplegar }) => (
               <CarrilParametros
                 parametros={parametrosVigentes}
-                corpus={corpus}
                 onIr={(seccion) => {
                   desplegar();
                   irASeccion(seccion);
