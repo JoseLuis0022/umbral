@@ -143,6 +143,17 @@ export interface Sesion {
   perfiles: PerfilAgente[];
   /** Permisos extra del rol ("parametros", "usuarios"…), según el backend. */
   permisos: string[];
+  /** Solo cuentas con tope (invitado): su crédito y a quién escribir para más. */
+  plan?: PlanCuenta | null;
+}
+
+export interface PlanCuenta {
+  tipo: string;
+  gastadoUsd: number;
+  limiteUsd: number;
+  modelo: string | null;
+  contacto: string | null;
+  agotado: boolean;
 }
 
 /* ─────────────── Protocolo de eventos del chat (backend/app/protocolo.py) ───────────────

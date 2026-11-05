@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { pasosPrincipales } from '../lib/proceso';
 import { ColaMensajes } from '../components/chat/ColaMensajes';
+import { ModalInvitado, PastillaInvitado } from '../components/chat/ModalInvitado';
 import { Button, Drawer, EmptyState, IconButton, useEsCompacto, useToast } from '../components/ui';
 import {
   BarraEntrada,
@@ -53,7 +54,7 @@ export default function Chat() {
   const reducido = useReducedMotion();
   const compacto = useEsCompacto();
   const { push } = useToast();
-  const { usuario } = useAuth();
+  const { usuario, plan } = useAuth();
 
   const {
     conversaciones,
@@ -83,6 +84,9 @@ export default function Chat() {
     progresoTrabajos,
     quitarDeCola,
     marcar,
+    avisoPlan,
+    abrirAvisoPlan,
+    cerrarAvisoPlan,
     renombrar,
     eliminar,
     reaccionar,
@@ -415,6 +419,11 @@ export default function Chat() {
                   />
                 ) : null}
                 {noEncontrada ? null : composer}
+                {plan && !noEncontrada && (
+                  <div className="mt-1 flex justify-center">
+                    <PastillaInvitado plan={plan} onAbrir={abrirAvisoPlan} />
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -445,6 +454,7 @@ export default function Chat() {
           />
         </div>
       </Drawer>
+      {plan && <ModalInvitado plan={plan} abierto={avisoPlan} onCerrar={cerrarAvisoPlan} />}
     </motion.div>
   );
 }

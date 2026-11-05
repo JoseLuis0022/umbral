@@ -166,6 +166,9 @@ class Ajuste:
     modelo: str | None = None
     esfuerzo: str | None = None
     system_prompt: str | None = None
+    # Tope de gasto de ESTA consulta, si el plan de la cuenta lo acota (invitado:
+    # lo que le queda de crédito). None = el del perfil.
+    presupuesto_usd: float | None = None
     # Transmitir lo INTERNO del agente: su razonamiento y el detalle técnico de
     # cada herramienta (rutas, patrones). Puede revelar la estructura de la
     # carpeta o detalles del prompt, así que la capa 2 solo lo enciende para
@@ -302,7 +305,7 @@ def construir_opciones(
         skills="all" if perfil.skills else None,
         system_prompt=system_prompt,
         max_turns=perfil.max_vueltas,
-        max_budget_usd=perfil.presupuesto_usd,
+        max_budget_usd=min(perfil.presupuesto_usd, ajuste.presupuesto_usd) if ajuste.presupuesto_usd else perfil.presupuesto_usd,
         model=ajuste.modelo or perfil.modelo,
         effort=ajuste.esfuerzo or perfil.esfuerzo,  # type: ignore[arg-type]
         resume=sesion_previa,

@@ -76,6 +76,22 @@ CREATE TABLE IF NOT EXISTS conversaciones (
 );
 CREATE INDEX IF NOT EXISTS conversaciones_usuario ON conversaciones (usuario_id, actualizado_en);
 
+-- Enlaces de verificación del registro. Se guarda el HASH del token, nunca el
+-- token: quien lea la base no puede activar cuentas ajenas.
+CREATE TABLE IF NOT EXISTS verificaciones (
+    token_hash  TEXT PRIMARY KEY,
+    usuario_id  TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    creado_en   TEXT NOT NULL,
+    expira_en   TEXT NOT NULL
+);
+
+-- Ajustes que el admin cambia desde la interfaz (correo de envío, contacto…).
+-- La contraseña de aplicación se guarda CIFRADA (ver correo.py).
+CREATE TABLE IF NOT EXISTS configuracion (
+    clave  TEXT PRIMARY KEY,
+    valor  TEXT NOT NULL
+);
+
 -- Factor de corrección del precio estimado por modelo (ver precios.py): se
 -- recalibra con el costo real que reporta el agente al terminar cada consulta.
 CREATE TABLE IF NOT EXISTS precios_calibrados (
@@ -90,6 +106,9 @@ CREATE TABLE IF NOT EXISTS precios_calibrados (
 # idempotente: solo se agrega la que falta.
 _COLUMNAS_NUEVAS: dict[str, dict[str, str]] = {
     "consultas": {"respuesta": "TEXT"},
+    # Las cuentas creadas a mano (CLI) nacen verificadas; las del registro
+    # público, no, hasta que abren el enlace del correo.
+    "usuarios": {"verificado": "INTEGER NOT NULL DEFAULT 1", "registro_ip": "TEXT"},
 }
 
 
@@ -101,6 +120,7 @@ class Usuario:
     area: str
     rol: str
     hash: str
+    verificado: bool = True
 
 
 def ahora() -> str:
@@ -134,7 +154,9 @@ def iniciar() -> None:
 def _usuario(fila: sqlite3.Row | None) -> Usuario | None:
     if fila is None:
         return None
-    return Usuario(fila["id"], fila["correo"], fila["nombre"], fila["area"], fila["rol"], fila["hash"])
+    return Usuario(
+        fila["id"], fila["correo"], fila["nombre"], fila["area"], fila["rol"], fila["hash"], bool(fila["verificado"])
+    )
 
 
 # ── Usuarios ────────────────────────────────────────────────────────────────
@@ -158,6 +180,87 @@ def crear_usuario(correo: str, nombre: str, rol: str, hash_: str, area: str = ""
             (usuario.id, usuario.correo, usuario.nombre, usuario.area, usuario.rol, usuario.hash, ahora()),
         )
     return usuario
+
+
+def crear_usuario_pendiente(correo: str, nombre: str, rol: str, hash_: str, ip: str | None) -> Usuario:
+    """Cuenta del registro público: no puede entrar hasta verificar su correo."""
+    usuario = Usuario(f"u-{uuid.uuid4().hex[:12]}", correo.strip().lower(), nombre.strip(), "", rol, hash_, False)
+    with conexion() as con:
+        con.execute(
+            "INSERT INTO usuarios (id, correo, nombre, area, rol, hash, creado_en, verificado, registro_ip) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+            (usuario.id, usuario.correo, usuario.nombre, "", usuario.rol, usuario.hash, ahora(), ip),
+        )
+    return usuario
+
+
+def registros_desde_ip(ip: str, desde: datetime) -> int:
+    with conexion() as con:
+        fila = con.execute(
+            "SELECT COUNT(*) AS n FROM usuarios WHERE registro_ip = ? AND creado_en >= ?", (ip, desde.isoformat())
+        ).fetchone()
+    return int(fila["n"])
+
+
+def marcar_verificado(usuario_id: str) -> None:
+    with conexion() as con:
+        con.execute("UPDATE usuarios SET verificado = 1 WHERE id = ?", (usuario_id,))
+        con.execute("DELETE FROM verificaciones WHERE usuario_id = ?", (usuario_id,))
+
+
+def guardar_verificacion(token_hash: str, usuario_id: str, expira: datetime) -> None:
+    with conexion() as con:
+        con.execute(
+            "INSERT INTO verificaciones (token_hash, usuario_id, creado_en, expira_en) VALUES (?, ?, ?, ?)",
+            (token_hash, usuario_id, ahora(), expira.isoformat()),
+        )
+
+
+def verificacion(token_hash: str) -> tuple[str, datetime] | None:
+    """(usuario_id, expira) del enlace, o None si no existe o ya se usó."""
+    with conexion() as con:
+        fila = con.execute("SELECT usuario_id, expira_en FROM verificaciones WHERE token_hash = ?", (token_hash,)).fetchone()
+    return (fila["usuario_id"], datetime.fromisoformat(fila["expira_en"])) if fila else None
+
+
+def ultima_verificacion(usuario_id: str) -> datetime | None:
+    with conexion() as con:
+        fila = con.execute("SELECT MAX(creado_en) AS t FROM verificaciones WHERE usuario_id = ?", (usuario_id,)).fetchone()
+    return datetime.fromisoformat(fila["t"]) if fila and fila["t"] else None
+
+
+def gasto_usuario(usuario_id: str) -> float:
+    """Todo lo que ha gastado una cuenta (incluye consultas en curso, con su estimado)."""
+    with conexion() as con:
+        fila = con.execute("SELECT COALESCE(SUM(costo_usd), 0) AS t FROM consultas WHERE usuario_id = ?", (usuario_id,)).fetchone()
+    return float(fila["t"])
+
+
+def gasto_rol_desde(rol: str, desde: datetime) -> float:
+    with conexion() as con:
+        fila = con.execute(
+            "SELECT COALESCE(SUM(c.costo_usd), 0) AS t FROM consultas c JOIN usuarios u ON u.id = c.usuario_id "
+            "WHERE u.rol = ? AND c.creado_en >= ?",
+            (rol, desde.isoformat()),
+        ).fetchone()
+    return float(fila["t"])
+
+
+def config(clave: str) -> str | None:
+    with conexion() as con:
+        fila = con.execute("SELECT valor FROM configuracion WHERE clave = ?", (clave,)).fetchone()
+    return fila["valor"] if fila else None
+
+
+def guardar_config(clave: str, valor: str | None) -> None:
+    with conexion() as con:
+        if valor is None:
+            con.execute("DELETE FROM configuracion WHERE clave = ?", (clave,))
+        else:
+            con.execute(
+                "INSERT INTO configuracion (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor",
+                (clave, valor),
+            )
 
 
 def listar_usuarios() -> list[Usuario]:

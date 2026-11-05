@@ -86,9 +86,21 @@ class Rol:
     permisos: tuple[str, ...] = ()
     # None = sin límite.
     consultas_por_dia: int | None = None
+    # El modelo lo decide el ROL, no la persona (invitados: siempre el barato).
+    modelo_forzado: str | None = None
+    # Gasto máximo de la cuenta en toda su vida (USD). None = sin tope.
+    presupuesto_total_usd: float | None = None
 
 
 ROLES: dict[str, Rol] = {
+    # Cuentas del registro público: para probar. Solo consulta, siempre con
+    # Haiku (~$0.003–0.01 por pregunta) y $0.30 por cuenta, de 30 a 100 preguntas.
+    "invitado": Rol(
+        perfiles=("consulta",),
+        consultas_por_dia=25,
+        modelo_forzado="claude-haiku-5-5",
+        presupuesto_total_usd=0.30,
+    ),
     "usuario": Rol(perfiles=("consulta",), consultas_por_dia=40),
     "especialista": Rol(perfiles=("consulta", "generador"), consultas_por_dia=100),
     "admin": Rol(perfiles=("*",), permisos=("parametros", "usuarios", "auditoria")),
@@ -117,3 +129,10 @@ def leer_prompt(perfil: Perfil) -> str | None:
     if perfil.prompt is None:
         return None
     return (DIR_PROMPTS / perfil.prompt).read_text(encoding="utf-8")
+
+
+# Rol con el que nace una cuenta del registro público.
+ROL_REGISTRO = "invitado"
+# Tope de gasto de TODOS los invitados juntos en el mes calendario (UTC): aunque
+# alguien cree muchas cuentas, el laboratorio no gasta más que esto al mes.
+TOPE_MENSUAL_INVITADOS_USD = 20.0

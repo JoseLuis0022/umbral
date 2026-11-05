@@ -21,6 +21,53 @@ class Modelo(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
 
 
+def _plan(usuario: db.Usuario) -> "PlanPublico | None":
+    from . import planes  # import tardío: planes → correo → db, sin ciclos con este módulo
+
+    e = planes.estado(usuario)
+    if e is None:
+        return None
+    return PlanPublico(
+        tipo=e.tipo,
+        gastado_usd=round(e.gastado_usd, 4),
+        limite_usd=e.limite_usd,
+        modelo=e.modelo,
+        contacto=e.contacto,
+        agotado=e.agotado,
+    )
+
+
+class Registro(Modelo):
+    nombre: str = Field(min_length=2, max_length=80)
+    correo: str = Field(min_length=5, max_length=200)
+    contrasena: str = Field(min_length=8, max_length=200)
+
+
+class TokenVerificacion(Modelo):
+    token: str = Field(min_length=20, max_length=200)
+
+
+class SoloCorreo(Modelo):
+    correo: str = Field(min_length=3, max_length=200)
+
+
+class ConfigCorreoPublica(Modelo):
+    usuario: str | None
+    configurada: bool
+    remitente: str
+    contacto: str | None
+    url_publica: str
+
+
+class ConfigCorreoEntrada(Modelo):
+    usuario: str | None = Field(default=None, max_length=200)
+    # None = no cambiarla; "" = borrarla.
+    contrasena: str | None = Field(default=None, max_length=200)
+    remitente: str | None = Field(default=None, max_length=80)
+    contacto: str | None = Field(default=None, max_length=200)
+    url_publica: str | None = Field(default=None, max_length=300)
+
+
 class Credenciales(Modelo):
     correo: str = Field(min_length=3, max_length=200)
     contrasena: str = Field(min_length=1, max_length=200)
@@ -43,9 +90,21 @@ class PerfilPublico(Modelo):
     modelo: str | None = None
 
 
+class PlanPublico(Modelo):
+    """Solo para cuentas con tope (invitado): para mostrar el crédito y el aviso."""
+
+    tipo: str
+    gastado_usd: float
+    limite_usd: float
+    modelo: str | None
+    contacto: str | None
+    agotado: bool
+
+
 class Yo(Modelo):
     usuario: UsuarioPublico
     perfiles: list[PerfilPublico]
+    plan: PlanPublico | None = None
     # Para que el front MUESTRE u oculte (p. ej. el selector de modelo). Quien
     # decide sigue siendo el backend en cada petición.
     permisos: list[str]
@@ -163,8 +222,15 @@ def publico(usuario: db.Usuario) -> Yo:
             rol=usuario.rol,
             iniciales=iniciales(usuario.nombre),
         ),
-        perfiles=[PerfilPublico(id=p.id, nombre=p.nombre, descripcion=p.descripcion, modelo=p.modelo) for p in perfiles],
+        # Si el rol fuerza el modelo (invitado), ese es el que se muestra.
+        perfiles=[
+            PerfilPublico(
+                id=p.id, nombre=p.nombre, descripcion=p.descripcion, modelo=rol(usuario.rol).modelo_forzado or p.modelo
+            )
+            for p in perfiles
+        ],
         permisos=list(rol(usuario.rol).permisos),
+        plan=_plan(usuario),
     )
 
 

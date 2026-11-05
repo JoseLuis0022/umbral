@@ -132,6 +132,10 @@ type ChatCtx = {
   /** Cuántas conversaciones tienen un trabajo en curso (para el indicador de la barra). */
   trabajosEnCurso: number;
 
+  /** El aviso del modo invitado (crédito agotado o al pulsar la pastilla). */
+  avisoPlan: boolean;
+  abrirAvisoPlan: () => void;
+  cerrarAvisoPlan: () => void;
   /** Fijar, archivar o marcar como (no) leída. */
   marcar: (id: string, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => void;
   /** Saca un mensaje de la cola antes de que se mande. */
@@ -144,7 +148,7 @@ type ChatCtx = {
 const Ctx = createContext<ChatCtx | null>(null);
 
 export function ChatProvider({ children }: { children?: ReactNode }) {
-  const { usuario, puede, perfiles } = useAuth();
+  const { usuario, puede, perfiles, plan, refrescar } = useAuth();
   const stream = useStreamingChat();
   const puedeAjustarModelo = puede('parametros');
 
@@ -207,6 +211,11 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [activaId, setActivaId] = useState<string | null>(null);
   const [streamEnId, setStreamEnId] = useState<string | null>(null);
+  const [avisoPlan, setAvisoPlan] = useState(false);
+  const abrirAvisoPlan = useCallback(() => setAvisoPlan(true), []);
+  const cerrarAvisoPlan = useCallback(() => setAvisoPlan(false), []);
+  const planRef = useRef(plan);
+  planRef.current = plan;
   const [progresoTrabajos, setProgresoTrabajos] = useState<Record<string, { pasos: number; actividad: string | null }>>({});
   const navigate = useNavigate();
   const location = useLocation();
@@ -483,6 +492,19 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     (conversacionId: string, trabajoId: string | undefined, resultado: ResultadoEnvio, proceso: ItemProceso[], pensoMs?: number) => {
       const conv = todasRef.current.find((c) => c.id === conversacionId);
       if (!conv) return;
+      // Cuenta con tope: el crédito cambió (o se acabó, y el backend lo dijo con 402).
+      if (planRef.current) void refrescar();
+      if (resultado.error?.tipo === 'plan') {
+        setAvisoPlan(true);
+        actualizar((previo) =>
+          previo.map((c) =>
+            c.id === conversacionId && c.trabajoPendiente === trabajoId
+              ? { ...c, trabajoPendiente: undefined, trabajoDesde: undefined }
+              : c
+          )
+        );
+        return;
+      }
       const yaEsta = !!trabajoId && conv.mensajes.some((m) => m.trabajoId === trabajoId);
       const hayRespuesta = !yaEsta && (!!resultado.texto.trim() || resultado.archivos.length > 0);
       const creadoEn = new Date().toISOString();
@@ -527,7 +549,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       );
       if (!yaEsta) avisarTermino(conv, resultado);
     },
-    [actualizar, avisarTermino]
+    [actualizar, avisarTermino, refrescar]
   );
 
   /** Deja de mirar el trabajo en primer plano SIN detenerlo. */
@@ -857,6 +879,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     (texto: string, preparados: AdjuntoPreparado[] = []): string | null => {
       const contenido = texto.trim();
       if ((!contenido && !preparados.length) || !usuario) return null;
+      if (planRef.current?.agotado) {
+        setAvisoPlan(true);
+        return null;
+      }
       const destino = activaId ? todasRef.current.find((c) => c.id === activaId) : undefined;
       // Esta conversación ya trabaja: el mensaje va a la COLA y se manda solo al terminar.
       if (
@@ -1013,6 +1039,9 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       trabajosEnCurso,
       quitarDeCola,
       marcar,
+      avisoPlan,
+      abrirAvisoPlan,
+      cerrarAvisoPlan,
       renombrar,
       eliminar,
       reaccionar,
@@ -1046,6 +1075,9 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       trabajosEnCurso,
       quitarDeCola,
       marcar,
+      avisoPlan,
+      abrirAvisoPlan,
+      cerrarAvisoPlan,
       renombrar,
       eliminar,
       reaccionar,

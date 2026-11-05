@@ -7,6 +7,8 @@ import { RutaProtegida } from './components/RutaProtegida';
 import { LimiteError } from './components/LimiteError';
 import { LayoutApp } from './layouts/LayoutApp';
 import Login from './pages/Login';
+import Registro from './pages/Registro';
+import Verificar from './pages/Verificar';
 import Chat from './pages/Chat';
 import Ajustes from './pages/Ajustes';
 import Perfil from './pages/Perfil';
@@ -57,6 +59,9 @@ export default function App() {
               <LimiteError variante="pantalla">
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  {/* Registro público y el enlace del correo: sin sesión. */}
+                  <Route path="/registro" element={<Registro />} />
+                  <Route path="/verificar" element={<Verificar />} />
 
                   {/* Referencia viva del sistema de diseño. Fuera del shell y sin
                       sesión: es documentación del equipo, no una pantalla de producto. */}

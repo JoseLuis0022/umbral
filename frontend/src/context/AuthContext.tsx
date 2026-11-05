@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { PerfilAgente, Sesion, Usuario } from '../types';
+import type { PerfilAgente, PlanCuenta, Sesion, Usuario } from '../types';
 import { authService } from '../services/auth.service';
 import { siLaSesionExpira } from '../services/api';
 
@@ -13,6 +13,12 @@ type AuthCtx = {
   /** ¿El rol tiene este permiso extra? Igual: solo para mostrar u ocultar. */
   puede: (permiso: string) => boolean;
   cargando: boolean;
+  /** Crédito de una cuenta con tope (invitado); null = sin tope. */
+  plan: PlanCuenta | null;
+  /** Vuelve a pedir la sesión al servidor (p. ej. para actualizar el crédito tras una consulta). */
+  refrescar: () => Promise<void>;
+  /** Entra con una sesión ya emitida (el enlace de verificación del correo). */
+  entrarConSesion: (sesion: Sesion) => void;
   iniciarSesion: (correo: string, contrasena: string) => Promise<Sesion>;
   cerrarSesion: () => void;
 };
@@ -47,6 +53,13 @@ export function AuthProvider({ children }: { children?: ReactNode }) {
     return nueva;
   }, []);
 
+  const refrescar = useCallback(async () => {
+    const actual = await authService.recuperarSesion();
+    if (actual) setSesion(actual);
+  }, []);
+
+  const entrarConSesion = useCallback((nueva: Sesion) => setSesion(nueva), []);
+
   const cerrarSesion = useCallback(() => {
     authService.cerrarSesion();
     setSesion(null);
@@ -61,10 +74,13 @@ export function AuthProvider({ children }: { children?: ReactNode }) {
       // Una sesión guardada antes de que existiera `permisos` no trae el campo.
       puede: (permiso: string) => sesion?.permisos?.includes(permiso) ?? false,
       cargando,
+      plan: sesion?.plan ?? null,
+      refrescar,
+      entrarConSesion,
       iniciarSesion,
       cerrarSesion,
     }),
-    [sesion, cargando, iniciarSesion, cerrarSesion]
+    [sesion, cargando, refrescar, entrarConSesion, iniciarSesion, cerrarSesion]
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

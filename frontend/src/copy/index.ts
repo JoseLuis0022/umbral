@@ -27,7 +27,80 @@ export const login = {
   errorVacio: 'Escribe tu correo y tu contraseña para entrar.',
   errorCredenciales: 'Correo o contraseña incorrectos.',
   errorServidor: 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
-  pie: 'Acceso solo con una cuenta que te haya dado quien administra el laboratorio',
+  pie: 'Las cuentas nuevas entran en modo invitado: gratis, con un crédito de prueba.',
+  sinCuenta: '¿No tienes cuenta?',
+  crearCuenta: 'Crea una gratis',
+  reenviar: 'Reenviar el enlace de confirmación',
+  reenviado: 'Listo: te mandamos otro enlace. Revisa también el spam.',
+};
+
+export const registro = {
+  titulo: 'Crea tu cuenta',
+  subtitulo: 'Prueba Umbral gratis en modo invitado',
+  nombre: 'Tu nombre',
+  correo: 'Correo',
+  contrasena: 'Contraseña',
+  pistaContrasena: 'Mínimo 8 caracteres.',
+  crear: 'Crear cuenta',
+  creando: 'Creando…',
+  yaTienes: '¿Ya tienes cuenta?',
+  entrar: 'Inicia sesión',
+  errorNombre: 'Escribe tu nombre.',
+  errorCorreo: 'Escribe un correo válido.',
+  errorContrasena: 'La contraseña necesita al menos 8 caracteres.',
+  errorServidor: 'No pudimos conectar con el servidor. Intenta de nuevo.',
+  errorVerificar: 'No pudimos confirmar tu correo. Intenta de nuevo.',
+  revisaTitulo: 'Revisa tu correo',
+  revisaDetalle: (correo: string) =>
+    `Te enviamos un enlace a ${correo}. Ábrelo para activar tu cuenta (si no lo ves, revisa la carpeta de spam).`,
+  reenviar: 'Reenviar el enlace',
+  reenviarEn: (s: number) => `Reenviar en ${s} s`,
+  reenviado: 'Te mandamos otro enlace.',
+  volver: 'Volver a iniciar sesión',
+  invitadoNota: 'Las cuentas nuevas usan Claude Haiku con un crédito de prueba de US$0.30.',
+  verificando: 'Confirmando tu correo…',
+  verificadoTitulo: '¡Listo! Tu cuenta está activa',
+  verificadoDetalle: 'Entrando a Umbral…',
+  verificarFalloTitulo: 'No pudimos confirmar tu correo',
+  sinToken: 'Este enlace está incompleto. Ábrelo directo desde el correo.',
+};
+
+export const invitado = {
+  titulo: 'Estás en modo invitado',
+  detalle:
+    'En modo invitado solo podemos usar modelos económicos (Claude Haiku) y tienes un crédito de prueba. Si quieres más preguntas o mejorar el plan, escríbeme y te doy acceso.',
+  agotado: 'Ya usaste tu crédito de prueba.',
+  credito: (gastado: string, limite: string) => `Usaste US$${gastado} de US$${limite}`,
+  pastilla: (resto: string) => `Modo invitado · quedan US$${resto}`,
+  escribirme: 'Escribirme',
+  copiarCorreo: 'Copiar correo',
+  correoCopiado: 'Correo copiado',
+  asunto: 'Quiero más acceso a Umbral',
+  cerrar: 'Seguir en modo invitado',
+  sinContacto: 'Pídele acceso a quien administra Umbral.',
+};
+
+export const configCorreo = {
+  boton: 'Configurar correo',
+  titulo: 'Correo de envío (Gmail)',
+  descripcion:
+    'Con este correo se mandan los enlaces para confirmar las cuentas nuevas. Usa una contraseña de aplicación de Google, no tu contraseña normal.',
+  ayuda: 'Crear una contraseña de aplicación',
+  usuario: 'Correo de Gmail',
+  contrasena: 'Contraseña de aplicación',
+  contrasenaGuardada: 'Ya está guardada (cifrada). Escribe otra solo para cambiarla.',
+  contrasenaPista: '16 letras; Google la muestra en bloques de 4. Se guarda cifrada y nunca se vuelve a mostrar.',
+  remitente: 'Nombre del remitente',
+  contacto: 'Correo de contacto',
+  contactoPista: 'El que verán los invitados para pedir más acceso.',
+  urlPublica: 'Dirección pública de Umbral',
+  urlPublicaPista: 'Con ella se arman los enlaces de los correos (en tu laptop: http://localhost:5173).',
+  guardar: 'Guardar',
+  guardado: 'Configuración guardada',
+  probar: 'Enviarme un correo de prueba',
+  estadoListo: 'Configurado: el registro público está abierto.',
+  estadoFalta: 'Sin configurar: el registro público está cerrado.',
+  errorCarga: 'No pudimos leer la configuración.',
 };
 
 export const chat = {

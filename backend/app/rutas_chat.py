@@ -30,7 +30,7 @@ from fastapi.responses import StreamingResponse
 from . import db
 from .config import ajustes
 from .esquemas import ModeloDisponible, ParametrosChat, PeticionChat
-from . import trabajos
+from . import planes, trabajos
 from .motor import Ajuste, Registro, consultar
 from .perfiles import PERFILES, Perfil, puede_usar, rol, tiene_permiso
 from .protocolo import evento
@@ -102,6 +102,22 @@ async def chat(peticion: PeticionChat, usuario: db.Usuario = Depends(usuario_act
     # dos veces a la vez, pero tampoco RECHAZA: la tarea nueva espera su turno
     # y arranca sola (evento `espera`). Así se pueden tener varias
     # conversaciones abiertas sin que la segunda falle.
+    # Cuentas con tope (invitado): crédito propio y cupo mensual de todos los
+    # invitados. 402 = "pago requerido": el front lo muestra como el aviso de
+    # "modo invitado" con el contacto para pedir más.
+    plan = planes.estado(usuario)
+    if plan is not None:
+        if plan.cupo_global_agotado:
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "El cupo de prueba de este mes ya se agotó. Escríbeme para seguir usando Umbral.",
+            )
+        if plan.agotado:
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                f"Usaste tu crédito de prueba (US${plan.limite_usd:.2f}). Escríbeme para seguir usando Umbral.",
+            )
+
     candado = _candados.setdefault(perfil.id, asyncio.Lock()) if perfil.exclusivo else None
 
     sesion_previa = None if parametros.reiniciar_memoria else db.sesion_de(usuario.id, peticion.conversacion_id, perfil.id)
@@ -113,6 +129,11 @@ async def chat(peticion: PeticionChat, usuario: db.Usuario = Depends(usuario_act
         # modelo y el system prompt. Los demás ven el "qué", no el "dónde".
         ver_interno=tiene_permiso(usuario.rol, "parametros"),
     )
+    if plan is not None:
+        # El modelo lo decide el rol (invitado: Haiku) y la consulta no puede
+        # gastar más de lo que le queda: lo corta el propio agente.
+        ajuste.modelo = rol(usuario.rol).modelo_forzado or ajuste.modelo
+        ajuste.presupuesto_usd = plan.restante_usd
 
     if trabajos.en_curso(usuario.id, peticion.conversacion_id):
         raise HTTPException(status.HTTP_409_CONFLICT, "Esta conversación ya está trabajando. Espera a que termine o detenla.")

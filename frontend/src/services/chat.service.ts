@@ -62,7 +62,7 @@ const LIMITE_SILENCIO = 35_000;
 const RETARDO_MIN = 15;
 const RETARDO_MAX = 40;
 
-export type TipoErrorChat = 'red' | 'timeout' | 'respuesta' | 'sesion' | 'permiso' | 'limite';
+export type TipoErrorChat = 'red' | 'timeout' | 'respuesta' | 'sesion' | 'permiso' | 'limite' | 'plan';
 
 export class ErrorChat extends Error {
   tipo: TipoErrorChat;
@@ -343,6 +343,8 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
 function tipoPorEstado(estado: number): TipoErrorChat {
   if (estado === 401) return 'sesion';
   if (estado === 403) return 'permiso';
+  // 402: se acabó el crédito del modo invitado (o el cupo del mes).
+  if (estado === 402) return 'plan';
   if (estado === 409 || estado === 429) return 'limite';
   return 'respuesta';
 }

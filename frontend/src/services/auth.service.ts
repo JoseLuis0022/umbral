@@ -1,6 +1,7 @@
-import type { PerfilAgente, Sesion, Usuario } from '../types';
+import type { PerfilAgente, PlanCuenta, Sesion, Usuario } from '../types';
 import { login as copy } from '../copy';
 import { ErrorApi, guardarToken, pedirJson, tokenGuardado } from './api';
+import { registro as copyRegistro } from '../copy';
 import { escribir, leer } from './simulacion';
 
 const CLAVE = 'sesion';
@@ -10,6 +11,14 @@ interface SesionIniciada {
   usuario: Usuario;
   perfiles: PerfilAgente[];
   permisos: string[];
+  plan?: PlanCuenta | null;
+}
+
+function guardarSesion(respuesta: SesionIniciada): Sesion {
+  guardarToken(respuesta.token);
+  const sesion: Sesion = { usuario: respuesta.usuario, perfiles: respuesta.perfiles, permisos: respuesta.permisos, plan: respuesta.plan ?? null };
+  escribir(CLAVE, sesion);
+  return sesion;
 }
 
 /**
@@ -28,10 +37,39 @@ export const authService = {
       { method: 'POST', json: { correo: correo.trim(), contrasena } },
       copy.errorCredenciales
     );
-    guardarToken(respuesta.token);
-    const sesion: Sesion = { usuario: respuesta.usuario, perfiles: respuesta.perfiles, permisos: respuesta.permisos };
-    escribir(CLAVE, sesion);
-    return sesion;
+    return guardarSesion(respuesta);
+  },
+
+  /**
+   * Registro público: crea la cuenta (sin verificar) y el servidor manda el
+   * correo con el enlace. La respuesta es la misma exista o no el correo.
+   */
+  async registrarse(nombre: string, correo: string, contrasena: string): Promise<string> {
+    const r = await pedirJson<{ mensaje: string }>(
+      '/auth/registro',
+      { method: 'POST', json: { nombre: nombre.trim(), correo: correo.trim(), contrasena } },
+      copyRegistro.errorServidor
+    );
+    return r.mensaje;
+  },
+
+  /** El enlace del correo: activa la cuenta y deja la sesión iniciada. */
+  async verificarCorreo(token: string): Promise<Sesion> {
+    const respuesta = await pedirJson<SesionIniciada>(
+      '/auth/verificar',
+      { method: 'POST', json: { token } },
+      copyRegistro.errorVerificar
+    );
+    return guardarSesion(respuesta);
+  },
+
+  async reenviarEnlace(correo: string): Promise<string> {
+    const r = await pedirJson<{ mensaje: string }>(
+      '/auth/reenviar',
+      { method: 'POST', json: { correo: correo.trim() } },
+      copyRegistro.errorServidor
+    );
+    return r.mensaje;
   },
 
   /**

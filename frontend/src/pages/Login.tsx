@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { springSoft, stagger, dur, ease } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/auth.service';
 import { ErrorApi } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Field, Input } from '../components/ui/Field';
@@ -23,6 +24,9 @@ export default function Login() {
   const [error, setError] = useState<string | undefined>();
   const [cargando, setCargando] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
+  // 403 del login = la contraseña es buena pero falta confirmar el correo.
+  const [porConfirmar, setPorConfirmar] = useState(false);
+  const [reenviado, setReenviado] = useState(false);
 
   const relojSalida = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducido = useReducedMotion();
@@ -66,6 +70,8 @@ export default function Login() {
       return;
     }
     setError(undefined);
+    setPorConfirmar(false);
+    setReenviado(false);
     setCargando(true);
     try {
       await iniciarSesion(correo, contrasena);
@@ -73,8 +79,10 @@ export default function Login() {
     } catch (fallo) {
       // 401 trae el mensaje del servidor; cualquier otra cosa (red caída,
       // backend apagado) es un problema de conexión, no de la contraseña.
-      marcarError(fallo instanceof ErrorApi && fallo.estado === 401 ? fallo.message : copy.errorServidor);
-      setContrasena('');
+      const conMensaje = fallo instanceof ErrorApi && (fallo.estado === 401 || fallo.estado === 403);
+      marcarError(conMensaje ? fallo.message : copy.errorServidor);
+      if (fallo instanceof ErrorApi && fallo.estado === 403) setPorConfirmar(true);
+      else setContrasena('');
     } finally {
       setCargando(false);
     }
@@ -154,8 +162,28 @@ export default function Login() {
                   <Button type="submit" className="w-full" loading={cargando}>
                     {cargando ? copy.entrando : copy.entrar}
                   </Button>
+                  {porConfirmar && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 w-full"
+                      disabled={reenviado}
+                      onClick={() => {
+                        setReenviado(true);
+                        void authService.reenviarEnlace(correo).catch(() => undefined);
+                      }}
+                    >
+                      {reenviado ? copy.reenviado : copy.reenviar}
+                    </Button>
+                  )}
                 </motion.div>
               </form>
+              <p className="mt-5 text-center font-ui text-13 text-text-2">
+                {copy.sinCuenta}{' '}
+                <Link to="/registro" className="font-medium text-accent-fg hover:underline">
+                  {copy.crearCuenta}
+                </Link>
+              </p>
             </motion.div>
 
             <p className="mt-5 text-center font-ui text-12 text-text-3">{copy.pie}</p>
