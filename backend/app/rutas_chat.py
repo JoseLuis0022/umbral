@@ -15,19 +15,21 @@ enviaron.
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from . import db
 from .config import ajustes
-from .esquemas import ParametrosChat, PeticionChat
-from .motor import ESFUERZO_POR_NIVEL, Ajuste, Registro, consultar
+from .esquemas import ModeloDisponible, ParametrosChat, PeticionChat
+from .motor import Ajuste, Registro, consultar
 from .perfiles import PERFILES, Perfil, puede_usar, rol, tiene_permiso
 from .protocolo import LATIDO, a_sse, evento
-from .seguridad import usuario_actual
+from .seguridad import requiere_permiso, usuario_actual
 
 log = logging.getLogger("lab.chat")
 router = APIRouter(tags=["chat"])
@@ -40,6 +42,34 @@ _candados: dict[str, asyncio.Lock] = {}
 
 SEGUNDOS_ENTRE_LATIDOS = 10
 _FIN = object()
+
+# Los modelos de la cuenta casi nunca cambian: se le pregunta a Anthropic una
+# vez cada 10 minutos, no en cada apertura del chat.
+_CACHE_MODELOS: dict[str, object] = {"vence": 0.0, "lista": []}
+SEGUNDOS_CACHE_MODELOS = 600
+
+
+@router.get("/modelos", response_model=list[ModeloDisponible])
+async def modelos(_usuario: db.Usuario = Depends(requiere_permiso("parametros"))) -> list[ModeloDisponible]:
+    """Los modelos que tiene la cuenta de la API key del laboratorio."""
+    if ajustes.motor == "prueba" or not ajustes.anthropic_api_key:
+        return [ModeloDisponible(id="motor-de-prueba", nombre="Motor de prueba")]
+    if time.monotonic() < float(_CACHE_MODELOS["vence"]):  # type: ignore[arg-type]
+        return _CACHE_MODELOS["lista"]  # type: ignore[return-value]
+    try:
+        async with httpx.AsyncClient(timeout=15) as cliente:
+            r = await cliente.get(
+                "https://api.anthropic.com/v1/models",
+                params={"limit": 100},
+                headers={"x-api-key": ajustes.anthropic_api_key, "anthropic-version": "2023-06-01"},
+            )
+        r.raise_for_status()
+    except httpx.HTTPError:
+        log.warning("No se pudo listar los modelos", exc_info=True)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "No pudimos consultar los modelos de Anthropic.") from None
+    lista = [ModeloDisponible(id=m["id"], nombre=m.get("display_name") or m["id"]) for m in r.json().get("data", [])]
+    _CACHE_MODELOS.update(vence=time.monotonic() + SEGUNDOS_CACHE_MODELOS, lista=lista)
+    return lista
 
 
 @router.post("/chat")
@@ -69,8 +99,11 @@ async def chat(peticion: PeticionChat, usuario: db.Usuario = Depends(usuario_act
     sesion_previa = None if parametros.reiniciar_memoria else db.sesion_de(usuario.id, peticion.conversacion_id, perfil.id)
     ajuste = Ajuste(
         modelo=parametros.modelo or None,
-        esfuerzo=ESFUERZO_POR_NIVEL.get(parametros.nivel_pensamiento or ""),
+        esfuerzo=parametros.esfuerzo,
         system_prompt=parametros.system_prompt or None,
+        # Razonamiento y rutas de archivos: solo para quien ya puede cambiar el
+        # modelo y el system prompt. Los demás ven el "qué", no el "dónde".
+        ver_interno=tiene_permiso(usuario.rol, "parametros"),
     )
 
     return StreamingResponse(
@@ -95,6 +128,7 @@ async def _transmitir(
         eventos = consultar(
             perfil,
             peticion.mensaje,
+            peticion.imagenes,
             sesion_previa=sesion_previa,
             usuario_id=usuario.id,
             ajuste=ajuste,
@@ -147,7 +181,9 @@ async def _transmitir(
             conversacion_id=peticion.conversacion_id,
             perfil=perfil.id,
             motor=ajustes.motor,
-            pregunta=peticion.mensaje,
+            # Las imágenes no se guardan (pesan y pueden ser personales); solo se
+            # anota cuántas venían, para que el registro diga qué se preguntó.
+            pregunta=peticion.mensaje + (f" [+{len(peticion.imagenes)} imagen(es)]" if peticion.imagenes else ""),
             sesion_sdk=registro.sesion_sdk,
             costo_usd=registro.costo_usd,
             vueltas=registro.vueltas,

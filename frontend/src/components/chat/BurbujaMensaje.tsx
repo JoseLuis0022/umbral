@@ -1,16 +1,19 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
-import type { Mensaje } from '../../types';
+import type { ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
 import { dur, ease, springSnappy } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { formatoHora } from '../../lib/fechas';
-import { Markdown } from '../Markdown';
+import { Markdown, MarkdownEnVivo } from '../Markdown';
 import { Skeleton } from '../ui';
+import { VisorImagen } from '../VisorImagen';
+import { imagenesEnMemoria } from '../../lib/imagenes';
 import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
-import { FichaAdjunto } from './BarraEntrada';
+import { FichaAdjunto, MiniaturaImagen } from './BarraEntrada';
+import { BurbujaTrabajando, ProcesoAgente } from './IndicadorPensando';
 
 /**
  * Piezas del hilo: burbuja del usuario, respuesta del asistente, respuesta en
@@ -41,6 +44,9 @@ import { FichaAdjunto } from './BarraEntrada';
  */
 export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaje: Mensaje }) {
   const reducido = useReducedMotion();
+  // La imagen completa solo existe en memoria durante la sesión en que se
+  // envió; después de recargar, el visor muestra la miniatura guardada.
+  const [vista, setVista] = useState<{ src: string; alt: string } | null>(null);
   return (
     <motion.article
       initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
@@ -52,11 +58,21 @@ export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaj
         <ul className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
           {mensaje.adjuntos.map((a) => (
             <li key={a.id}>
-              <FichaAdjunto adjunto={a} />
+              {a.miniatura ? (
+                <MiniaturaImagen
+                  src={a.miniatura}
+                  nombre={a.nombre}
+                  className="h-20 w-20"
+                  onAbrir={() => setVista({ src: imagenesEnMemoria.get(a.id)?.url ?? a.miniatura!, alt: a.nombre })}
+                />
+              ) : (
+                <FichaAdjunto adjunto={a} />
+              )}
             </li>
           ))}
         </ul>
       )}
+      <VisorImagen src={vista?.src ?? null} alt={vista?.alt} onCerrar={() => setVista(null)} />
 
       <div className="max-w-[85%] rounded-tarjeta rounded-br-celda border border-hairline bg-surface-1 px-4 py-2.5 shadow-1">
         {/* `whitespace-pre-wrap`: lo que el usuario escribió se conserva tal
@@ -105,6 +121,7 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
       transition={springSnappy}
       className="group flex flex-col gap-1"
     >
+      {mensaje.proceso && <ProcesoAgente items={mensaje.proceso} enVivo={false} />}
       <Markdown>{mensaje.contenido}</Markdown>
 
       <div
@@ -153,43 +170,30 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
  */
 export const RespuestaEnVivo = memo(function RespuestaEnVivo({
   texto,
+  proceso,
   transmitiendo,
 }: {
   texto: string;
+  proceso: ItemProceso[];
   transmitiendo: boolean;
 }) {
   return (
     <div className="relative">
       {/* Mientras transmite, el texto se OCULTA al lector de pantalla y en su
-          lugar se anuncia una vez que el asistente está escribiendo. El hilo es
-          un `role="log"`, así que sin esto cada fragmento que llega — decenas
-          por segundo — se leería en voz alta como contenido nuevo. Al cerrarse
-          el stream, el mensaje confirmado entra al log y se anuncia una sola vez. */}
+          lugar se anuncia una vez que el asistente está escribiendo: el hilo es
+          un `role="log"` y, sin esto, cada fragmento se leería en voz alta. */}
       {transmitiendo && <span role="status" className="sr-only">{copyLocal.escribiendo}</span>}
+      {/* Ya hay texto: el panel queda quieto ("Proceso · N pasos") y la
+          burbujita de abajo es la que dice que sigue trabajando. */}
+      <ProcesoAgente items={proceso} enVivo={false} />
       <div aria-hidden={transmitiendo}>
-        <Markdown>{texto}</Markdown>
+        {/* Por bloques: solo el último —el que crece— se vuelve a analizar. */}
+        <MarkdownEnVivo>{texto}</MarkdownEnVivo>
       </div>
-      {/*
-        El cursor parpadea con una animación de CSS, no con keyframes de Framer
-        Motion. El motivo es un fallo real, no una preferencia: este componente
-        se vuelve a renderizar una vez por frame mientras llega texto, y
-        `animate={{ opacity: [1, 0.15, 1] }}` creaba un array NUEVO en cada uno
-        de esos renders. Framer lo leía como un destino distinto y reiniciaba el
-        parpadeo desde cero sesenta veces por segundo: el cursor se quedaba
-        clavado cerca de opacidad 1 y nunca llegaba a parpadear, además de
-        recalcular la animación en cada frame.
-
-        En CSS la animación vive en el compositor, sobrevive a los renders y no
-        cuesta nada. Con `prefers-reduced-motion` la regla global de index.css
-        la colapsa y el keyframe termina en opacidad 1: el cursor sigue ahí —el
-        feedback no se elimina—, solo deja de parpadear.
-      */}
-      {transmitiendo && (
-        <span
-          aria-hidden
-          className="ml-0.5 inline-block h-[15px] w-[7px] translate-y-[2px] animate-parpadeo rounded-[2px] bg-accent align-baseline"
-        />
-      )}
+      {/* La burbujita sigue ahí mientras el agente esté activo: también cuando
+          se pausa a media respuesta para leer otro archivo. Es CSS (ver
+          IndicadorPensando): el componente se re-renderiza por frame. */}
+      {transmitiendo && <BurbujaTrabajando etiqueta={copyLocal.escribiendo} className="mt-2" />}
     </div>
   );
 });
@@ -205,17 +209,19 @@ export const RespuestaEnVivo = memo(function RespuestaEnVivo({
  * decir *qué* está haciendo es la diferencia entre una espera que se entiende
  * y una que parece un cuelgue.
  */
-export function EsqueletoRespuesta({ actividad }: { actividad?: string | null }) {
+export function EsqueletoRespuesta({
+  actividad,
+  proceso = [],
+}: {
+  actividad?: string | null;
+  proceso?: ItemProceso[];
+}) {
   return (
     // Sin `role="status"`: ya vive dentro del `role="log"` del hilo, y anidar
     // dos regiones anunciables hace que el mismo aviso se lea dos veces.
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <span className="flex h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
-        <span className="font-ui text-13 text-text-3">
-          {actividad ?? copyLocal.pensando}
-        </span>
-      </div>
+      {/* La cabecera del panel ES el indicador: isotipo vivo + paso actual. */}
+      <ProcesoAgente items={proceso} enVivo actual={actividad} />
       <div className="flex flex-col gap-1.5" aria-hidden>
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-[92%]" />

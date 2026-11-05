@@ -8,11 +8,17 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Adjunto, Conversacion, Mensaje } from '../types';
+import type { Adjunto, Conversacion, ItemProceso, Mensaje, ModeloDisponible } from '../types';
 import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
+import { listarModelos } from '../services/modelos.service';
+import type { ParametrosModelo } from '../services/chat.service';
+import { imagenesEnMemoria, type ImagenPreparada } from '../lib/imagenes';
+import { AJUSTE_INICIAL, PREDETERMINADO, type AjusteModelo } from '../lib/ajusteModelo';
 import { useStreamingChat, type EstadoStream } from '../hooks/useStreamingChat';
 import { useAuth } from './AuthContext';
+
+const CLAVE_AJUSTES = 'chat:ajustes-modelo';
 
 const CLAVE = 'conversaciones';
 
@@ -49,7 +55,8 @@ function guardarConversaciones(lista: Conversacion[]) {
  * palabra y no por carácter para no partir una a la mitad, y se limpia el signo
  * final: "¿Cómo resumo 250 correos…?" da un título mejor sin el signo.
  */
-export function tituloDesde(texto: string) {
+// Sin `export`: este archivo solo exporta el provider y su hook (Fast Refresh).
+function tituloDesde(texto: string) {
   const limpio = texto.replace(/\s+/g, ' ').trim();
   const palabras = limpio.split(' ');
   const recorte = palabras.slice(0, 7).join(' ').replace(/[¿?¡!.,;:]+$/g, '');
@@ -66,7 +73,7 @@ type ChatCtx = {
   seleccionar: (id: string | null) => void;
 
   /** Devuelve el id de la conversación (nueva o existente) de inmediato. */
-  enviar: (texto: string, adjuntos?: Adjunto[]) => string | null;
+  enviar: (texto: string, imagenes?: ImagenPreparada[]) => string | null;
   detener: () => void;
   /** Borra la última respuesta y vuelve a pedirla. */
   regenerar: () => void;
@@ -75,6 +82,14 @@ type ChatCtx = {
 
   estadoStream: EstadoStream;
   textoParcial: string;
+  /** Proceso en vivo del agente: razonamiento y pasos, en orden. */
+  proceso: ItemProceso[];
+
+  /** `true` si la cuenta puede elegir modelo y esfuerzo (permiso "parametros"). */
+  puedeAjustarModelo: boolean;
+  modelos: ModeloDisponible[];
+  ajusteModelo: AjusteModelo;
+  cambiarAjusteModelo: (ajuste: Partial<AjusteModelo>) => void;
   /** Sub-agente que está trabajando ahora mismo, o `null`. */
   actividad: string | null;
   errorStream: string | null;
@@ -89,8 +104,34 @@ type ChatCtx = {
 const Ctx = createContext<ChatCtx | null>(null);
 
 export function ChatProvider({ children }: { children?: ReactNode }) {
-  const { usuario } = useAuth();
+  const { usuario, puede } = useAuth();
   const stream = useStreamingChat();
+  const puedeAjustarModelo = puede('parametros');
+
+  // Modelo y esfuerzo elegidos en la barra. Se recuerdan entre sesiones; se
+  // leen desde un ref en `responder` para no recrear el callback al cambiarlos.
+  const [ajusteModelo, setAjusteModelo] = useState<AjusteModelo>(() => leer(CLAVE_AJUSTES, AJUSTE_INICIAL));
+  const ajusteRef = useRef(ajusteModelo);
+  ajusteRef.current = ajusteModelo;
+  const cambiarAjusteModelo = useCallback((cambio: Partial<AjusteModelo>) => {
+    setAjusteModelo((previo) => {
+      const siguiente = { ...previo, ...cambio };
+      escribir(CLAVE_AJUSTES, siguiente);
+      return siguiente;
+    });
+  }, []);
+
+  const [modelos, setModelos] = useState<ModeloDisponible[]>([]);
+  useEffect(() => {
+    if (!puedeAjustarModelo) return;
+    let vivo = true;
+    listarModelos()
+      .then((lista) => vivo && setModelos(lista))
+      .catch(() => vivo && setModelos([])); // sin lista, el selector solo ofrece el predeterminado
+    return () => {
+      vivo = false;
+    };
+  }, [puedeAjustarModelo]);
 
   const [todas, setTodas] = useState<Conversacion[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -156,16 +197,38 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     async (conversacionId: string, historial: Mensaje[]) => {
       setStreamEnId(conversacionId);
 
+      // Las imágenes completas viven en memoria (lib/imagenes.ts). Si la sesión
+      // se recargó, ya no están: el mensaje se reenvía sin ellas.
+      const adjuntos = historial[historial.length - 1]?.adjuntos ?? [];
+      const imagenes = adjuntos.flatMap((a) => {
+        const img = imagenesEnMemoria.get(a.id);
+        return img ? [{ nombre: img.nombre, tipo: img.tipo, datos: img.datos }] : [];
+      });
+
+      const { modelo, esfuerzo } = ajusteRef.current;
+      const parametros: ParametrosModelo | undefined =
+        puedeAjustarModelo && (modelo !== PREDETERMINADO || esfuerzo !== PREDETERMINADO)
+          ? {
+              modelo: modelo !== PREDETERMINADO ? modelo : undefined,
+              esfuerzo: esfuerzo !== PREDETERMINADO ? esfuerzo : undefined,
+            }
+          : undefined;
+
       const resultado = await stream.iniciar({
         conversacionId,
         mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
         // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
-        adjuntos: historial[historial.length - 1]?.adjuntos?.map((a) => ({
-          nombre: a.nombre,
-          tipo: a.tipo,
-          tamanoBytes: a.tamanoBytes,
-        })),
+        adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
+        imagenes,
+        parametros,
       });
+
+      // El contexto se guarda aunque no haya texto: una respuesta cortada
+      // también ocupó contexto.
+      const contexto = resultado.resumen?.contexto ?? undefined;
+      if (contexto) {
+        actualizar((previo) => previo.map((c) => (c.id === conversacionId ? { ...c, contexto } : c)));
+      }
 
       if (resultado.texto.trim()) {
         const creadoEn = new Date().toISOString();
@@ -175,6 +238,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           contenido: resultado.texto,
           creadoEn,
           reaccion: null,
+          proceso: resultado.proceso.length ? resultado.proceso : undefined,
         };
         actualizar((previo) =>
           previo.map((c) =>
@@ -197,13 +261,22 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         setStreamEnId(null);
       }
     },
-    [actualizar, stream]
+    [actualizar, stream, puedeAjustarModelo]
   );
 
   const enviar = useCallback(
-    (texto: string, adjuntos?: Adjunto[]): string | null => {
+    (texto: string, imagenes: ImagenPreparada[] = []): string | null => {
       const contenido = texto.trim();
-      if (!contenido || !usuario || stream.activo) return null;
+      if ((!contenido && !imagenes.length) || !usuario || stream.activo) return null;
+      // En el mensaje se guarda la FICHA de cada imagen (con su miniatura); los
+      // datos completos se quedan en memoria, por id.
+      const adjuntos: Adjunto[] = imagenes.map((img) => ({
+        id: img.id,
+        nombre: img.nombre,
+        tipo: img.tipo,
+        tamanoBytes: img.tamanoBytes,
+        miniatura: img.miniatura,
+      }));
 
       const creadoEn = new Date().toISOString();
       const mensaje: Mensaje = {
@@ -222,7 +295,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         const nueva: Conversacion = {
           id,
           usuarioId: usuario.id,
-          titulo: tituloDesde(contenido),
+          titulo: tituloDesde(contenido || imagenes[0]?.nombre || 'Imagen'),
           mensajes: [mensaje],
           creadoEn,
           ultimoMensajeEn: creadoEn,
@@ -308,6 +381,11 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       reintentar,
       estadoStream: stream.estado,
       textoParcial: stream.textoParcial,
+      proceso: stream.proceso,
+      puedeAjustarModelo,
+      modelos,
+      ajusteModelo,
+      cambiarAjusteModelo,
       actividad: stream.actividad,
       errorStream: stream.error,
       streamEnId,
@@ -324,6 +402,11 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       stream.detener,
       stream.estado,
       stream.textoParcial,
+      stream.proceso,
+      puedeAjustarModelo,
+      modelos,
+      ajusteModelo,
+      cambiarAjusteModelo,
       stream.actividad,
       stream.error,
       regenerar,

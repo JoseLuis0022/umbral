@@ -4,7 +4,8 @@
  * QUÉ SE MANDA — `POST /api/chat` (con el token, vía `api.ts`):
  *
  *     { "conversacionId": "c-1", "mensaje": "¿qué es la mediana?",
- *       "perfil": "consulta", "parametros": { … } }   ← parametros: solo el Laboratorio
+ *       "imagenes": [{ "nombre", "tipo", "datos" }],   ← base64, ya reducidas
+ *       "perfil": "consulta", "parametros": { … } }      ← parametros: solo con permiso
  *
  *   Ni el usuario ni el historial viajan en el cuerpo. Quién eres lo dice el
  *   token; la memoria de la conversación la guarda el backend (reanuda la
@@ -13,7 +14,9 @@
  * QUÉ SE RECIBE — SSE (`text/event-stream`), cinco eventos tipados en
  * `types/index.ts` y emitidos por `backend/app/protocolo.py`:
  *
- *     inicio · texto · actividad · fin · error
+ *     inicio · pensamiento · texto · actividad · fin · error
+ *
+ *   `pensamiento` solo llega si la cuenta tiene permiso "parametros".
  *
  *   Las líneas que empiezan con ":" son latidos: el backend manda uno cada 10 s
  *   mientras el agente piensa, y cualquier byte rearma el reloj de silencio.
@@ -32,6 +35,7 @@
 import type {
   ActividadAgente,
   CodigoErrorChat,
+  Esfuerzo,
   EventoError,
   EventoInicio,
   ResumenConsulta,
@@ -92,11 +96,19 @@ export interface ParametrosModelo {
   modelo?: string;
   /** El Agent SDK no expone temperatura: el backend la ignora. */
   temperatura?: number;
-  nivelPensamiento?: 'ninguno' | 'bajo' | 'medio' | 'alto';
+  /** Cuánto razona el modelo (`effort` del Agent SDK). */
+  esfuerzo?: Esfuerzo;
   /** Reemplaza el system prompt del perfil. */
   systemPrompt?: string;
   /** Abre sesión nueva en el agente en vez de reanudar la anterior. */
   reiniciarMemoria?: boolean;
+}
+
+/** Una imagen lista para viajar: ya reducida y en base64 (ver lib/imagenes.ts). */
+export interface ImagenEnvio {
+  nombre: string;
+  tipo: string;
+  datos: string;
 }
 
 export interface OpcionesEnvio {
@@ -105,13 +117,16 @@ export interface OpcionesEnvio {
   conversacionId: string;
   /** Modo del agente. Por defecto, "consulta". */
   perfil?: string;
-  /** Todavía no se envían: el backend no procesa adjuntos. */
+  /** Solo informativo; lo que viaja al agente son `imagenes`. */
   adjuntos?: AdjuntoEnvio[];
+  imagenes?: ImagenEnvio[];
   /** Cancelación (botón Detener). */
   senal?: AbortSignal;
   parametros?: ParametrosModelo;
   /** Se llama por cada fragmento. `acumulado` evita que quien consume concatene. */
   alFragmento?: (fragmento: string, acumulado: string) => void;
+  /** Razonamiento del modelo, en vivo. `acumulado` = todo lo recibido. */
+  alPensamiento?: (fragmento: string, acumulado: string) => void;
   /** Una herramienta o un subagente empezó o terminó. */
   alActividad?: (actividad: ActividadAgente) => void;
   /** Costo y tokens reales de la consulta. Llega al final, también tras un error del agente. */
@@ -127,16 +142,19 @@ export interface ResultadoEnvio {
   error?: ErrorChat;
   /** `undefined` si la consulta no alcanzó a terminar (cancelada o red caída). */
   resumen?: ResumenConsulta;
+  /** Razonamiento recibido ('' si el backend no lo mandó). */
+  pensamiento: string;
 }
 
 type EventoProtocolo =
   | { tipo: 'inicio'; datos: EventoInicio }
+  | { tipo: 'pensamiento'; datos: { delta: string } }
   | { tipo: 'texto'; datos: { delta: string } }
   | { tipo: 'actividad'; datos: ActividadAgente }
   | { tipo: 'fin'; datos: ResumenConsulta }
   | { tipo: 'error'; datos: EventoError };
 
-const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>(['inicio', 'texto', 'actividad', 'fin', 'error']);
+const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>(['inicio', 'pensamiento', 'texto', 'actividad', 'fin', 'error']);
 
 function errorAborto() {
   return new DOMException('Transmisión cancelada', 'AbortError');
@@ -152,13 +170,14 @@ function ultimaPregunta(mensajes: MensajeEnvio[]): string {
 
 /** Punto de entrada único. NUNCA lanza. */
 export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoEnvio> {
-  if (opciones.senal?.aborted) return { estado: 'cancelado', texto: '' };
+  if (opciones.senal?.aborted) return { estado: 'cancelado', texto: '', pensamiento: '' };
 
   const control = new AbortController();
   const propagarAborto = () => control.abort();
   opciones.senal?.addEventListener('abort', propagarAborto);
 
   let acumulado = '';
+  let pensamiento = '';
   let resumen: ResumenConsulta | undefined;
   let errorDelAgente: ErrorChat | undefined;
   let porTiempo = false;
@@ -182,6 +201,11 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         if (!evento.datos.delta) return;
         acumulado += evento.datos.delta;
         opciones.alFragmento?.(evento.datos.delta, acumulado);
+        return;
+      case 'pensamiento':
+        if (!evento.datos.delta) return;
+        pensamiento += evento.datos.delta;
+        opciones.alPensamiento?.(evento.datos.delta, pensamiento);
         return;
       case 'actividad':
         opciones.alActividad?.(evento.datos);
@@ -213,25 +237,25 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
 
     if (errorDelAgente) {
       opciones.alError?.(errorDelAgente);
-      return { estado: 'error', texto: acumulado, error: errorDelAgente, resumen };
+      return { estado: 'error', texto: acumulado, error: errorDelAgente, resumen, pensamiento };
     }
     opciones.alCerrar?.(acumulado, 'completo');
-    return { estado: 'completo', texto: acumulado, resumen };
+    return { estado: 'completo', texto: acumulado, resumen, pensamiento };
   } catch (e) {
     if (esAborto(e)) {
       if (porTiempo) {
         const error = new ErrorChat('timeout', copyChat.errorTimeout);
         opciones.alError?.(error);
-        return { estado: 'error', texto: acumulado, error, resumen };
+        return { estado: 'error', texto: acumulado, error, resumen, pensamiento };
       }
       // Detener no es un error: lo que alcanzó a escribir se conserva.
       opciones.alCerrar?.(acumulado, 'cancelado');
-      return { estado: 'cancelado', texto: acumulado, resumen };
+      return { estado: 'cancelado', texto: acumulado, resumen, pensamiento };
     }
 
     const error = e instanceof ErrorChat ? e : new ErrorChat('red', copyChat.errorEnvio);
     opciones.alError?.(error);
-    return { estado: 'error', texto: acumulado, error, resumen };
+    return { estado: 'error', texto: acumulado, error, resumen, pensamiento };
   } finally {
     clearTimeout(reloj);
     opciones.senal?.removeEventListener('abort', propagarAborto);
@@ -258,6 +282,7 @@ async function* eventosDelServidor(
     json: {
       conversacionId: opciones.conversacionId,
       mensaje: ultimaPregunta(opciones.mensajes),
+      imagenes: opciones.imagenes?.length ? opciones.imagenes : undefined,
       perfil: opciones.perfil ?? 'consulta',
       parametros: opciones.parametros,
     },
@@ -345,6 +370,7 @@ async function* eventosSimulados(opciones: OpcionesEnvio, senal: AbortSignal): A
     id: 'simulada-0',
     clase: 'herramienta',
     nombre: 'Read',
+    descripcion: 'Revisando el índice de temas',
     detalle: 'estado/indice-temas.md',
     dentroDe: null,
   } as const;

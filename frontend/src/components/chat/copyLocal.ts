@@ -30,30 +30,51 @@ export const copyLocal = {
   conversacionEliminada: 'Conversación eliminada',
 
   // Adjuntos
-  adjuntoPesado: (nombre: string) => `${nombre} pesa más de 10 MB. Adjunta una versión más ligera.`,
-  adjuntoTipo: (nombre: string) => `${nombre} no es un formato admitido. Se aceptan PDF, Word, correos e imágenes.`,
-  adjuntoLimite: 'Puedes adjuntar hasta 5 archivos por mensaje.',
+  adjuntoPesado: (nombre: string) => `${nombre} pesa más de 25 MB. Adjunta una versión más ligera.`,
+  adjuntoTipo: (nombre: string) => `${nombre} no es una imagen. Por ahora el agente solo lee imágenes JPG, PNG, WebP o GIF.`,
+  adjuntoIlegible: (nombre: string) => `No pudimos leer ${nombre}. Prueba con otra imagen o con una captura de pantalla.`,
+  adjuntoLimite: 'Puedes adjuntar hasta 5 imágenes por mensaje.',
+  adjuntarImagen: 'Adjuntar imágenes',
+  adjuntarImagenAyuda: 'Adjuntar imágenes (también puedes pegarlas con ⌘V o arrastrarlas)',
+  preparandoImagen: 'Preparando la imagen…',
+  soltarImagenes: 'Suelta las imágenes para adjuntarlas',
+  verImagen: (nombre: string) => `Ver ${nombre}`,
+  imagenNoDisponible: 'La imagen completa ya no está en esta sesión; se muestra la miniatura.',
+
+  // Modelo y esfuerzo
+  modeloEtiqueta: 'Modelo',
+  modeloPredeterminado: 'Modelo predeterminado',
+  esfuerzoEtiqueta: 'Esfuerzo',
+  esfuerzoPredeterminado: 'Esfuerzo predeterminado',
+  esfuerzoBajo: 'Bajo',
+  esfuerzoMedio: 'Medio',
+  esfuerzoAlto: 'Alto',
+  esfuerzoMuyAlto: 'Muy alto',
+  esfuerzoMaximo: 'Máximo',
+
+  // Contexto
+  contextoTitulo: 'Contexto de la sesión',
+  contextoResumen: (usados: string, maximo: string, pct: string) => `${usados} de ${maximo} tokens · ${pct} %`,
+  contextoSinDato: 'El uso de contexto aparece después de la primera respuesta',
+  contextoUmbral: 'Aquí el agente compacta la conversación automáticamente',
+  contextoCompactacion: (restante: string) =>
+    `Faltan ${restante} tokens para que el agente compacte la conversación (la resume para seguir).`,
+
+  // Proceso del agente
+  pensamientoEnVivo: 'Pensando…',
+  procesoListo: (pasos: number) => (pasos === 1 ? 'Proceso · 1 paso' : `Proceso · ${pasos} pasos`),
+  procesoSoloPensamiento: 'Pensamiento',
+  procesoVer: 'Ver el proceso del agente',
   quitarAdjunto: (nombre: string) => `Quitar ${nombre}`,
-  adjuntosNota: 'Se procesan en esta sesión y no se guardan en ningún servidor.',
+  adjuntosNota: 'Las imágenes se reducen en tu navegador y el servidor no las guarda.',
 
   // Hilo
   pensando: 'Preparando respuesta…',
   /**
-   * Lo que el agente está haciendo antes de escribir, en lenguaje de persona.
-   * `lib/actividad.ts` traduce cada herramienta y ruta a una de estas frases:
-   * el estudiante lee "Leyendo el resumen de la Clase 12…", no
-   * "Read estado/inventario/clase-12.md".
+   * Las frases de cada paso del agente las redacta el backend
+   * (`motor.describir`), sin rutas: ver lib/actividad.ts.
    */
   consultandoAgente: (nombre: string) => `Consultando a ${nombre.replace(/\s+/g, ' ').trim()}…`,
-  actividadIndice: 'Revisando el índice de temas…',
-  actividadResumenClase: (n: string) => `Leyendo el resumen de la Clase ${n}…`,
-  actividadPractica: (n: string) => `Leyendo qué pide la Práctica ${n}…`,
-  actividadDiapositivas: 'Revisando las diapositivas del profesor…',
-  actividadCalendario: 'Revisando el calendario del curso…',
-  actividadApuntes: (n: string) => `Leyendo los apuntes del Tema ${n}…`,
-  actividadTranscripcion: (n: string) => `Buscando en la grabación de la Clase ${n}…`,
-  actividadBuscar: (patron: string) => `Buscando «${patron}» en el material…`,
-  actividadRevisar: 'Revisando el material del curso…',
   escribiendo: 'El asistente está escribiendo la respuesta',
   conversacionNoEncontrada: 'No encontramos esa conversación',
   conversacionNoEncontradaDetalle:

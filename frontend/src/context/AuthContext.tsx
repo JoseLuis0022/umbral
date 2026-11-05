@@ -10,6 +10,8 @@ type AuthCtx = {
   perfiles: PerfilAgente[];
   /** Solo para MOSTRAR u ocultar. Quien niega de verdad es el backend. */
   esAdmin: boolean;
+  /** ¿El rol tiene este permiso extra? Igual: solo para mostrar u ocultar. */
+  puede: (permiso: string) => boolean;
   cargando: boolean;
   iniciarSesion: (correo: string, contrasena: string) => Promise<Sesion>;
   cerrarSesion: () => void;
@@ -56,6 +58,8 @@ export function AuthProvider({ children }: { children?: ReactNode }) {
       usuario: sesion?.usuario ?? null,
       perfiles: sesion?.perfiles ?? [],
       esAdmin: sesion?.usuario.rol === 'admin',
+      // Una sesión guardada antes de que existiera `permisos` no trae el campo.
+      puede: (permiso: string) => sesion?.permisos?.includes(permiso) ?? false,
       cargando,
       iniciarSesion,
       cerrarSesion,

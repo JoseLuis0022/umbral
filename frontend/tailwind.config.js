@@ -207,8 +207,23 @@ export default {
           '0%, 100%': { opacity: '1', transform: 'none' },
           '50%': { opacity: '0.25', transform: 'scale(0.75)' },
         },
+        // Isotipo "pensando": cada nodo de la M late por turno (el retraso lo
+        // pone el componente), como si el agente recorriera sus pasos. Termina
+        // en su estado de reposo para que reduced-motion deje el isotipo quieto
+        // y visible.
+        nodo: {
+          '0%, 60%, 100%': { opacity: '0.45', transform: 'scale(0.82)' },
+          '25%': { opacity: '1', transform: 'scale(1.12)' },
+        },
+        // Halo del nodo del valle: una onda que se expande y se desvanece.
+        onda: {
+          '0%': { opacity: '0.55', transform: 'scale(0.6)' },
+          '70%, 100%': { opacity: '0', transform: 'scale(1.35)' },
+        },
       },
       animation: {
+        nodo: 'nodo 1.8s cubic-bezier(0.32, 0.72, 0, 1) infinite',
+        onda: 'onda 1.8s cubic-bezier(0.32, 0.72, 0, 1) infinite',
         brillo: 'brillo 1.6s linear infinite',
         entrarAbajo: 'entrarAbajo 220ms cubic-bezier(0.32, 0.72, 0, 1) both',
         parpadeo: 'parpadeo 1s linear infinite',

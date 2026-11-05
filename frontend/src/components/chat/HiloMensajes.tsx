@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown, RotateCcw } from 'lucide-react';
-import type { Mensaje } from '../../types';
+import type { ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
 import { dur, ease, springSnappy } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -30,6 +30,8 @@ type Props = {
   actividad?: string | null;
   transmitiendo: boolean;
   textoParcial: string;
+  /** Proceso en vivo del agente (razonamiento y pasos). */
+  proceso?: ItemProceso[];
   error: string | null;
   soloLectura: boolean;
   onReintentar: () => void;
@@ -57,6 +59,7 @@ export function HiloMensajes({
   actividad,
   transmitiendo,
   textoParcial,
+  proceso = [],
   error,
   soloLectura,
   onReintentar,
@@ -163,8 +166,8 @@ export function HiloMensajes({
                 )
               )}
 
-              {esperando && !textoParcial && <EsqueletoRespuesta actividad={actividad} />}
-              {textoParcial && <RespuestaEnVivo texto={textoParcial} transmitiendo={transmitiendo} />}
+              {esperando && !textoParcial && <EsqueletoRespuesta actividad={actividad} proceso={proceso} />}
+              {textoParcial && <RespuestaEnVivo texto={textoParcial} proceso={proceso} transmitiendo={transmitiendo} />}
 
               {/* El error no borra lo que ya se leyó: el fragmento parcial se
                   queda arriba y el aviso se suma debajo con el reintento.

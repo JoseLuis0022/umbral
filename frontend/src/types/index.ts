@@ -28,6 +28,12 @@ export interface Adjunto {
   nombre: string;
   tipo: string;
   tamanoBytes: number;
+  /**
+   * Miniatura JPEG chica (data URL, ~10 KB) de una imagen adjunta. Es lo único
+   * de la imagen que se guarda en localStorage: la imagen completa vive solo en
+   * memoria (`lib/imagenes.ts`) y se pierde al recargar.
+   */
+  miniatura?: string;
 }
 
 export interface Mensaje {
@@ -37,6 +43,8 @@ export interface Mensaje {
   creadoEn: string; // ISO
   adjuntos?: Adjunto[];
   reaccion?: 'positiva' | 'negativa' | null;
+  /** Lo que hizo el agente antes y durante la respuesta: razonamiento y pasos. */
+  proceso?: ItemProceso[];
 }
 
 export type NivelAnalisis = 'bajo' | 'medio' | 'alto';
@@ -69,6 +77,8 @@ export interface Conversacion {
   // `soloLectura` NO se almacena: se deriva de ultimoMensajeEn en cada render.
   // Guardarlo obligaría a un job que lo actualice y quedaría desincronizado.
   analisis?: AnalisisConversacion;
+  /** Último uso de contexto que reportó el agente para esta conversación. */
+  contexto?: ContextoSesion;
 }
 
 export interface Corpus {
@@ -126,6 +136,8 @@ export interface Guia {
 export interface Sesion {
   usuario: Usuario;
   perfiles: PerfilAgente[];
+  /** Permisos extra del rol ("parametros", "usuarios"…), según el backend. */
+  permisos: string[];
 }
 
 /* ─────────────── Protocolo de eventos del chat (backend/app/protocolo.py) ───────────────
@@ -153,14 +165,33 @@ export interface ActividadAgente {
   clase: 'herramienta' | 'subagente';
   /** Nombre de la herramienta (`Read`, `Grep`…) o del subagente. */
   nombre: string;
-  /** Qué está tocando, legible: una ruta relativa, un patrón de búsqueda. */
-  detalle: string;
+  /** Qué hace, en palabras y SIN rutas ("Leyendo el resumen de la Clase 12"). Para todos. */
+  descripcion: string;
+  /**
+   * Detalle técnico (ruta relativa, patrón de búsqueda). El backend solo lo
+   * manda a cuentas con permiso "parametros"; a las demás les llega `null`.
+   */
+  detalle: string | null;
   fase: 'inicio' | 'fin';
   /** Solo en `fin`: si la herramienta terminó bien. */
   ok: boolean | null;
   /** `id` de la actividad de subagente que la contiene; `null` = agente principal. */
   dentroDe: string | null;
 }
+
+/** Un elemento del panel "Proceso", en el orden en que ocurrió. */
+export type ItemProceso =
+  | { tipo: 'pensamiento'; texto: string }
+  | {
+      tipo: 'paso';
+      id: string;
+      clase: ActividadAgente['clase'];
+      nombre: string;
+      descripcion: string;
+      detalle: string | null;
+      estado: 'trabajando' | 'listo' | 'fallo';
+      dentroDe: string | null;
+    };
 
 export interface TokensConsulta {
   entrada: number;
@@ -170,7 +201,34 @@ export interface TokensConsulta {
   cacheEscritura: number;
 }
 
+/** Niveles nativos del Agent SDK (`effort`). */
+export type Esfuerzo = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+export interface CategoriaContexto {
+  /** Nombre que da Claude Code ("System prompt", "Messages", "Free space"…). */
+  nombre: string;
+  tokens: number;
+  /** Herramientas cargadas bajo demanda: no ocupan contexto todavía. */
+  diferida: boolean;
+}
+
+/** Lo mismo que muestra `/context` en Claude Code (`get_context_usage`). */
+export interface ContextoSesion {
+  usados: number;
+  maximo: number;
+  porcentaje: number;
+  umbralCompactacion: number | null;
+  categorias: CategoriaContexto[];
+}
+
+export interface ModeloDisponible {
+  id: string;
+  nombre: string;
+}
+
 export interface ResumenConsulta {
+  /** `null` si no se pudo leer (el agente terminó con error, por ejemplo). */
+  contexto?: ContextoSesion | null;
   costoUsd: number | null;
   /** Vueltas del agentic loop. */
   vueltas: number | null;

@@ -4,11 +4,16 @@ El navegador nunca ve los mensajes crudos del SDK (traen rutas absolutas,
 entradas de herramientas, system prompt, razonamiento). Ve SOLO estos eventos,
 tipados igual en `frontend/src/types/index.ts`:
 
-    inicio     {conversacionId, perfil, motor}
-    texto      {delta}                                   ← muchas veces
-    actividad  {id, clase, nombre, detalle, fase, ok, dentroDe}
-    fin        {costoUsd, vueltas, duracionMs, tokens, modelo}
-    error      {codigo, mensaje}
+    inicio       {conversacionId, perfil, motor}
+    pensamiento  {delta}                                 ← solo con permiso "parametros"
+    texto        {delta}                                 ← muchas veces
+    actividad    {id, clase, nombre, descripcion, detalle, fase, ok, dentroDe}
+                  descripcion: para todos, sin rutas · detalle: solo con permiso (o null)
+    fin          {costoUsd, vueltas, duracionMs, tokens, modelo, contexto}
+    error        {codigo, mensaje}
+
+`contexto` = {usados, maximo, porcentaje, umbralCompactacion, categorias:
+[{nombre, tokens, diferida}]}: lo mismo que muestra /context en Claude Code.
 
 Transporte: SSE (`text/event-stream`). Cada evento es
 
@@ -22,7 +27,7 @@ SSE): mantienen viva la conexión mientras el modelo piensa.
 import json
 from typing import Any, Literal
 
-TipoEvento = Literal["inicio", "texto", "actividad", "fin", "error"]
+TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "fin", "error"]
 
 # Códigos de error estables: el front decide el mensaje y el tono por código.
 CodigoError = Literal[

@@ -1,4 +1,6 @@
-import { memo, useState, type ReactNode } from 'react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
+import { marked } from 'marked';
+import remend from 'remend';
 import { motion } from 'framer-motion';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -144,6 +146,70 @@ export const Markdown = memo(function Markdown({
     </div>
   );
 });
+
+/* Un bloque de markdown (párrafo, lista, tabla, código…). `memo` compara la
+ * cadena: mientras el bloque no cambie, React no vuelve a analizarlo. */
+const BloqueMarkdown = memo(function BloqueMarkdown({ fuente }: { fuente: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES}>
+      {fuente}
+    </ReactMarkdown>
+  );
+});
+
+/**
+ * Markdown que todavía está llegando.
+ *
+ * Con `<Markdown>` a secas, cada frame vuelve a analizar la respuesta ENTERA:
+ * el costo crece con lo largo de la respuesta y en las largas se nota el
+ * tirón. Aquí el texto se parte en bloques (`marked.lexer`, solo para cortar),
+ * los bloques terminados quedan memorizados y solo el ÚLTIMO —el que crece— se
+ * vuelve a analizar. Es la misma idea con la que se rehízo el renderer de
+ * claude.ai: el costo de un frame depende de lo nuevo, no de todo.
+ *
+ * Al último bloque se le pasa `remend`, que cierra lo que va a medias
+ * (`**negri` → `**negri**`): sin eso, el texto se ve con asteriscos y "salta"
+ * a negritas cuando llega el cierre. Una fila de tabla a medias no se muestra
+ * hasta que llega su salto de línea, por la misma razón.
+ */
+export const MarkdownEnVivo = memo(function MarkdownEnVivo({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
+  const bloques = useMemo(() => partirEnBloques(children), [children]);
+  return (
+    <div className={cn('font-ui text-15 leading-relaxed text-text-1', className)}>
+      {bloques.map((fuente, i) =>
+        i === bloques.length - 1 ? (
+          <BloqueMarkdown key={i} fuente={remend(retenerFilaParcial(fuente))} />
+        ) : (
+          <BloqueMarkdown key={i} fuente={fuente} />
+        )
+      )}
+    </div>
+  );
+});
+
+function partirEnBloques(texto: string): string[] {
+  try {
+    return marked
+      .lexer(texto)
+      .filter((t) => t.type !== 'space')
+      .map((t) => t.raw);
+  } catch {
+    return [texto]; // si el lexer tropieza con algo raro, se pinta de una pieza
+  }
+}
+
+/** En una tabla a medias, la última fila sin `\n` todavía no se muestra. */
+function retenerFilaParcial(bloque: string): string {
+  if (!bloque.trimStart().startsWith('|')) return bloque;
+  const corte = bloque.lastIndexOf('\n');
+  return corte === -1 || bloque.endsWith('\n') ? bloque : bloque.slice(0, corte + 1);
+}
 
 /**
  * Imagen de una respuesta o de un documento.

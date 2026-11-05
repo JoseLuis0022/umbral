@@ -28,6 +28,7 @@ import {
 import { PanelPlegable } from '../components/shell';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { ESFUERZO_POR_NIVEL } from '../components/admin/laboratorio/tipos';
 import { listarCorpus, listarDocumentos } from '../services/corpus.service';
 import type { ActividadAgente, Corpus, ResumenConsulta } from '../types';
 import { enviarMensaje, type ParametrosModelo } from '../services/chat.service';
@@ -251,7 +252,9 @@ export default function AdminLaboratorio() {
         ...previa,
         {
           clave,
-          nombre: actividad.detalle ? `${actividad.nombre} · ${actividad.detalle}` : actividad.nombre,
+          // El detalle técnico llega porque esta pantalla es de admin; si no
+          // llegara, la descripción humana basta.
+          nombre: `${actividad.nombre} · ${actividad.detalle ?? actividad.descripcion}`,
           // Lo que hace el agente principal va al margen; lo que hace un
           // subagente, indentado debajo de él.
           principal: actividad.dentroDe === null,
@@ -298,7 +301,7 @@ export default function AdminLaboratorio() {
         corpusId: parametrosVigentes.corpusId || undefined,
         modelo: parametrosVigentes.modelo,
         temperatura: parametrosVigentes.temperatura,
-        nivelPensamiento: parametrosVigentes.nivelPensamiento,
+        esfuerzo: ESFUERZO_POR_NIVEL[parametrosVigentes.nivelPensamiento],
         // Vacío = "no mandes nada", no "manda una cadena vacía": un
         // systemPrompt en blanco reemplazaría el del perfil por nada.
         systemPrompt: instrucciones || undefined,

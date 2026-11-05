@@ -7,11 +7,20 @@
  * deja de ser una pantalla y se vuelve un servicio, se suben allá.
  */
 
-import type { ParametrosModelo } from '../../../services/chat.service';
-import type { ResumenConsulta } from '../../../types';
+import type { Esfuerzo, ResumenConsulta } from '../../../types';
 
-/** Los cuatro niveles que acepta `ParametrosModelo.nivelPensamiento`. */
-export type NivelPensamiento = NonNullable<ParametrosModelo['nivelPensamiento']>;
+/**
+ * Los cuatro niveles del control del Laboratorio. Al enviar se traducen al
+ * `esfuerzo` nativo del Agent SDK con `ESFUERZO_POR_NIVEL`.
+ */
+export type NivelPensamiento = 'ninguno' | 'bajo' | 'medio' | 'alto';
+
+export const ESFUERZO_POR_NIVEL: Record<NivelPensamiento, Esfuerzo> = {
+  ninguno: 'low',
+  bajo: 'low',
+  medio: 'medium',
+  alto: 'high',
+};
 
 /** Lo que el administrador ajusta y lo que se persiste en localStorage. */
 export interface ParametrosLab {

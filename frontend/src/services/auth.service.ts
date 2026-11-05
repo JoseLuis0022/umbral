@@ -9,6 +9,7 @@ interface SesionIniciada {
   token: string;
   usuario: Usuario;
   perfiles: PerfilAgente[];
+  permisos: string[];
 }
 
 /**
@@ -28,7 +29,7 @@ export const authService = {
       copy.errorCredenciales
     );
     guardarToken(respuesta.token);
-    const sesion: Sesion = { usuario: respuesta.usuario, perfiles: respuesta.perfiles };
+    const sesion: Sesion = { usuario: respuesta.usuario, perfiles: respuesta.perfiles, permisos: respuesta.permisos };
     escribir(CLAVE, sesion);
     return sesion;
   },

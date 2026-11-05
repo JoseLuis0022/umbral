@@ -1,28 +1,48 @@
-import { useEffect, useLayoutEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, Paperclip, Square, X } from 'lucide-react';
-import type { Adjunto } from '../../types';
+import { ArrowUp, ImagePlus, Loader2, Square, X } from 'lucide-react';
+import type { Adjunto, ContextoSesion, ModeloDisponible } from '../../types';
+import { PREDETERMINADO, type EsfuerzoElegido } from '../../lib/ajusteModelo';
 import { cn } from '../../lib/cn';
 import { springSnappy, dur, ease } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { tamanoLegible } from '../../lib/fechas';
-import { IconButton, Textarea, useToast } from '../ui';
+import {
+  MAX_BYTES_ORIGINAL,
+  MAX_IMAGENES,
+  TIPOS_IMAGEN,
+  esImagenAceptada,
+  imagenesDe,
+  prepararImagen,
+  type ImagenPreparada,
+} from '../../lib/imagenes';
+import { IconButton, SelectorLista, Textarea, useToast, type OpcionLista } from '../ui';
+import { VisorImagen } from '../VisorImagen';
 import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
+import { AnilloContexto } from './AnilloContexto';
 
-const EXTENSIONES = ['.pdf', '.docx', '.msg', '.eml', '.png', '.jpg', '.jpeg'];
-const MAX_BYTES = 10 * 1024 * 1024;
-const MAX_ARCHIVOS = 5;
-const MAX_LINEAS = 6;
+const MAX_LINEAS = 8;
+
+/** Selección de modelo y esfuerzo. Solo existe si la cuenta tiene permiso. */
+export type AjustesModelo = {
+  modelos: ModeloDisponible[];
+  modelo: string;
+  onModelo: (id: string) => void;
+  esfuerzo: EsfuerzoElegido;
+  onEsfuerzo: (e: EsfuerzoElegido) => void;
+};
 
 type Props = {
   valor: string;
   onCambio: (valor: string) => void;
-  adjuntos: Adjunto[];
-  onAdjuntos: (adjuntos: Adjunto[]) => void;
+  imagenes: ImagenPreparada[];
+  onImagenes: (imagenes: ImagenPreparada[]) => void;
   onEnviar: () => void;
   onDetener: () => void;
   transmitiendo: boolean;
+  ajustesModelo?: AjustesModelo;
+  contexto?: ContextoSesion;
   autoFoco?: boolean;
   /**
    * Contador que devuelve el foco al campo cada vez que CAMBIA. Un booleano no
@@ -36,19 +56,21 @@ type Props = {
 /**
  * Barra de entrada del chat.
  *
- * Es un compuesto (adjuntar + campo que crece + enviar/detener) y no un campo
- * suelto, pero el `Textarea` de adentro sí es el del sistema de diseño, con el
- * borde y el anillo de foco anulados: el foco lo dibuja la barra completa, no
- * el campo, porque visualmente el control es la barra.
+ * Campo que crece arriba y una fila de herramientas abajo: adjuntar · modelo ·
+ * esfuerzo · contexto · enviar. Las imágenes entran por el botón, pegándolas
+ * (⌘V) o arrastrándolas, y se REDUCEN aquí mismo antes de viajar (ver
+ * lib/imagenes.ts). El foco lo dibuja la barra completa, no el campo.
  */
 export function BarraEntrada({
   valor,
   onCambio,
-  adjuntos,
-  onAdjuntos,
+  imagenes,
+  onImagenes,
   onEnviar,
   onDetener,
   transmitiendo,
+  ajustesModelo,
+  contexto,
   autoFoco,
   senalFoco = 0,
   className,
@@ -57,12 +79,14 @@ export function BarraEntrada({
   const archivos = useRef<HTMLInputElement>(null);
   const { push } = useToast();
   const reducido = useReducedMotion();
+  const [preparando, setPreparando] = useState(0);
+  const [arrastrando, setArrastrando] = useState(false);
+  const [vista, setVista] = useState<ImagenPreparada | null>(null);
 
-  const puedeEnviar = valor.trim().length > 0 && !transmitiendo;
+  const puedeEnviar = (valor.trim().length > 0 || imagenes.length > 0) && !transmitiendo && preparando === 0;
 
-  // Crecimiento hasta 6 líneas y scroll a partir de ahí. Se mide contra el
-  // line-height computado y no contra una constante: si algún día cambia la
-  // escala tipográfica, el límite sigue siendo seis líneas de verdad.
+  // Crecimiento hasta 8 líneas y scroll a partir de ahí, medido contra el
+  // line-height computado para que siga siendo cierto si cambia la escala.
   useLayoutEffect(() => {
     const el = campo.current;
     if (!el) return;
@@ -71,15 +95,12 @@ export function BarraEntrada({
     const relleno = parseFloat(estilos.paddingTop) + parseFloat(estilos.paddingBottom);
     const maximo = alturaLinea * MAX_LINEAS + relleno;
     el.style.height = 'auto';
-    const deseada = Math.min(el.scrollHeight, maximo);
-    el.style.height = `${deseada}px`;
+    el.style.height = `${Math.min(el.scrollHeight, maximo)}px`;
     el.style.overflowY = el.scrollHeight > maximo ? 'auto' : 'hidden';
   }, [valor]);
 
-  // El cursor se coloca al FINAL del texto, no al principio. Cuando el valor
-  // llega precargado desde fuera (un chip del estado vacío, la pregunta de una
-  // guía), enfocar sin más deja el cursor en la posición 0 y lo siguiente que
-  // se escriba se cuela delante de la pregunta.
+  // El cursor va al FINAL: si el valor llega precargado (un chip del estado
+  // vacío), enfocar sin más lo deja en la posición 0.
   useEffect(() => {
     const el = campo.current;
     if (!el || !autoFoco) return;
@@ -89,56 +110,87 @@ export function BarraEntrada({
   }, [autoFoco, senalFoco]);
 
   function alTeclado(e: KeyboardEvent<HTMLTextAreaElement>) {
-    // `isComposing` protege a quien escribe con teclado de acentos o IME: sin
-    // esta guarda, Enter confirma la composición Y envía el mensaje a medias.
+    // `isComposing`: Enter confirma la composición de acentos/IME, no envía.
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (puedeEnviar) onEnviar();
     }
   }
 
-  function agregarArchivos(e: ChangeEvent<HTMLInputElement>) {
-    const lista = Array.from(e.target.files ?? []);
-    e.target.value = ''; // permite volver a elegir el mismo archivo
+  async function agregar(lista: File[]) {
     if (!lista.length) return;
-
-    const nuevos: Adjunto[] = [];
+    const aceptadas: File[] = [];
     for (const archivo of lista) {
-      const extension = `.${archivo.name.split('.').pop()?.toLowerCase() ?? ''}`;
-      if (!EXTENSIONES.includes(extension)) {
+      if (!esImagenAceptada(archivo)) {
         push({ message: copyLocal.adjuntoTipo(archivo.name), tone: 'error' });
-        continue;
-      }
-      if (archivo.size > MAX_BYTES) {
+      } else if (archivo.size > MAX_BYTES_ORIGINAL) {
         push({ message: copyLocal.adjuntoPesado(archivo.name), tone: 'error' });
-        continue;
-      }
-      if (adjuntos.length + nuevos.length >= MAX_ARCHIVOS) {
+      } else if (imagenes.length + aceptadas.length >= MAX_IMAGENES) {
         push({ message: copyLocal.adjuntoLimite, tone: 'error' });
         break;
+      } else {
+        aceptadas.push(archivo);
       }
-      nuevos.push({
-        // Los archivos no se suben a ningún lado: solo se registra su ficha
-        // para que el mensaje enviado la muestre.
-        id: `${archivo.name}-${archivo.size}-${nuevos.length}`,
-        nombre: archivo.name,
-        tipo: extension.slice(1),
-        tamanoBytes: archivo.size,
-      });
     }
-    if (nuevos.length) onAdjuntos([...adjuntos, ...nuevos]);
+    if (!aceptadas.length) return;
+
+    setPreparando((n) => n + aceptadas.length);
+    const listas: ImagenPreparada[] = [];
+    for (const archivo of aceptadas) {
+      try {
+        listas.push(await prepararImagen(archivo));
+      } catch {
+        push({ message: copyLocal.adjuntoIlegible(archivo.name), tone: 'error' });
+      } finally {
+        setPreparando((n) => n - 1);
+      }
+    }
+    if (listas.length) onImagenes([...imagenes, ...listas]);
+  }
+
+  function alElegir(e: ChangeEvent<HTMLInputElement>) {
+    const lista = Array.from(e.target.files ?? []);
+    e.target.value = ''; // permite volver a elegir el mismo archivo
+    void agregar(lista);
+  }
+
+  function alPegar(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const lista = imagenesDe(e.clipboardData);
+    if (!lista.length) return;
+    // Si además venía texto (copiar de una página web), el texto se pega
+    // normal y las imágenes se adjuntan; si solo eran imágenes, que no se
+    // cuele el nombre del archivo como texto.
+    if (!e.clipboardData.getData('text/plain')) e.preventDefault();
+    void agregar(lista);
+  }
+
+  function alSoltar(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setArrastrando(false);
+    void agregar(Array.from(e.dataTransfer.files));
   }
 
   return (
     <div className={cn('flex flex-col', className)}>
       <div
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer.items).some((i) => i.kind === 'file')) {
+            e.preventDefault();
+            setArrastrando(true);
+          }
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setArrastrando(false);
+        }}
+        onDrop={alSoltar}
         className={cn(
-          'rounded-tarjeta border border-hairline bg-surface-1 shadow-2 transition-colors duration-150',
-          'focus-within:border-accent/40 focus-within:ring-[3px] focus-within:ring-accent-soft'
+          'relative rounded-tarjeta border bg-surface-1 shadow-2 transition-colors duration-150',
+          'focus-within:border-accent/40 focus-within:ring-[3px] focus-within:ring-accent-soft',
+          arrastrando ? 'border-accent ring-[3px] ring-accent-soft' : 'border-hairline'
         )}
       >
         <AnimatePresence initial={false}>
-          {adjuntos.length > 0 && (
+          {(imagenes.length > 0 || preparando > 0) && (
             <motion.div
               initial={reducido ? { opacity: 0 } : { opacity: 0, height: 0 }}
               animate={reducido ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
@@ -146,10 +198,25 @@ export function BarraEntrada({
               transition={springSnappy}
               className="overflow-hidden"
             >
-              <ul className="flex flex-wrap gap-1.5 border-b border-hairline px-3 py-2.5">
-                {adjuntos.map((a) => (
-                  <li key={a.id}>
-                    <FichaAdjunto adjunto={a} onQuitar={() => onAdjuntos(adjuntos.filter((x) => x.id !== a.id))} />
+              <ul className="flex flex-wrap gap-2 px-3 pt-3">
+                {imagenes.map((img) => (
+                  <li key={img.id}>
+                    <MiniaturaImagen
+                      src={img.miniatura}
+                      nombre={img.nombre}
+                      detalle={tamanoLegible(img.tamanoBytes)}
+                      onAbrir={() => setVista(img)}
+                      onQuitar={() => onImagenes(imagenes.filter((x) => x.id !== img.id))}
+                    />
+                  </li>
+                ))}
+                {Array.from({ length: preparando }, (_, i) => (
+                  <li
+                    key={`preparando-${i}`}
+                    className="flex h-16 w-16 items-center justify-center rounded-control border border-hairline bg-bg"
+                    aria-label={copyLocal.preparandoImagen}
+                  >
+                    <Loader2 size={16} className="animate-spin text-text-3" />
                   </li>
                 ))}
               </ul>
@@ -157,69 +224,152 @@ export function BarraEntrada({
           )}
         </AnimatePresence>
 
-        <div className="flex items-end gap-1 p-1.5">
+        <Textarea
+          ref={campo}
+          rows={1}
+          value={valor}
+          onChange={(e) => onCambio(e.target.value)}
+          onKeyDown={alTeclado}
+          onPaste={alPegar}
+          placeholder={copy.placeholder}
+          aria-label={copy.placeholder}
+          className="block min-h-0 w-full resize-none border-transparent bg-transparent px-4 pb-1 pt-3.5 leading-[22px] focus:border-transparent focus:ring-0"
+        />
+
+        <div className="flex items-center gap-1 px-2 pb-2 pt-1">
           <input
             ref={archivos}
             type="file"
             multiple
             className="hidden"
-            accept={EXTENSIONES.join(',')}
-            onChange={agregarArchivos}
+            accept={TIPOS_IMAGEN.join(',')}
+            onChange={alElegir}
           />
           <IconButton
-            aria-label={copy.adjuntar}
+            aria-label={copyLocal.adjuntarImagen}
+            title={copyLocal.adjuntarImagenAyuda}
             onClick={() => archivos.current?.click()}
-            disabled={adjuntos.length >= MAX_ARCHIVOS}
+            disabled={imagenes.length + preparando >= MAX_IMAGENES}
           >
-            <Paperclip size={18} />
+            <ImagePlus size={18} />
           </IconButton>
 
-          <Textarea
-            ref={campo}
-            rows={1}
-            value={valor}
-            onChange={(e) => onCambio(e.target.value)}
-            onKeyDown={alTeclado}
-            placeholder={copy.placeholder}
-            aria-label={copy.placeholder}
-            className="min-h-0 flex-1 resize-none border-transparent bg-transparent px-1.5 py-2.5 leading-[22px] focus:border-transparent focus:ring-0"
-          />
+          <div className="ml-auto flex min-w-0 items-center gap-0.5">
+            {ajustesModelo && <SelectoresModelo {...ajustesModelo} />}
+            <AnilloContexto contexto={contexto} />
 
-          {transmitiendo ? (
-            <IconButton
-              aria-label={copy.detener}
-              onClick={onDetener}
-              className="rounded-full bg-text-1 text-white hover:bg-text-1 hover:text-white"
-            >
-              <Square size={13} fill="currentColor" />
-            </IconButton>
-          ) : (
-            <IconButton
-              aria-label={copy.enviar}
-              onClick={onEnviar}
-              disabled={!puedeEnviar}
-              variant={puedeEnviar ? 'primary' : 'ghost'}
-              className={cn('rounded-full', !puedeEnviar && 'bg-bg text-text-3')}
-            >
-              <ArrowUp size={18} strokeWidth={2.5} />
-            </IconButton>
-          )}
+            {transmitiendo ? (
+              <IconButton
+                aria-label={copy.detener}
+                onClick={onDetener}
+                className="ml-1 rounded-full bg-text-1 text-white hover:bg-text-1 hover:text-white"
+              >
+                <Square size={13} fill="currentColor" />
+              </IconButton>
+            ) : (
+              <IconButton
+                aria-label={copy.enviar}
+                onClick={onEnviar}
+                disabled={!puedeEnviar}
+                variant={puedeEnviar ? 'primary' : 'ghost'}
+                className={cn('ml-1 rounded-full', !puedeEnviar && 'bg-bg text-text-3')}
+              >
+                <ArrowUp size={18} strokeWidth={2.5} />
+              </IconButton>
+            )}
+          </div>
         </div>
+
+        {arrastrando && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-tarjeta bg-accent-soft/80 font-ui text-14 font-medium text-accent-fg">
+            {copyLocal.soltarImagenes}
+          </div>
+        )}
       </div>
 
-      {/* Requisito institucional: el aviso vive pegado al input y no se oculta
-          nunca, ni siquiera durante la transmisión. */}
       <p className="mt-2 px-2 text-center font-ui text-12 text-text-3">{copy.avisoIA}</p>
+
+      <VisorImagen src={vista?.url ?? null} alt={vista?.nombre} onCerrar={() => setVista(null)} />
     </div>
   );
 }
 
-export function FichaAdjunto({
-  adjunto,
+/* ───────────────────────────── Modelo y esfuerzo ───────────────────────────── */
+
+const ESFUERZOS: { valor: EsfuerzoElegido; texto: string }[] = [
+  { valor: PREDETERMINADO, texto: copyLocal.esfuerzoPredeterminado },
+  { valor: 'low', texto: copyLocal.esfuerzoBajo },
+  { valor: 'medium', texto: copyLocal.esfuerzoMedio },
+  { valor: 'high', texto: copyLocal.esfuerzoAlto },
+  { valor: 'xhigh', texto: copyLocal.esfuerzoMuyAlto },
+  { valor: 'max', texto: copyLocal.esfuerzoMaximo },
+];
+
+// Disparador compacto: en la barra los selectores no son campos de formulario
+// sino controles de texto, como en las barras de los asistentes de chat.
+const DISPARADOR_COMPACTO =
+  'h-8 w-auto max-w-[190px] gap-1 rounded-control border-transparent bg-transparent px-2 text-13 text-text-2 hover:border-transparent hover:bg-accent-soft hover:text-text-1';
+
+function SelectoresModelo({ modelos, modelo, onModelo, esfuerzo, onEsfuerzo }: AjustesModelo) {
+  const opcionesModelo = useMemo<OpcionLista<ModeloDisponible>[]>(
+    () => [
+      { valor: PREDETERMINADO, texto: copyLocal.modeloPredeterminado, dato: { id: PREDETERMINADO, nombre: copyLocal.modeloPredeterminado } },
+      ...modelos.map((m) => ({ valor: m.id, texto: m.nombre, dato: m })),
+    ],
+    [modelos]
+  );
+  const opcionesEsfuerzo = useMemo<OpcionLista<string>[]>(
+    () => ESFUERZOS.map((e) => ({ valor: e.valor, texto: e.texto, dato: e.texto })),
+    []
+  );
+
+  return (
+    <>
+      <SelectorLista
+        opciones={opcionesModelo}
+        valor={modelo}
+        onCambiar={onModelo}
+        etiqueta={copyLocal.modeloEtiqueta}
+        tituloHoja={copyLocal.modeloEtiqueta}
+        className={DISPARADOR_COMPACTO}
+        renderDisparador={(o) => <span className="min-w-0 truncate">{o.dato.nombre}</span>}
+        renderOpcion={(o) => (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-ui text-14 text-text-1">{o.dato.nombre}</span>
+            {o.valor !== PREDETERMINADO && <code className="truncate font-mono text-12 text-text-3">{o.dato.id}</code>}
+          </div>
+        )}
+      />
+      <SelectorLista
+        opciones={opcionesEsfuerzo}
+        valor={esfuerzo}
+        onCambiar={(v) => onEsfuerzo(v as EsfuerzoElegido)}
+        etiqueta={copyLocal.esfuerzoEtiqueta}
+        tituloHoja={copyLocal.esfuerzoEtiqueta}
+        className={DISPARADOR_COMPACTO}
+        renderDisparador={(o) => <span className="truncate">{o.dato}</span>}
+        renderOpcion={(o) => <span className="font-ui text-14 text-text-1">{o.dato}</span>}
+      />
+    </>
+  );
+}
+
+/* ──────────────────────────────── Miniaturas ──────────────────────────────── */
+
+export function MiniaturaImagen({
+  src,
+  nombre,
+  detalle,
+  onAbrir,
   onQuitar,
+  className,
 }: {
-  adjunto: Adjunto;
+  src?: string;
+  nombre: string;
+  detalle?: string;
+  onAbrir?: () => void;
   onQuitar?: () => void;
+  className?: string;
 }) {
   return (
     <motion.span
@@ -228,8 +378,42 @@ export function FichaAdjunto({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, transition: { duration: dur.fast, ease } }}
       transition={springSnappy}
-      className="inline-flex max-w-[220px] items-center gap-1.5 rounded-celda border border-hairline bg-bg py-1 pl-2.5 pr-1"
+      className={cn('group relative block h-16 w-16', className)}
     >
+      <button
+        type="button"
+        onClick={onAbrir}
+        disabled={!onAbrir || !src}
+        title={detalle ? `${nombre} · ${detalle}` : nombre}
+        aria-label={copyLocal.verImagen(nombre)}
+        className="block h-full w-full overflow-hidden rounded-control border border-hairline bg-bg transition-shadow duration-150 enabled:hover:shadow-2"
+      >
+        {src ? (
+          <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center px-1 text-center font-ui text-12 text-text-3">
+            {nombre}
+          </span>
+        )}
+      </button>
+      {onQuitar && (
+        <button
+          type="button"
+          aria-label={copyLocal.quitarAdjunto(nombre)}
+          onClick={onQuitar}
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-hairline bg-surface-1 text-text-2 shadow-1 transition-colors duration-150 hover:bg-status-red-soft hover:text-status-red"
+        >
+          <X size={11} strokeWidth={2.75} />
+        </button>
+      )}
+    </motion.span>
+  );
+}
+
+/** Ficha de un adjunto que no es imagen o que ya no tiene miniatura. */
+export function FichaAdjunto({ adjunto, onQuitar }: { adjunto: Adjunto; onQuitar?: () => void }) {
+  return (
+    <span className="inline-flex max-w-[220px] items-center gap-1.5 rounded-celda border border-hairline bg-bg py-1 pl-2.5 pr-1">
       <span className="truncate font-ui text-12 text-text-1">{adjunto.nombre}</span>
       <span className="shrink-0 font-ui text-12 tabular-nums text-text-3">{tamanoLegible(adjunto.tamanoBytes)}</span>
       {onQuitar && (
@@ -242,6 +426,6 @@ export function FichaAdjunto({
           <X size={13} strokeWidth={2.5} />
         </button>
       )}
-    </motion.span>
+    </span>
   );
 }

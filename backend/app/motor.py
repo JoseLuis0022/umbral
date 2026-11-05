@@ -6,10 +6,16 @@ rol: el motor no sabe qué es un rol) y devuelve eventos del protocolo.
 Qué emite el SDK y en qué se convierte:
 
     SystemMessage(init)          → (nada visible) guarda session_id, modelo
+    StreamEvent thinking_delta   → pensamiento {delta}   ← solo si se pidió
     StreamEvent text_delta       → texto {delta}         ← token por token
     AssistantMessage ToolUse     → actividad {fase: inicio}
     UserMessage ToolResult       → actividad {fase: fin, ok}
-    ResultMessage                → fin {costoUsd, vueltas, tokens…}  (+ error si falló)
+    ResultMessage                → (guarda costo, vueltas, tokens)
+    get_context_usage()          → fin {…, contexto}     (+ error si falló)
+
+Se usa `ClaudeSDKClient` y no `query()` porque, después de la respuesta, hay
+que preguntarle al agente cuánto contexto ocupa la sesión
+(`get_context_usage`), y eso solo existe con una conexión abierta.
 
 Los StreamEvent de subagentes (parent_tool_use_id != None) NO se pintan: el
 agente principal redacta la respuesta final; lo de los subagentes se ve como
@@ -22,7 +28,7 @@ import random
 import re
 import time
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +36,7 @@ from typing import Any
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
+    ClaudeSDKClient,
     ClaudeSDKError,
     ResultMessage,
     StreamEvent,
@@ -38,10 +45,10 @@ from claude_agent_sdk import (
     ToolResultBlock,
     ToolUseBlock,
     UserMessage,
-    query,
 )
 
 from .config import ajustes
+from .esquemas import ImagenAdjunta
 from .guardias import hook_rutas_bloqueadas, reglas_bloqueo
 from .perfiles import Perfil, leer_prompt
 from .protocolo import evento
@@ -49,9 +56,6 @@ from .protocolo import evento
 log = logging.getLogger("lab.motor")
 
 HERRAMIENTAS_SUBAGENTE = {"Task", "Agent"}
-
-# Niveles que manda el Laboratorio del front → `effort` del SDK.
-ESFUERZO_POR_NIVEL = {"ninguno": "low", "bajo": "low", "medio": "medium", "alto": "high"}
 
 ERROR_POR_SUBTIPO = {
     "error_max_turns": ("limite_vueltas", "El agente llegó al máximo de pasos sin terminar."),
@@ -67,11 +71,16 @@ ERROR_POR_FALLA_API = {
 
 @dataclass
 class Ajuste:
-    """Lo que un admin puede sobreescribir desde el Laboratorio."""
+    """Lo que un rol con permiso puede sobreescribir (Laboratorio o barra del chat)."""
 
     modelo: str | None = None
     esfuerzo: str | None = None
     system_prompt: str | None = None
+    # Transmitir lo INTERNO del agente: su razonamiento y el detalle técnico de
+    # cada herramienta (rutas, patrones). Puede revelar la estructura de la
+    # carpeta o detalles del prompt, así que la capa 2 solo lo enciende para
+    # quien tenga permiso. Los demás reciben solo la `descripcion` humana.
+    ver_interno: bool = False
 
 
 @dataclass
@@ -87,11 +96,13 @@ class Registro:
     herramientas: list[str] = field(default_factory=list)
     error: str | None = None
     fuente_llave: str | None = None
+    contexto: dict[str, Any] | None = None
 
 
 def consultar(
     perfil: Perfil,
     mensaje: str,
+    imagenes: Sequence[ImagenAdjunta] = (),
     *,
     sesion_previa: str | None,
     usuario_id: str,
@@ -99,8 +110,8 @@ def consultar(
     registro: Registro,
 ) -> AsyncIterator[dict[str, Any]]:
     if ajustes.motor == "prueba":
-        return _consultar_prueba(mensaje, sesion_previa, registro)
-    return _consultar_sdk(perfil, mensaje, sesion_previa, usuario_id, ajuste, registro)
+        return _consultar_prueba(mensaje, imagenes, sesion_previa, ajuste, registro)
+    return _consultar_sdk(perfil, mensaje, imagenes, sesion_previa, usuario_id, ajuste, registro)
 
 
 # ─────────────────────────────── Motor real ────────────────────────────────
@@ -150,6 +161,52 @@ def construir_opciones(
     )
 
 
+_RX_CLASE = re.compile(r"inventario/clase-0*(\d+)\.md$")
+_RX_PRACTICA = re.compile(r"inventario/practica-(\d+)\.md$")
+_RX_TEMA = re.compile(r"^Apuntes/Tema 0*(\d+)")
+_RX_GRABACION = re.compile(r"Transcripciones/Clase (\d+)")
+
+
+def describir(herramienta: str, entrada: dict[str, Any], cwd: Path, nombre: str) -> str:
+    """Qué hace la herramienta, en palabras de persona y SIN rutas.
+
+    Es lo único de la actividad que reciben las cuentas sin permiso: "Leyendo
+    el resumen de la Clase 12", nunca `estado/inventario/clase-12.md`. Lo que no
+    se reconoce cae en una frase genérica.
+    """
+    if herramienta in HERRAMIENTAS_SUBAGENTE:
+        return f"Consultando a {nombre}"
+    if herramienta == "Grep":
+        patron = re.sub(r"^\(\?i\)", "", str(entrada.get("pattern", ""))).strip()
+        # Un patrón con sintaxis de regex no le dice nada a una persona.
+        if patron and len(patron) <= 40 and not re.search(r"[|()\[\]\\^$*+?{}]", patron):
+            return f"Buscando «{patron}» en el material"
+        return "Buscando en el material del curso"
+    if herramienta in ("Write", "Edit"):
+        return "Editando un archivo del agente"
+    if herramienta == "Bash":
+        return "Ejecutando un paso de procesamiento"
+    if herramienta == "Skill":
+        return "Siguiendo un procedimiento del agente"
+
+    ruta = resumir(herramienta, entrada, cwd)
+    if ruta.endswith("indice-temas.md"):
+        return "Revisando el índice de temas"
+    if ruta.endswith("calendario.md"):
+        return "Revisando el calendario del curso"
+    if ruta.startswith("estado/diapositivas/"):
+        return "Revisando las diapositivas del profesor"
+    for rx, frase in (
+        (_RX_CLASE, "Leyendo el resumen de la Clase {}"),
+        (_RX_PRACTICA, "Leyendo qué pide la Práctica {}"),
+        (_RX_TEMA, "Leyendo los apuntes del Tema {}"),
+        (_RX_GRABACION, "Buscando en la grabación de la Clase {}"),
+    ):
+        if m := rx.search(ruta):
+            return frase.format(int(m.group(1)))
+    return "Revisando el material del curso"
+
+
 def resumir(nombre: str, entrada: dict[str, Any], cwd: Path) -> str:
     """Una línea legible de qué hace la herramienta, con rutas relativas."""
 
@@ -178,9 +235,49 @@ def resumir(nombre: str, entrada: dict[str, Any], cwd: Path) -> str:
     return ""
 
 
+def _mensaje_usuario(mensaje: str, imagenes: Sequence[ImagenAdjunta]) -> dict[str, Any]:
+    """El mensaje del usuario como lo espera el agente: texto, o bloques de imagen + texto."""
+    if imagenes:
+        contenido: Any = [
+            {"type": "image", "source": {"type": "base64", "media_type": i.tipo, "data": i.datos}} for i in imagenes
+        ]
+        contenido.append({"type": "text", "text": mensaje.strip() or "Analiza estas imágenes."})
+    else:
+        contenido = mensaje
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": contenido},
+        "parent_tool_use_id": None,
+        "session_id": "default",
+    }
+
+
+async def _un_mensaje(mensaje: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    yield mensaje
+
+
+def _contexto_publico(uso: Any) -> dict[str, Any] | None:
+    """Lo que el front necesita del /context de Claude Code, y nada más."""
+    try:
+        return {
+            "usados": int(uso["totalTokens"]),
+            "maximo": int(uso["maxTokens"]),
+            "porcentaje": float(uso["percentage"]),
+            "umbralCompactacion": int(uso.get("autoCompactThreshold") or 0) or None,
+            "categorias": [
+                {"nombre": c["name"], "tokens": int(c["tokens"]), "diferida": bool(c.get("isDeferred"))}
+                for c in uso.get("categories", [])
+            ],
+        }
+    except (KeyError, TypeError, ValueError):
+        log.warning("get_context_usage devolvió una forma inesperada")
+        return None
+
+
 async def _consultar_sdk(
     perfil: Perfil,
     mensaje: str,
+    imagenes: Sequence[ImagenAdjunta],
     sesion_previa: str | None,
     usuario_id: str,
     ajuste: Ajuste,
@@ -198,92 +295,112 @@ async def _consultar_sdk(
     separar = False         # hubo herramientas desde el último texto
     texto_bloques = ""      # respaldo, por si no llegaran los deltas
     error_emitido = False
+    resultado: ResultMessage | None = None
     abiertas: dict[str, dict[str, Any]] = {}
 
     try:
-        async for m in query(prompt=mensaje, options=opciones):
-            if isinstance(m, SystemMessage):
-                if m.subtype == "init":
-                    registro.sesion_sdk = m.data.get("session_id")
-                    registro.modelo = m.data.get("model")
-                    registro.fuente_llave = m.data.get("apiKeySource")
-                    log.info("sesión %s · modelo %s · credencial %s", registro.sesion_sdk, registro.modelo, registro.fuente_llave)
-                    if registro.fuente_llave not in (None, "ANTHROPIC_API_KEY"):
-                        log.warning("El agente no está usando la API key del laboratorio: %s", registro.fuente_llave)
-                continue
+        async with ClaudeSDKClient(options=opciones) as cliente:
+            await cliente.query(_un_mensaje(_mensaje_usuario(mensaje, imagenes)))
 
-            if isinstance(m, StreamEvent):
-                if m.parent_tool_use_id:
+            async for m in cliente.receive_response():
+                if isinstance(m, SystemMessage):
+                    if m.subtype == "init":
+                        registro.sesion_sdk = m.data.get("session_id")
+                        registro.modelo = m.data.get("model")
+                        registro.fuente_llave = m.data.get("apiKeySource")
+                        log.info("sesión %s · modelo %s · credencial %s", registro.sesion_sdk, registro.modelo, registro.fuente_llave)
+                        if registro.fuente_llave not in (None, "ANTHROPIC_API_KEY"):
+                            log.warning("El agente no está usando la API key del laboratorio: %s", registro.fuente_llave)
                     continue
-                ev = m.event
-                if ev.get("type") == "content_block_delta":
-                    delta = ev.get("delta") or {}
-                    if delta.get("type") == "text_delta" and delta.get("text"):
-                        if separar and hay_texto:
-                            yield evento("texto", delta="\n\n")
-                        separar = False
-                        hay_texto = True
-                        yield evento("texto", delta=delta["text"])
-                continue
 
-            if isinstance(m, AssistantMessage):
-                if m.error and not error_emitido:
-                    codigo, texto = ERROR_POR_FALLA_API.get(m.error, ("motor", "El agente falló al responder."))
-                    registro.error = codigo
-                    error_emitido = True
-                    yield evento("error", codigo=codigo, mensaje=texto)
-                for bloque in m.content:
-                    if isinstance(bloque, TextBlock) and m.parent_tool_use_id is None:
-                        texto_bloques += bloque.text
-                    elif isinstance(bloque, ToolUseBlock):
-                        es_subagente = bloque.name in HERRAMIENTAS_SUBAGENTE
-                        info = {
-                            "id": bloque.id,
-                            "clase": "subagente" if es_subagente else "herramienta",
-                            "nombre": (bloque.input.get("subagent_type") or "subagente") if es_subagente else bloque.name,
-                            "detalle": resumir(bloque.name, bloque.input, cwd),
-                            "dentroDe": m.parent_tool_use_id,
-                        }
-                        abiertas[bloque.id] = info
-                        registro.herramientas.append(bloque.name)
-                        if m.parent_tool_use_id is None:
-                            separar = True
-                        yield evento("actividad", fase="inicio", ok=None, **info)
-                continue
+                if isinstance(m, StreamEvent):
+                    if m.parent_tool_use_id:
+                        continue
+                    ev = m.event
+                    if ev.get("type") == "content_block_delta":
+                        delta = ev.get("delta") or {}
+                        if delta.get("type") == "text_delta" and delta.get("text"):
+                            if separar and hay_texto:
+                                yield evento("texto", delta="\n\n")
+                            separar = False
+                            hay_texto = True
+                            yield evento("texto", delta=delta["text"])
+                        elif delta.get("type") == "thinking_delta" and delta.get("thinking") and ajuste.ver_interno:
+                            yield evento("pensamiento", delta=delta["thinking"])
+                    continue
 
-            if isinstance(m, UserMessage):
-                if isinstance(m.content, list):
+                if isinstance(m, AssistantMessage):
+                    if m.error and not error_emitido:
+                        codigo, texto = ERROR_POR_FALLA_API.get(m.error, ("motor", "El agente falló al responder."))
+                        registro.error = codigo
+                        error_emitido = True
+                        yield evento("error", codigo=codigo, mensaje=texto)
                     for bloque in m.content:
-                        if isinstance(bloque, ToolResultBlock) and bloque.tool_use_id in abiertas:
-                            info = abiertas.pop(bloque.tool_use_id)
-                            yield evento("actividad", fase="fin", ok=not bloque.is_error, **info)
-                continue
+                        if isinstance(bloque, TextBlock) and m.parent_tool_use_id is None:
+                            texto_bloques += bloque.text
+                        elif isinstance(bloque, ToolUseBlock):
+                            es_subagente = bloque.name in HERRAMIENTAS_SUBAGENTE
+                            nombre = (bloque.input.get("subagent_type") or "subagente") if es_subagente else bloque.name
+                            info = {
+                                "id": bloque.id,
+                                "clase": "subagente" if es_subagente else "herramienta",
+                                "nombre": nombre,
+                                # Para todos: qué hace, en palabras. Solo con permiso: la ruta.
+                                "descripcion": describir(bloque.name, bloque.input, cwd, nombre),
+                                "detalle": resumir(bloque.name, bloque.input, cwd) if ajuste.ver_interno else None,
+                                "dentroDe": m.parent_tool_use_id,
+                            }
+                            abiertas[bloque.id] = info
+                            registro.herramientas.append(bloque.name)
+                            if m.parent_tool_use_id is None:
+                                separar = True
+                            yield evento("actividad", fase="inicio", ok=None, **info)
+                    continue
 
-            if isinstance(m, ResultMessage):
-                if not hay_texto and (texto_bloques or m.result):
-                    yield evento("texto", delta=texto_bloques or m.result or "")
-                uso = m.usage or {}
-                registro.sesion_sdk = m.session_id or registro.sesion_sdk
-                registro.costo_usd = m.total_cost_usd
-                registro.vueltas = m.num_turns
-                registro.duracion_ms = m.duration_ms
-                registro.tokens = {
-                    "entrada": int(uso.get("input_tokens") or 0),
-                    "salida": int(uso.get("output_tokens") or 0),
-                    "cacheLectura": int(uso.get("cache_read_input_tokens") or 0),
-                    "cacheEscritura": int(uso.get("cache_creation_input_tokens") or 0),
-                }
-                if m.is_error and not error_emitido:
-                    codigo, texto = ERROR_POR_SUBTIPO.get(m.subtype, ("motor", "El agente no pudo terminar la respuesta."))
-                    registro.error = codigo
-                    error_emitido = True
-                    yield evento("error", codigo=codigo, mensaje=texto)
-                yield _evento_fin(registro)
+                if isinstance(m, UserMessage):
+                    if isinstance(m.content, list):
+                        for bloque in m.content:
+                            if isinstance(bloque, ToolResultBlock) and bloque.tool_use_id in abiertas:
+                                info = abiertas.pop(bloque.tool_use_id)
+                                yield evento("actividad", fase="fin", ok=not bloque.is_error, **info)
+                    continue
+
+                if isinstance(m, ResultMessage):
+                    resultado = m
+
+            # La respuesta terminó; la conexión sigue abierta. Es el único
+            # momento en que se le puede preguntar al agente por su contexto.
+            try:
+                registro.contexto = _contexto_publico(await asyncio.wait_for(cliente.get_context_usage(), timeout=10))
+            except Exception:
+                log.warning("No se pudo leer el uso de contexto", exc_info=True)
     except ClaudeSDKError:
         log.exception("Falló el subproceso del agente")
         registro.error = "motor"
         if not error_emitido:
             yield evento("error", codigo="motor", mensaje="El agente falló al responder.")
+        return
+
+    if resultado is None:
+        return
+    if not hay_texto and (texto_bloques or resultado.result):
+        yield evento("texto", delta=texto_bloques or resultado.result or "")
+    uso = resultado.usage or {}
+    registro.sesion_sdk = resultado.session_id or registro.sesion_sdk
+    registro.costo_usd = resultado.total_cost_usd
+    registro.vueltas = resultado.num_turns
+    registro.duracion_ms = resultado.duration_ms
+    registro.tokens = {
+        "entrada": int(uso.get("input_tokens") or 0),
+        "salida": int(uso.get("output_tokens") or 0),
+        "cacheLectura": int(uso.get("cache_read_input_tokens") or 0),
+        "cacheEscritura": int(uso.get("cache_creation_input_tokens") or 0),
+    }
+    if resultado.is_error and not error_emitido:
+        codigo, texto = ERROR_POR_SUBTIPO.get(resultado.subtype, ("motor", "El agente no pudo terminar la respuesta."))
+        registro.error = codigo
+        yield evento("error", codigo=codigo, mensaje=texto)
+    yield _evento_fin(registro)
 
 
 def _evento_fin(registro: Registro) -> dict[str, Any]:
@@ -294,6 +411,7 @@ def _evento_fin(registro: Registro) -> dict[str, Any]:
         duracionMs=registro.duracion_ms,
         tokens=registro.tokens,
         modelo=registro.modelo,
+        contexto=registro.contexto,
     )
 
 
@@ -301,24 +419,44 @@ def _evento_fin(registro: Registro) -> dict[str, Any]:
 
 
 async def _consultar_prueba(
-    mensaje: str, sesion_previa: str | None, registro: Registro
+    mensaje: str,
+    imagenes: Sequence[ImagenAdjunta],
+    sesion_previa: str | None,
+    ajuste: Ajuste,
+    registro: Registro,
 ) -> AsyncIterator[dict[str, Any]]:
     """Habla el MISMO protocolo que el motor real, sin gastar tokens."""
     inicio = time.monotonic()
     registro.sesion_sdk = sesion_previa or f"prueba-{uuid.uuid4()}"
     registro.modelo = "motor-de-prueba"
 
-    pasos = [("Read", "estado/indice-temas.md"), ("Grep", '"mediana" en estado/inventario')]
-    for i, (nombre, detalle) in enumerate(pasos):
-        info = {"id": f"prueba-{i}", "clase": "herramienta", "nombre": nombre, "detalle": detalle, "dentroDe": None}
+    if ajuste.ver_interno:
+        for pieza in re.findall(r"\S+\s*", "Primero reviso el índice de temas para ubicar la clase, luego leo su resumen."):
+            await asyncio.sleep(0.03)
+            yield evento("pensamiento", delta=pieza)
+
+    pasos = [
+        ("Read", "Revisando el índice de temas", "estado/indice-temas.md"),
+        ("Grep", "Buscando «mediana» en el material", '"mediana" en estado/inventario'),
+    ]
+    for i, (nombre, descripcion, detalle) in enumerate(pasos):
+        info = {
+            "id": f"prueba-{i}",
+            "clase": "herramienta",
+            "nombre": nombre,
+            "descripcion": descripcion,
+            "detalle": detalle if ajuste.ver_interno else None,
+            "dentroDe": None,
+        }
         registro.herramientas.append(nombre)
         yield evento("actividad", fase="inicio", ok=None, **info)
         await asyncio.sleep(0.5)
         yield evento("actividad", fase="fin", ok=True, **info)
 
+    adjuntas = f"Recibí **{len(imagenes)} imagen(es)**: {', '.join(i.nombre for i in imagenes)}.\n\n" if imagenes else ""
     texto = (
         "**Motor de prueba.** Recibí tu pregunta:\n\n"
-        f"> {mensaje}\n\n"
+        f"> {mensaje}\n\n{adjuntas}"
         "Esta respuesta no viene de Claude: sirve para probar el protocolo y la interfaz "
         "sin gastar tokens. Cambia `MOTOR=sdk` en `backend/.env` para usar el agente real.\n"
     )
@@ -330,4 +468,16 @@ async def _consultar_prueba(
     registro.vueltas = len(pasos) + 1
     registro.duracion_ms = int((time.monotonic() - inicio) * 1000)
     registro.tokens = {"entrada": 0, "salida": 0, "cacheLectura": 0, "cacheEscritura": 0}
+    registro.contexto = {
+        "usados": 24_800,
+        "maximo": 200_000,
+        "porcentaje": 12.4,
+        "umbralCompactacion": 167_000,
+        "categorias": [
+            {"nombre": "System prompt", "tokens": 2_100, "diferida": False},
+            {"nombre": "System tools", "tokens": 4_600, "diferida": False},
+            {"nombre": "Messages", "tokens": 18_100, "diferida": False},
+            {"nombre": "Free space", "tokens": 175_200, "diferida": False},
+        ],
+    }
     yield _evento_fin(registro)

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessagesSquare, PanelLeft, PanelLeftClose, Plus } from 'lucide-react';
-import type { Adjunto } from '../types';
+import type { ImagenPreparada } from '../lib/imagenes';
 import { cn } from '../lib/cn';
 import { dur, ease, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -66,8 +66,13 @@ export default function Chat() {
     reintentar,
     estadoStream,
     textoParcial,
+    proceso,
     actividad,
     errorStream,
+    puedeAjustarModelo,
+    modelos,
+    ajusteModelo,
+    cambiarAjusteModelo,
     streamEnId,
     renombrar,
     eliminar,
@@ -75,7 +80,7 @@ export default function Chat() {
   } = useChat();
 
   const [texto, setTexto] = useState('');
-  const [adjuntos, setAdjuntos] = useState<Adjunto[]>([]);
+  const [imagenes, setImagenes] = useState<ImagenPreparada[]>([]);
   // Contador, no booleano: devolver el foco al campo dos veces seguidas (dos
   // chips, dos "nueva sesión") tiene que volver a disparar el efecto.
   const [senalFoco, setSenalFoco] = useState(0);
@@ -129,7 +134,7 @@ export default function Chat() {
 
   useEffect(() => {
     if (!preguntaEntrante) return;
-    setAdjuntos([]);
+    setImagenes([]);
     setTexto(preguntaEntrante);
     // Mueve el cursor al final del texto ya cargado (lo hace `BarraEntrada`).
     setSenalFoco((n) => n + 1);
@@ -172,7 +177,7 @@ export default function Chat() {
       const id = enviar(sugerencia, []);
       if (!id) return;
       setTexto('');
-      setAdjuntos([]);
+      setImagenes([]);
       if (id !== conversacionId) navigate(`/chat/${id}`, { replace: true });
     },
     [ocupado, enviar, conversacionId, navigate]
@@ -181,7 +186,7 @@ export default function Chat() {
   const nuevaSesion = useCallback(() => {
     setCajonAbierto(false);
     setTexto('');
-    setAdjuntos([]);
+    setImagenes([]);
     seleccionar(null);
     // Solo se navega si de verdad se venía de una conversación: repetir
     // /chat sobre /chat llenaría el historial del navegador de entradas
@@ -205,7 +210,7 @@ export default function Chat() {
   const retomarTema = useCallback(() => {
     const titulo = conversacionActiva?.titulo ?? '';
     setCajonAbierto(false);
-    setAdjuntos([]);
+    setImagenes([]);
     setTexto(copyLocal.contextoNuevaSesion(titulo));
     seleccionar(null);
     if (conversacionId) navigate('/chat');
@@ -213,14 +218,14 @@ export default function Chat() {
   }, [conversacionActiva, conversacionId, navigate, seleccionar]);
 
   function alEnviar() {
-    if (!texto.trim() || ocupado) return;
+    if ((!texto.trim() && !imagenes.length) || ocupado) return;
     // `enviar` agrega el mensaje del usuario de forma síncrona y devuelve el id:
     // el mensaje aparece en el hilo en el mismo frame del clic, muy por debajo
     // de los 100 ms, y la espera de la respuesta ya es un estado visible.
-    const id = enviar(texto, adjuntos);
+    const id = enviar(texto, imagenes);
     if (!id) return;
     setTexto('');
-    setAdjuntos([]);
+    setImagenes([]);
     // `replace`: la sesión recién creada no merece una entrada propia en el
     // historial del navegador — "atrás" debe salir del chat, no volver a /chat.
     if (id !== conversacionId) navigate(`/chat/${id}`, { replace: true });
@@ -359,6 +364,7 @@ export default function Chat() {
           actividad={streamAqui ? actividad : null}
           transmitiendo={streamAqui && estadoStream === 'transmitiendo'}
           textoParcial={streamAqui ? textoParcial : ''}
+          proceso={streamAqui ? proceso : []}
           error={streamAqui && estadoStream === 'error' ? errorStream : null}
           soloLectura={soloLectura}
           onReintentar={reintentar}
@@ -375,8 +381,20 @@ export default function Chat() {
               <BarraEntrada
                 valor={texto}
                 onCambio={setTexto}
-                adjuntos={adjuntos}
-                onAdjuntos={setAdjuntos}
+                imagenes={imagenes}
+                onImagenes={setImagenes}
+                contexto={conversacionActiva?.contexto}
+                ajustesModelo={
+                  puedeAjustarModelo
+                    ? {
+                        modelos,
+                        modelo: ajusteModelo.modelo,
+                        onModelo: (modelo) => cambiarAjusteModelo({ modelo }),
+                        esfuerzo: ajusteModelo.esfuerzo,
+                        onEsfuerzo: (esfuerzo) => cambiarAjusteModelo({ esfuerzo }),
+                      }
+                    : undefined
+                }
                 onEnviar={alEnviar}
                 onDetener={detener}
                 transmitiendo={ocupado}
