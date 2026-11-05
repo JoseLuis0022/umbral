@@ -133,6 +133,16 @@ html[data-toque='amplio'] button[aria-label] {
 }
 `;
 
+/** Valida contra una lista cerrada: lo que no esté en ella cae al valor de fábrica. */
+function unoDe<T extends string>(...permitidos: readonly T[]) {
+  return (v: unknown): v is T => typeof v === 'string' && (permitidos as readonly string[]).includes(v);
+}
+const esBooleano = (v: unknown): v is boolean => typeof v === 'boolean';
+const esDensidad = unoDe<Densidad>('comoda', 'compacta');
+const esTamanoTexto = unoDe<TamanoTexto>('pequeno', 'normal', 'grande');
+const esContraste = unoDe<Contraste>('estandar', 'alto');
+const esMovimiento = unoDe<Movimiento>('sistema', 'reducido');
+
 const Ctx = createContext<PreferenciasCtx | null>(null);
 
 /**
@@ -145,15 +155,22 @@ const Ctx = createContext<PreferenciasCtx | null>(null);
  * estas preferencias, y una vista nueva las hereda sin escribir una línea.
  */
 export function PreferenciasProvider({ children }: { children?: ReactNode }) {
-  const [densidad, setDensidad] = useLocalStorage<Densidad>('densidad', DEFECTOS.densidad);
-  const [tamanoTexto, setTamanoTexto] = useLocalStorage<TamanoTexto>('tamano-texto', DEFECTOS.tamanoTexto);
-  const [contraste, setContraste] = useLocalStorage<Contraste>('contraste', DEFECTOS.contraste);
-  const [movimiento, setMovimiento] = useLocalStorage<Movimiento>('movimiento', DEFECTOS.movimiento);
+  // Cada lectura se valida: un valor guardado que no está entre los permitidos
+  // rompía Ajustes (los controles segmentados no saben pintar un valor ajeno).
+  const [densidad, setDensidad] = useLocalStorage<Densidad>('densidad', DEFECTOS.densidad, esDensidad);
+  const [tamanoTexto, setTamanoTexto] = useLocalStorage<TamanoTexto>(
+    'tamano-texto',
+    DEFECTOS.tamanoTexto,
+    esTamanoTexto
+  );
+  const [contraste, setContraste] = useLocalStorage<Contraste>('contraste', DEFECTOS.contraste, esContraste);
+  const [movimiento, setMovimiento] = useLocalStorage<Movimiento>('movimiento', DEFECTOS.movimiento, esMovimiento);
   const [enlacesSubrayados, setEnlacesSubrayados] = useLocalStorage<boolean>(
     'enlaces-subrayados',
-    DEFECTOS.enlacesSubrayados
+    DEFECTOS.enlacesSubrayados,
+    esBooleano
   );
-  const [toqueAmplio, setToqueAmplio] = useLocalStorage<boolean>('toque-amplio', DEFECTOS.toqueAmplio);
+  const [toqueAmplio, setToqueAmplio] = useLocalStorage<boolean>('toque-amplio', DEFECTOS.toqueAmplio, esBooleano);
 
   useEffect(() => {
     const raiz = document.documentElement.dataset;

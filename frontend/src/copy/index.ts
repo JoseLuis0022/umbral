@@ -178,4 +178,9 @@ export const errores = {
   volverInicio: 'Volver al inicio',
   sinPermiso: 'Esta sección es solo para administradores',
   sinPermisoDetalle: 'Tu cuenta no tiene acceso. Si lo necesitas, pídeselo a quien administra el laboratorio.',
+  // Límite de error (LimiteError): una pantalla que falló al pintarse.
+  renderTitulo: 'Esta pantalla dejó de responder',
+  renderDetalle: 'Algo falló al mostrarla. Tu sesión sigue abierta: intenta de nuevo y, si se repite, recarga la página.',
+  reintentar: 'Reintentar',
+  recargar: 'Recargar la página',
 };

@@ -4,6 +4,7 @@ import { ChatProvider } from './context/ChatContext';
 import { PreferenciasProvider } from './context/PreferenciasContext';
 import { ToastProvider } from './components/ui';
 import { RutaProtegida } from './components/RutaProtegida';
+import { LimiteError } from './components/LimiteError';
 import { LayoutApp } from './layouts/LayoutApp';
 import Login from './pages/Login';
 import Chat from './pages/Chat';
@@ -51,46 +52,50 @@ export default function App() {
         <AuthProvider>
           <ToastProvider>
             <ChatProvider>
-              <Routes>
-                <Route path="/login" element={<Login />} />
+              {/* Red de seguridad global: un error de render nunca deja la app en
+                  blanco. Cada pantalla tiene además su propio límite en LayoutApp. */}
+              <LimiteError variante="pantalla">
+                <Routes>
+                  <Route path="/login" element={<Login />} />
 
-                {/* Referencia viva del sistema de diseño. Fuera del shell y sin
-                    sesión: es documentación del equipo, no una pantalla de producto. */}
-                <Route path="/_dev/sistema-diseno" element={<SistemaDiseno />} />
+                  {/* Referencia viva del sistema de diseño. Fuera del shell y sin
+                      sesión: es documentación del equipo, no una pantalla de producto. */}
+                  <Route path="/_dev/sistema-diseno" element={<SistemaDiseno />} />
 
-                {/* El chat ancla su entrada abajo y maneja su propio scroll, así
-                    que recibe el alto completo del shell. El resto de pantallas
-                    scrollea el contenedor de contenido. */}
-                <Route element={<RutaProtegida><LayoutApp scrollPropio /></RutaProtegida>}>
-                  <Route path="/chat" element={<Chat />} />
-                  <Route path="/chat/:conversacionId" element={<Chat />} />
-                </Route>
+                  {/* El chat ancla su entrada abajo y maneja su propio scroll, así
+                      que recibe el alto completo del shell. El resto de pantallas
+                      scrollea el contenedor de contenido. */}
+                  <Route element={<RutaProtegida><LayoutApp scrollPropio /></RutaProtegida>}>
+                    <Route path="/chat" element={<Chat />} />
+                    <Route path="/chat/:conversacionId" element={<Chat />} />
+                  </Route>
 
-                <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
-                  <Route path="/" element={<Navigate to="/chat" replace />} />
-                  <Route path="/ajustes" element={<Ajustes />} />
-                  <Route path="/perfil" element={<Perfil />} />
+                  <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
+                    <Route path="/" element={<Navigate to="/chat" replace />} />
+                    <Route path="/ajustes" element={<Ajustes />} />
+                    <Route path="/perfil" element={<Perfil />} />
 
-                  <Route
-                    path="/admin/tablero"
-                    element={<RutaProtegida soloAdmin><AdminTablero /></RutaProtegida>}
-                  />
-                  <Route
-                    path="/admin/corpus"
-                    element={<RutaProtegida soloAdmin><AdminCorpus /></RutaProtegida>}
-                  />
-                  <Route
-                    path="/admin/conversaciones"
-                    element={<RutaProtegida soloAdmin><AdminConversaciones /></RutaProtegida>}
-                  />
-                  <Route
-                    path="/admin/laboratorio"
-                    element={<RutaProtegida soloAdmin><AdminLaboratorio /></RutaProtegida>}
-                  />
+                    <Route
+                      path="/admin/tablero"
+                      element={<RutaProtegida soloAdmin><AdminTablero /></RutaProtegida>}
+                    />
+                    <Route
+                      path="/admin/corpus"
+                      element={<RutaProtegida soloAdmin><AdminCorpus /></RutaProtegida>}
+                    />
+                    <Route
+                      path="/admin/conversaciones"
+                      element={<RutaProtegida soloAdmin><AdminConversaciones /></RutaProtegida>}
+                    />
+                    <Route
+                      path="/admin/laboratorio"
+                      element={<RutaProtegida soloAdmin><AdminLaboratorio /></RutaProtegida>}
+                    />
 
-                  <Route path="*" element={<NoEncontrada />} />
-                </Route>
-              </Routes>
+                    <Route path="*" element={<NoEncontrada />} />
+                  </Route>
+                </Routes>
+              </LimiteError>
             </ChatProvider>
           </ToastProvider>
         </AuthProvider>

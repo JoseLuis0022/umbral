@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { forwardRef, memo, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, MoreHorizontal, RefreshCw, Trash2, type LucideIcon } from 'lucide-react';
 import type { Documento } from '../../../types';
@@ -25,27 +25,32 @@ const textos = {
  * se volvían a renderizar —y a medir, porque cada una lleva `layout`— en cada
  * una de esas actualizaciones.
  */
-function FilaDocumentoBase({
-  documento,
-  activo,
-  onSeleccionar,
-  onReindexar,
-  onDescargar,
-  onEliminar,
-}: {
+type PropsFila = {
   documento: Documento;
   activo: boolean;
   onSeleccionar: (doc: Documento) => void;
   onReindexar: (doc: Documento) => void;
   onDescargar: (doc: Documento) => void;
   onEliminar: (doc: Documento) => void;
-}) {
+};
+
+/*
+ * `forwardRef` es obligatorio: la fila es hija directa de
+ * `<AnimatePresence mode="popLayout">`, que necesita el nodo real para sacarla
+ * del flujo al salir. Sin él React avisa "Function components cannot be given
+ * refs" y la salida no se anima.
+ */
+const FilaDocumentoBase = forwardRef<HTMLLIElement, PropsFila>(function FilaDocumentoBase(
+  { documento, activo, onSeleccionar, onReindexar, onDescargar, onEliminar },
+  ref
+) {
   const estado = ESTADO_DOC[documento.estado];
   const IconoEstado = estado.icono;
   const reducido = useReducedMotion();
 
   return (
     <motion.li
+      ref={ref}
       // `layout="position"`: solo interesa que la fila se DESLICE a su nuevo
       // sitio cuando otra desaparece. Medir además su tamaño es trabajo que no
       // se usa, multiplicado por cada fila de la lista.
@@ -138,7 +143,7 @@ function FilaDocumentoBase({
       </div>
     </motion.li>
   );
-}
+});
 
 /**
  * El comparador es explícito y no la comparación superficial por defecto: el

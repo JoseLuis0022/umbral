@@ -9,6 +9,7 @@ import { MarcaProducto } from '../components/brand/Logo';
 import { MenuUsuario } from '../components/shell/MenuUsuario';
 import { NavAdmin } from '../components/shell/NavAdmin';
 import { IconButton } from '../components/ui';
+import { LimiteError } from '../components/LimiteError';
 import { useAuth } from '../context/AuthContext';
 import { chat as copyChat, navegacion as copyNav, ajustes as copyAjustes } from '../copy';
 
@@ -120,7 +121,12 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
           animación, y el indicador aterriza en el sitio equivocado. */}
       {scrollPropio ? (
         <div className="min-h-0 flex-1">
-          <Outlet />
+          {/* Aquí no se remonta con `key`: pasar de /chat a /chat/c-1 a media
+              respuesta no debe desmontar el chat. El límite solo se reinicia
+              al navegar si estaba mostrando un error. */}
+          <LimiteError claveReinicio={location.pathname}>
+            <Outlet />
+          </LimiteError>
         </div>
       ) : (
         <motion.main
@@ -137,7 +143,9 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
               <main> nunca hay más de una pantalla y el alto no puede mentir. */}
           <AnimatePresence mode="wait" custom={direction} initial={false}>
             <TransicionPagina key={location.pathname} direction={direction}>
-              {contenidoRuta}
+              {/* Un límite por pantalla, con `key` = ruta: si una pantalla falla,
+                  la cabecera sigue viva y navegar a otra la reinicia limpia. */}
+              <LimiteError key={location.pathname}>{contenidoRuta}</LimiteError>
             </TransicionPagina>
           </AnimatePresence>
         </motion.main>
