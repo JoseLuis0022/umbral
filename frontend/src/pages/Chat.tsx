@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 import { MessagesSquare, PanelLeft, PanelLeftClose, Plus } from 'lucide-react';
 import type { ImagenPreparada } from '../lib/imagenes';
 import { cn } from '../lib/cn';
-import { dur, ease, springSoft } from '../lib/motion';
+import { dur, ease, springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { esSoloLectura } from '../lib/fechas';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { Button, Drawer, EmptyState, IconButton, StatusPill, useToast } from '../components/ui';
+import { Button, Drawer, EmptyState, IconButton, StatusPill, useEsCompacto, useToast } from '../components/ui';
 import {
   AvisoSoloLectura,
   BarraEntrada,
@@ -51,6 +51,7 @@ export default function Chat() {
   const { conversacionId } = useParams<{ conversacionId: string }>();
   const navigate = useNavigate();
   const reducido = useReducedMotion();
+  const compacto = useEsCompacto();
   const { push } = useToast();
   const { usuario } = useAuth();
 
@@ -86,6 +87,9 @@ export default function Chat() {
   const [senalFoco, setSenalFoco] = useState(0);
 
   const [cajonAbierto, setCajonAbierto] = useState(false);
+  // La cabecera del chat no tiene borde hasta que el hilo tiene algo debajo:
+  // con la barra de la app encima, dos hairlines seguidas eran doble cromo.
+  const [desplazado, setDesplazado] = useState(false);
   const [panelAbierto, setPanelAbierto] = useState(true);
   /*
    * El contenido del panel no puede ocultarse en el mismo frame en que empieza
@@ -125,6 +129,20 @@ export default function Chat() {
   const ocupado = estadoStream === 'esperando' || estadoStream === 'transmitiendo';
 
   const nombre = useMemo(() => (usuario ? primerNombre(usuario.nombre) : ''), [usuario]);
+
+  /*
+   * Sesión EN BLANCO: el composer va centrado bajo el saludo, no pegado abajo
+   * con el saludo flotando en medio. Al enviar, el mismo composer (mismo
+   * `layoutId`) baja a su sitio con `springLayout`. En el teléfono se queda
+   * abajo siempre: centrado, el teclado lo taparía al enfocarlo.
+   */
+  const enBlanco =
+    !compacto &&
+    !noEncontrada &&
+    !soloLectura &&
+    !(cargando && !!conversacionId) &&
+    (conversacionActiva?.mensajes.length ?? 0) === 0 &&
+    !(streamAqui && (ocupado || estadoStream === 'error'));
 
   /*
    * Los chips del estado vacío SE ENVÍAN al pulsarlos, no se precargan.
@@ -240,6 +258,27 @@ export default function Chat() {
     />
   );
 
+  const composer = (
+    <motion.div layoutId={reducido ? undefined : 'composer'} transition={springLayout} className="w-full">
+      <BarraEntrada
+        valor={texto}
+        onCambio={setTexto}
+        imagenes={imagenes}
+        onImagenes={setImagenes}
+        contexto={conversacionActiva?.contexto}
+        ajustesModelo={
+          puedeAjustarModelo ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo } : undefined
+        }
+        onEnviar={alEnviar}
+        onDetener={detener}
+        transmitiendo={ocupado}
+        autoFoco
+        senalFoco={senalFoco}
+        sinAviso={enBlanco}
+      />
+    </motion.div>
+  );
+
   const vacio = noEncontrada ? (
     <EmptyState
       icon={MessagesSquare}
@@ -294,7 +333,12 @@ export default function Chat() {
 
       {/* ── Columna principal: cabecera + hilo + entrada ── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-hairline px-2 lg:px-4">
+        <header
+          className={cn(
+            'flex h-12 shrink-0 items-center gap-2 border-b px-2 transition-colors duration-150 lg:px-4',
+            desplazado && !enBlanco ? 'border-hairline' : 'border-transparent'
+          )}
+        >
           <IconButton
             aria-label={copyLocal.mostrarHistorial}
             onClick={() => setCajonAbierto(true)}
@@ -312,7 +356,7 @@ export default function Chat() {
             {panelAbierto ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
           </IconButton>
 
-          <h1 className="min-w-0 flex-1 truncate px-1 font-ui text-14 font-semibold text-text-1">
+          <h1 className="min-w-0 flex-1 truncate px-1 font-ui text-14 font-medium text-text-2">
             {conversacionActiva?.titulo ?? TEXTO.sesionNueva}
           </h1>
 
@@ -321,47 +365,40 @@ export default function Chat() {
           )}
         </header>
 
-        <HiloMensajes
-          conversacionId={idAbierto}
-          mensajes={conversacionActiva?.mensajes ?? []}
-          cargando={cargando && !!conversacionId}
-          esperando={streamAqui && estadoStream === 'esperando'}
-          actividad={streamAqui ? actividad : null}
-          transmitiendo={streamAqui && estadoStream === 'transmitiendo'}
-          textoParcial={streamAqui ? textoParcial : ''}
-          proceso={streamAqui ? proceso : []}
-          pensoMs={streamAqui ? pensoMs : null}
-          error={streamAqui && estadoStream === 'error' ? errorStream : null}
-          soloLectura={soloLectura}
-          onReintentar={reintentar}
-          onRegenerar={regenerar}
-          onReaccion={alReaccionar}
-          vacio={vacio}
-        />
-
-        <div className="shrink-0 px-4 pb-4 pt-2 lg:px-6">
-          <div className="mx-auto w-full max-w-[760px]">
-            {soloLectura ? (
-              <AvisoSoloLectura onNuevaSesion={retomarTema} />
-            ) : noEncontrada ? null : (
-              <BarraEntrada
-                valor={texto}
-                onCambio={setTexto}
-                imagenes={imagenes}
-                onImagenes={setImagenes}
-                contexto={conversacionActiva?.contexto}
-                ajustesModelo={
-                  puedeAjustarModelo ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo } : undefined
-                }
-                onEnviar={alEnviar}
-                onDetener={detener}
-                transmitiendo={ocupado}
-                autoFoco
-                senalFoco={senalFoco}
-              />
-            )}
+        {enBlanco ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col items-center justify-center px-4 pb-[10vh] pt-4 lg:px-6">
+              <EstadoVacio nombre={nombre} onSugerencia={enviarSugerencia} composer={composer} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <HiloMensajes
+              conversacionId={idAbierto}
+              mensajes={conversacionActiva?.mensajes ?? []}
+              cargando={cargando && !!conversacionId}
+              esperando={streamAqui && estadoStream === 'esperando'}
+              actividad={streamAqui ? actividad : null}
+              transmitiendo={streamAqui && estadoStream === 'transmitiendo'}
+              textoParcial={streamAqui ? textoParcial : ''}
+              proceso={streamAqui ? proceso : []}
+              pensoMs={streamAqui ? pensoMs : null}
+              error={streamAqui && estadoStream === 'error' ? errorStream : null}
+              soloLectura={soloLectura}
+              onReintentar={reintentar}
+              onRegenerar={regenerar}
+              onReaccion={alReaccionar}
+              onDesplazado={setDesplazado}
+              vacio={vacio}
+            />
+
+            <div className="shrink-0 px-4 pb-4 lg:px-6">
+              <div className="mx-auto w-full max-w-[720px]">
+                {soloLectura ? <AvisoSoloLectura onNuevaSesion={retomarTema} /> : noEncontrada ? null : composer}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Panel lateral: historial (móvil) ── */}

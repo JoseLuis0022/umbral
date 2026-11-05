@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useStickToBottom } from 'use-stick-to-bottom';
 import { ArrowDown, RotateCcw } from 'lucide-react';
 import type { ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
-import { dur, ease, springSnappy } from '../../lib/motion';
+import { dur, ease, salidaPanel, springPanel, springPress } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Banner, Button } from '../ui';
 import { chat as copy } from '../../copy';
@@ -15,9 +16,6 @@ import {
   RespuestaAsistente,
   RespuestaEnVivo,
 } from './BurbujaMensaje';
-
-/** Margen desde el fondo dentro del cual se considera que el usuario "está al día". */
-const UMBRAL_FONDO = 72;
 
 type Props = {
   /** Cambiar de conversación reinicia el scroll; por eso entra como prop y no se deduce. */
@@ -40,7 +38,9 @@ type Props = {
   onRegenerar: () => void;
   /** Firma completa (id + reacción) para que la prop sea estable y `memo` sirva en las filas. */
   onReaccion: (mensajeId: string, reaccion: 'positiva' | 'negativa') => void;
-  /** Qué pintar cuando no hay mensajes: saludo, o el aviso de conversación inexistente. */
+  /** Avisa si el hilo tiene scroll por encima (para la hairline de la cabecera). */
+  onDesplazado?: (desplazado: boolean) => void;
+  /** Qué pintar cuando no hay mensajes (el aviso de conversación inexistente). */
   vacio: ReactNode;
 };
 
@@ -49,9 +49,14 @@ type Props = {
  *
  * El autoscroll se ANCLA a la intención del usuario, no al contenido. Mientras
  * esté al final, cada fragmento nuevo lo arrastra consigo; en cuanto sube a
- * releer algo, el hilo se queda quieto y aparece "Ir al último mensaje". Un
- * chat que te devuelve al fondo mientras relees es la forma más rápida de
- * volver inservible una respuesta larga.
+ * releer algo, el hilo se queda quieto y aparece "Ir al último". Un chat que te
+ * devuelve al fondo mientras relees es la forma más rápida de volver inservible
+ * una respuesta larga.
+ *
+ * La mecánica es `use-stick-to-bottom` (MIT, el de bolt.new): sigue el fondo
+ * con un resorte en vez de saltos secos por fragmento —que se encolaban y
+ * hacían temblar el texto— y detecta que el usuario "escapó" del ancla aunque
+ * el contenido siga creciendo bajo sus pies.
  */
 export function HiloMensajes({
   conversacionId,
@@ -68,15 +73,19 @@ export function HiloMensajes({
   onReintentar,
   onRegenerar,
   onReaccion,
+  onDesplazado,
   vacio,
 }: Props) {
-  const contenedor = useRef<HTMLDivElement>(null);
-  const [alFondo, setAlFondo] = useState(true);
   const reducido = useReducedMotion();
+  const { scrollRef, contentRef, isAtBottom, scrollToBottom } = useStickToBottom({
+    initial: 'instant',
+    resize: reducido ? 'instant' : 'smooth',
+  });
 
   const ocupado = esperando || transmitiendo;
   const hayVivo = esperando || textoParcial.length > 0;
   const ultimaAsistente = mensajes.map((m) => m.rol).lastIndexOf('asistente');
+  const ultimoEsUsuario = mensajes[mensajes.length - 1]?.rol === 'usuario';
 
   // El Proceso de la respuesta viva es UNO solo aunque cambie de pieza (de la
   // espera al texto): si se abre mientras espera, sigue abierto al llegar el
@@ -89,55 +98,45 @@ export function HiloMensajes({
   }, [hayVivo]);
   const idIsotipo = `isotipo-respuesta-${conversacionId ?? 'nueva'}-${mensajes.length}`;
 
-  const irAlFondo = useCallback(
-    (suave: boolean) => {
-      const el = contenedor.current;
-      if (!el) return;
-      el.scrollTo({ top: el.scrollHeight, behavior: suave && !reducido ? 'smooth' : 'auto' });
-      setAlFondo(true);
-    },
-    [reducido]
-  );
+  // Abrir otra conversación cae directo al final, sin animación: ver el hilo
+  // desplazarse solo desde arriba al abrirlo se lee como un fallo.
+  useLayoutEffect(() => {
+    void scrollToBottom('instant');
+  }, [conversacionId, cargando, scrollToBottom]);
 
-  // El scroll dispara decenas de eventos por gesto y aquí solo interesa un
-  // booleano: se colapsa a una lectura por frame para no medir el layout 60
-  // veces por segundo mientras además llega texto por streaming.
+  // Enviar una pregunta SIEMPRE vuelve al final, aunque se estuviera releyendo
+  // arriba: quien acaba de preguntar quiere ver la respuesta.
   useEffect(() => {
-    const el = contenedor.current;
-    if (!el) return;
+    if (ultimoEsUsuario) void scrollToBottom(reducido ? 'instant' : 'smooth');
+  }, [mensajes.length, ultimoEsUsuario, reducido, scrollToBottom]);
+
+  // La cabecera del chat dibuja su hairline solo cuando hay algo debajo: se
+  // avisa una vez por frame como mucho, y solo cuando el booleano cambia.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onDesplazado) return;
     let frame: number | null = null;
-    const alScroll = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        const actual = contenedor.current;
-        if (!actual) return;
-        setAlFondo(actual.scrollHeight - actual.scrollTop - actual.clientHeight < UMBRAL_FONDO);
-      });
+    let previo: boolean | null = null;
+    const leer = () => {
+      frame = null;
+      const ahora = el.scrollTop > 4;
+      if (ahora !== previo) {
+        previo = ahora;
+        onDesplazado(ahora);
+      }
     };
+    const alScroll = () => {
+      if (frame === null) frame = requestAnimationFrame(leer);
+    };
+    leer();
     el.addEventListener('scroll', alScroll, { passive: true });
     return () => {
       el.removeEventListener('scroll', alScroll);
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [scrollRef, onDesplazado]);
 
-  // Abrir otra conversación cae directo al final, sin animación: ver el hilo
-  // desplazarse solo desde arriba al abrirlo se lee como un fallo, no como
-  // una transición.
-  useLayoutEffect(() => {
-    const el = contenedor.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    setAlFondo(true);
-  }, [conversacionId, cargando]);
-
-  useEffect(() => {
-    if (!alFondo) return;
-    // Durante la transmisión el salto es seco: un `smooth` por fragmento se
-    // encola contra sí mismo y el texto acaba temblando.
-    irAlFondo(!transmitiendo);
-  }, [mensajes.length, textoParcial, esperando, alFondo, transmitiendo, irAlFondo]);
+  const sinMensajes = mensajes.length === 0 && !hayVivo;
 
   return (
     <div className="relative min-h-0 flex-1">
@@ -146,24 +145,20 @@ export function HiloMensajes({
           del alto de la pantalla se lee como un error, así que el anillo va por
           dentro. Lo que no se hace nunca es quitarlo sin reemplazo. */}
       <div
-        ref={contenedor}
+        ref={scrollRef}
         role="log"
         aria-label={copyLocal.hiloEtiqueta}
         aria-busy={ocupado}
         tabIndex={0}
         className="h-full overflow-y-auto overscroll-contain px-4 lg:px-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       >
-        {cargando ? (
-          <div className="mx-auto w-full max-w-[760px] py-6">
+        <div ref={contentRef} className={cn('mx-auto w-full max-w-[680px]', sinMensajes && !cargando ? 'flex h-full items-center justify-center py-6' : 'pb-10 pt-6')}>
+          {cargando ? (
             <EsqueletoHilo />
-          </div>
-        ) : mensajes.length === 0 && !hayVivo ? (
-          // El saludo se centra en el alto disponible; el resto del hilo crece
-          // desde arriba. De ahí que sean dos envoltorios y no uno.
-          <div className="mx-auto flex h-full w-full max-w-[760px] items-center justify-center py-6">{vacio}</div>
-        ) : (
-          <div className="mx-auto w-full max-w-[760px] py-6">
-            <div className="flex flex-col gap-8">
+          ) : sinMensajes ? (
+            vacio
+          ) : (
+            <div className="flex flex-col gap-7">
               {mensajes.map((m, i) =>
                 m.rol === 'usuario' ? (
                   <BurbujaUsuario key={m.id} mensaje={m} />
@@ -220,33 +215,34 @@ export function HiloMensajes({
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
+      {/* Desvanecido de 24 px sobre el composer: el texto se va por debajo en
+          vez de cortarse contra una línea. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-bg to-transparent" />
+
       <AnimatePresence>
-        {!alFondo && !cargando && (
+        {!isAtBottom && !cargando && !sinMensajes && (
           <motion.div
-            initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.94 }}
+            initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.94, transition: { duration: dur.fast, ease } }}
-            transition={springSnappy}
-            className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center"
+            exit={{ opacity: 0, scale: 0.9, transition: salidaPanel }}
+            transition={reducido ? { duration: dur.fast, ease } : springPanel}
+            className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center"
           >
-            <button
+            <motion.button
               type="button"
-              onClick={() => irAlFondo(true)}
-              className={cn(
-                // rounded-control y no pastilla: la píldora completa está
-                // reservada a StatusPill, que es lo que la hace reconocible.
-                'pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-control border border-hairline',
-                'bg-surface-3/90 px-4 font-ui text-13 font-medium text-text-1 shadow-3 backdrop-blur-xl',
-                'transition-colors duration-150 hover:bg-accent-soft hover:text-accent-fg md:min-h-[36px]'
-              )}
+              onClick={() => void scrollToBottom(reducido ? 'instant' : 'smooth')}
+              aria-label={copy.irAlUltimo}
+              title={copy.irAlUltimo}
+              whileTap={{ scale: 0.92 }}
+              transition={springPress}
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-surface-3 text-text-2 shadow-menu transition-colors duration-[120ms] hover:text-text-1 md:h-9 md:w-9"
             >
-              <ArrowDown size={14} strokeWidth={2.5} />
-              {copy.irAlUltimo}
-            </button>
+              <ArrowDown size={16} strokeWidth={2.25} />
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

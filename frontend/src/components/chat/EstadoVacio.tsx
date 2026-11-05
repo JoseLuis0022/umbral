@@ -1,10 +1,12 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
-import { springSoft, springSnappy, stagger, dur, ease } from '../../lib/motion';
+import { springMensaje, springPress, springSoft, stagger, dur, ease } from '../../lib/motion';
+import { IsotipoUmbral } from '../brand/Logo';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
+import { cn } from '../../lib/cn';
 
 const INTERVALO_MS = 4000;
 
@@ -15,8 +17,12 @@ const INTERVALO_CHIPS_MS = 9000;
 const POR_TANDA = 4;
 
 /**
- * Primera vez / sesión nueva: saludo, una pregunta que rota y chips que
- * precargan el campo.
+ * Primera vez / sesión nueva: isotipo, saludo (32/40), una pregunta que rota,
+ * el composer CENTRADO debajo y los chips de sugerencia.
+ *
+ * El composer llega como `composer` desde la pantalla, envuelto en el mismo
+ * `layoutId` que usa abajo: al enviar, baja a su sitio en vez de desaparecer
+ * aquí y aparecer allá. Sin `composer` (teléfono), el bloque se centra solo.
  *
  * La pregunta rotativa es DECORATIVA (`aria-hidden`) a propósito. Un texto que
  * cambia solo cada cuatro segundos dentro de una región anunciable interrumpe
@@ -42,9 +48,11 @@ const POR_TANDA = 4;
 export const EstadoVacio = memo(function EstadoVacio({
   nombre,
   onSugerencia,
+  composer,
 }: {
   nombre: string;
   onSugerencia: (texto: string) => void;
+  composer?: ReactNode;
 }) {
   const reducido = useReducedMotion();
   const [indice, setIndice] = useState(0);
@@ -69,23 +77,19 @@ export const EstadoVacio = memo(function EstadoVacio({
   const visibles = copy.chips.slice(tanda * POR_TANDA, tanda * POR_TANDA + POR_TANDA);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-4 py-10 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <motion.h2
-          initial={reducido ? { opacity: 0 } : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={springSoft}
-          className="font-ui text-28 text-text-1"
-        >
-          {copy.saludo(nombre)}
-        </motion.h2>
+    <div className={cn('flex w-full flex-col items-center text-center', composer ? 'gap-0' : 'h-full justify-center px-4 py-10')}>
+      <motion.div
+        initial={reducido ? { opacity: 0 } : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={reducido ? { duration: dur.base, ease } : springMensaje}
+        className="flex flex-col items-center gap-3"
+      >
+        <IsotipoUmbral className="h-7 w-7 text-accent" />
+        <h2 className="font-ui text-28 text-text-1 sm:text-32">{copy.saludo(nombre)}</h2>
 
         {/* Altura fija de dos líneas: sin ella el bloque entero salta cada vez
             que entra una pregunta más larga que la anterior. */}
-        <div
-          aria-hidden
-          className="flex h-[44px] w-full max-w-[440px] items-start justify-center overflow-hidden"
-        >
+        <div aria-hidden className="flex h-[44px] w-full max-w-[440px] items-start justify-center overflow-hidden">
           <AnimatePresence mode="wait" initial={false}>
             <motion.p
               key={indice}
@@ -99,7 +103,9 @@ export const EstadoVacio = memo(function EstadoVacio({
             </motion.p>
           </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
+
+      {composer && <div className="mt-5 w-full text-left">{composer}</div>}
 
       {/* La tanda entra, pero no SALE animada. Un crossfade entre tandas
           alargaría el relevo casi medio segundo, y durante ese tiempo hay
@@ -109,7 +115,7 @@ export const EstadoVacio = memo(function EstadoVacio({
           entra escalonada; en todo momento lo que se ve es lo que se puede
           pulsar. */}
       <div
-        className="flex min-h-[96px] w-full items-start justify-center md:min-h-[80px]"
+        className={cn('flex w-full items-start justify-center', composer ? 'mt-5 min-h-[84px]' : 'mt-8 min-h-[96px] md:min-h-[84px]')}
         onMouseEnter={() => setPausado(true)}
         onMouseLeave={() => setPausado(false)}
         // `*Capture` porque el foco aterriza en los botones de dentro, no aquí:
@@ -117,29 +123,30 @@ export const EstadoVacio = memo(function EstadoVacio({
         onFocusCapture={() => setPausado(true)}
         onBlurCapture={() => setPausado(false)}
       >
-        <ul className="flex max-w-[620px] flex-wrap items-center justify-center gap-2">
+        <ul className="flex max-w-[640px] flex-wrap items-center justify-center gap-2">
           {visibles.map((chip, i) => (
             <motion.li
               key={chip}
-              initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              initial={reducido ? { opacity: 0 } : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ ...springSoft, delay: stagger.base * (i + 1) }}
+              transition={reducido ? { duration: dur.base, ease, delay: stagger.base * (i + 1) } : { ...springSoft, delay: 0.08 + stagger.base * (i + 1) }}
             >
+              {/* Chip de 36 px en píldora, sobre superficie con anillo de 1 px.
+                  El hover solo cambia el color: nada sube. */}
               <motion.button
                 type="button"
                 onClick={() => onSugerencia(chip)}
                 aria-label={`${copyLocal.sugerenciaEtiqueta}: ${chip}`}
-                whileHover={reducido ? undefined : { y: -1 }}
                 whileTap={{ scale: 0.97 }}
-                transition={springSnappy}
-                className="group inline-flex min-h-[44px] items-center gap-1.5 rounded-control border border-hairline bg-surface-1 px-3.5 font-ui text-13 text-text-2 shadow-1 transition-colors duration-150 hover:border-accent/30 hover:bg-accent-soft hover:text-accent-fg md:min-h-[36px]"
+                transition={springPress}
+                className="group inline-flex min-h-[44px] items-center gap-1.5 rounded-pastilla bg-surface-1 px-3.5 font-ui text-13 text-text-2 shadow-anillo transition-colors duration-[120ms] hover:bg-tinta/[.04] hover:text-text-1 md:min-h-9"
               >
                 {chip}
                 <ArrowUpRight
                   size={13}
                   strokeWidth={2}
                   aria-hidden
-                  className="text-text-3 transition-colors duration-150 group-hover:text-accent-fg"
+                  className="text-text-3 transition-colors duration-[120ms] group-hover:text-text-2"
                 />
               </motion.button>
             </motion.li>

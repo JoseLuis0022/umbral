@@ -73,12 +73,14 @@ export const transicionRuta = {
 /** Entrada de un mensaje al hilo. El del usuario además crece desde su esquina. */
 export const entradaMensaje = {
   initial: { opacity: 0, y: 12, filter: 'blur(2px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  // Al terminar, `filter: none`: un `blur(0px)` que se queda puesto convierte
+  // cada mensaje del hilo en su propia capa de composición.
+  animate: { opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } },
   transition: springMensaje,
 };
 export const entradaMensajeUsuario = {
   initial: { opacity: 0, y: 12, scale: 0.98, filter: 'blur(2px)' },
-  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
+  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } },
   transition: springMensaje,
   style: { transformOrigin: 'bottom right' },
 };

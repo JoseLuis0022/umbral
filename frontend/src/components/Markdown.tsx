@@ -1,10 +1,10 @@
-import { memo, useMemo, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { marked } from 'marked';
 import remend from 'remend';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Check, Copy } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { VisorImagen } from './VisorImagen';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -63,12 +63,14 @@ const COMPONENTES: Components = {
   // sistema: un ## dentro de una respuesta del agente o de un
   // documento cumple exactamente la misma función que el h2 de una
   // tarjeta, y verlos en dos familias distintas rompería la lectura.
-  h1: ({ children }) => <h1 className="mb-3 mt-6 font-ui text-22 text-text-1 first:mt-0">{children}</h1>,
-  h2: ({ children }) => <h2 className="mb-2 mt-6 font-ui text-15 font-semibold text-text-1 first:mt-0">{children}</h2>,
-  h3: ({ children }) => <h3 className="mb-2 mt-5 font-ui text-14 font-semibold text-text-1 first:mt-0">{children}</h3>,
-  p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="mb-3 flex list-disc flex-col gap-1.5 pl-5 last:mb-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-3 flex list-decimal flex-col gap-1.5 pl-5 last:mb-0">{children}</ol>,
+  // Escala de LECTURA (docs/especificacion-diseno.md §2): cuerpo 16/26,
+  // h2 18/26 y h3 16/24, ambos en 600; párrafos separados 14 px.
+  h1: ({ children }) => <h1 className="mb-3 mt-7 font-ui text-22 text-text-1 first:mt-0">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-2 mt-7 font-ui text-18 text-text-1 first:mt-0">{children}</h2>,
+  h3: ({ children }) => <h3 className="mb-1.5 mt-5 font-ui text-16 font-semibold leading-6 text-text-1 first:mt-0">{children}</h3>,
+  p: ({ children }) => <p className="mb-3.5 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="mb-3.5 flex list-disc flex-col gap-1.5 pl-5 last:mb-0">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-3.5 flex list-decimal flex-col gap-1.5 pl-5 last:mb-0">{children}</ol>,
   li: ({ children }) => <li className="pl-1 marker:text-text-3">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-text-1">{children}</strong>,
   a: ({ children, href }) => (
@@ -82,7 +84,7 @@ const COMPONENTES: Components = {
     </a>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="mb-3 border-l-2 border-accent/40 pl-4 text-text-2 last:mb-0">{children}</blockquote>
+    <blockquote className="mb-3.5 border-l-2 border-tinta/15 pl-4 text-text-2 last:mb-0">{children}</blockquote>
   ),
   hr: () => <hr className="my-5 border-hairline" />,
   /*
@@ -100,13 +102,13 @@ const COMPONENTES: Components = {
   table: ({ children }) => (
     // La tabla scrollea dentro de su propio contenedor: una tabla ancha
     // nunca debe empujar el ancho de la conversación.
-    <div className="mb-3 overflow-x-auto rounded-celda border border-hairline last:mb-0">
-      <table className="w-full border-collapse text-13">{children}</table>
+    <div className="mb-3.5 overflow-x-auto rounded-[12px] shadow-anillo last:mb-0">
+      <table className="w-full border-collapse text-14 leading-[22px]">{children}</table>
     </div>
   ),
   thead: ({ children }) => <thead className="bg-bg">{children}</thead>,
   th: ({ children }) => (
-    <th className="border-b border-hairline px-3 py-2 text-left font-ui text-12 font-semibold uppercase tracking-wide text-text-3">
+    <th className="border-b border-hairline px-3 py-2 text-left font-ui text-13 font-semibold text-text-2">
       {children}
     </th>
   ),
@@ -117,7 +119,7 @@ const COMPONENTES: Components = {
     const esBloque = /language-/.test(cls ?? '');
     if (!esBloque) {
       return (
-        <code className="rounded-[4px] bg-bg px-1.5 py-0.5 font-mono text-13 text-accent-fg">{children}</code>
+        <code className="rounded-xs bg-tinta/[.05] px-1.5 py-0.5 font-mono text-[0.875em] text-text-1">{children}</code>
       );
     }
     return <BloqueCodigo lenguaje={(cls ?? '').replace('language-', '')}>{children}</BloqueCodigo>;
@@ -139,7 +141,7 @@ export const Markdown = memo(function Markdown({
   className?: string;
 }) {
   return (
-    <div className={cn('font-ui text-15 leading-relaxed text-text-1', className)}>
+    <div className={cn('font-ui text-16 text-text-1', className)}>
       <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES}>
         {children}
       </ReactMarkdown>
@@ -181,7 +183,7 @@ export const MarkdownEnVivo = memo(function MarkdownEnVivo({
 }) {
   const bloques = useMemo(() => partirEnBloques(children), [children]);
   return (
-    <div className={cn('font-ui text-15 leading-relaxed text-text-1', className)}>
+    <div className={cn('font-ui text-16 text-text-1', className)}>
       {bloques.map((fuente, i) =>
         i === bloques.length - 1 ? (
           <BloqueMarkdown key={i} fuente={remend(retenerFilaParcial(fuente))} />
@@ -242,7 +244,7 @@ function ImagenAmpliable({ src, alt }: { src: string; alt?: string }) {
           type="button"
           onClick={() => setAmpliada(true)}
           aria-label={alt ? `Ampliar: ${alt}` : 'Ampliar la imagen'}
-          className="block w-full max-w-[560px] cursor-zoom-in overflow-hidden rounded-tarjeta border border-hairline bg-bg transition-colors duration-150 hover:border-accent/40"
+          className="block w-full max-w-[560px] cursor-zoom-in overflow-hidden rounded-[12px] bg-bg shadow-anillo transition-shadow duration-150 hover:shadow-2"
         >
           <motion.img
             src={src}
@@ -266,13 +268,18 @@ function ImagenAmpliable({ src, alt }: { src: string; alt?: string }) {
 
 function BloqueCodigo({ lenguaje, children }: { lenguaje: string; children: ReactNode }) {
   const [copiado, setCopiado] = useState(false);
+  const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducido = useReducedMotion();
   const texto = String(children).replace(/\n$/, '');
+
+  useEffect(() => () => { if (reloj.current) clearTimeout(reloj.current); }, []);
 
   async function copiar() {
     try {
       await navigator.clipboard.writeText(texto);
       setCopiado(true);
-      setTimeout(() => setCopiado(false), 1600);
+      if (reloj.current) clearTimeout(reloj.current);
+      reloj.current = setTimeout(() => setCopiado(false), 1600);
     } catch {
       // El portapapeles puede estar bloqueado por permisos del navegador; el
       // bloque de código sigue siendo seleccionable a mano.
@@ -280,20 +287,48 @@ function BloqueCodigo({ lenguaje, children }: { lenguaje: string; children: Reac
   }
 
   return (
-    <div className="group relative mb-3 overflow-hidden rounded-celda border border-hairline bg-bg last:mb-0">
-      <div className="flex items-center justify-between border-b border-hairline px-3 py-1.5">
+    <div className="group relative mb-3.5 overflow-hidden rounded-[12px] bg-tinta/[.03] shadow-anillo last:mb-0">
+      {/* Cabecera de 32 px: lenguaje a la izquierda, copiar a la derecha. */}
+      <div className="flex h-8 items-center justify-between pl-3.5 pr-1">
         <span className="font-ui text-12 text-text-3">{lenguaje || 'código'}</span>
         <button
           type="button"
           onClick={copiar}
-          className="flex items-center gap-1 rounded-[6px] px-1.5 py-1 font-ui text-12 text-text-2 transition-colors hover:bg-accent-soft hover:text-accent-fg"
+          className="flex h-6 items-center gap-1 rounded-xs px-1.5 font-ui text-12 text-text-2 transition-colors duration-[120ms] hover:bg-tinta/[.05] hover:text-text-1"
         >
-          {copiado ? <Check size={12} /> : <Copy size={12} />}
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={copiado ? 'ok' : 'copiar'}
+              initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+              transition={{ duration: dur.fast, ease }}
+              className="flex"
+            >
+              {copiado ? (
+                <svg viewBox="0 0 24 24" width={12} height={12} aria-hidden="true">
+                  <motion.path
+                    d="M5 12.5l4.5 4.5L19 7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={reducido ? false : { pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.28, ease: [0.65, 0, 0.35, 1] }}
+                  />
+                </svg>
+              ) : (
+                <Copy size={12} />
+              )}
+            </motion.span>
+          </AnimatePresence>
           {copiado ? 'Copiado' : 'Copiar'}
         </button>
       </div>
-      <pre className="overflow-x-auto px-3 py-2.5">
-        <code className="font-mono text-13 leading-relaxed text-text-1">{texto}</code>
+      <pre className="overflow-x-auto px-3.5 pb-3 pt-0.5">
+        <code className="font-mono text-13 leading-[21px] text-text-1">{texto}</code>
       </pre>
     </div>
   );

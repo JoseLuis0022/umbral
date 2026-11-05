@@ -1,9 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Copy, RefreshCw, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
 import type { ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
-import { dur, ease, springSnappy } from '../../lib/motion';
+import { ease, entradaMensaje, entradaMensajeUsuario, entradaReducida, springPress } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { formatoHora } from '../../lib/fechas';
 import { Markdown, MarkdownEnVivo } from '../Markdown';
@@ -25,9 +25,10 @@ import { BurbujaTrabajando, ProcesoAgente } from './IndicadorPensando';
  * tablas, y una tabla dentro de una burbuja con esquinas redondeadas se ve
  * apretada y obliga a un scroll horizontal innecesario.
  *
- * El color de marca no aparece en ninguna de las dos. Si la burbuja del usuario
- * fuera roja competiría con el botón de enviar, y en esta pantalla el único
- * rojo sólido es ese botón.
+ * El color de marca no aparece en ninguna de las dos: el único azul sólido de
+ * la pantalla es el botón de enviar. La burbuja del usuario es un gris pizarra
+ * SIN borde ni sombra —con los dos se leía como una tarjeta— y sin la esquina
+ * recortada, que se veía anticuada.
  */
 
 /*
@@ -48,14 +49,11 @@ export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaj
   // envió; después de recargar, el visor muestra la miniatura guardada.
   const [vista, setVista] = useState<{ src: string; alt: string } | null>(null);
   return (
-    <motion.article
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springSnappy}
-      className="flex flex-col items-end gap-1.5"
-    >
+    // Entra con peso (springMensaje), enfocándose desde un blur de 2 px y
+    // creciendo desde su esquina inferior derecha: nace del composer.
+    <motion.article {...(reducido ? entradaReducida : entradaMensajeUsuario)} className="group flex flex-col items-end gap-1.5">
       {mensaje.adjuntos && mensaje.adjuntos.length > 0 && (
-        <ul className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
+        <ul className="flex max-w-[80%] flex-wrap justify-end gap-1.5">
           {mensaje.adjuntos.map((a) => (
             <li key={a.id}>
               {a.miniatura ? (
@@ -74,15 +72,20 @@ export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaj
       )}
       <VisorImagen src={vista?.src ?? null} alt={vista?.alt} onCerrar={() => setVista(null)} />
 
-      <div className="max-w-[85%] rounded-tarjeta rounded-br-celda border border-hairline bg-surface-1 px-4 py-2.5 shadow-1">
-        {/* `whitespace-pre-wrap`: lo que el usuario escribió se conserva tal
-            cual, con sus saltos de línea. Su mensaje no es markdown. */}
-        <p className="whitespace-pre-wrap break-words font-ui text-15 leading-relaxed text-text-1">
-          {mensaje.contenido}
-        </p>
-      </div>
+      {mensaje.contenido && (
+        <div className="max-w-[80%] rounded-burbuja bg-burbuja px-4 py-2.5">
+          {/* `whitespace-pre-wrap`: lo que el usuario escribió se conserva tal
+              cual, con sus saltos de línea. Su mensaje no es markdown. */}
+          <p className="whitespace-pre-wrap break-words font-ui text-15 leading-6 text-text-1">{mensaje.contenido}</p>
+        </div>
+      )}
 
-      <time dateTime={mensaje.creadoEn} className="px-1 font-ui text-12 tabular-nums text-text-3">
+      {/* La hora solo al pasar el cursor (o con el foco dentro): en cada
+          mensaje, todo el tiempo, era ruido. Sigue en el DOM para el lector. */}
+      <time
+        dateTime={mensaje.creadoEn}
+        className="px-1 font-ui text-12 tabular-nums text-text-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
         {formatoHora(mensaje.creadoEn)}
       </time>
     </motion.article>
@@ -115,18 +118,13 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
   const reducido = useReducedMotion();
 
   return (
-    <motion.article
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springSnappy}
-      className="group flex flex-col gap-1"
-    >
+    <motion.article {...(reducido ? entradaReducida : entradaMensaje)} className="group flex flex-col gap-1">
       {mensaje.proceso && <ProcesoAgente items={mensaje.proceso} modo="terminado" pensoMs={mensaje.pensoMs} />}
       <Markdown>{mensaje.contenido}</Markdown>
 
       <div
         className={cn(
-          'flex flex-wrap items-center gap-0.5',
+          '-ml-2 mt-1 flex flex-wrap items-center gap-0.5',
           // En escritorio las acciones aparecen al acercarse; la última
           // respuesta las conserva visibles porque es la que se copia o se
           // regenera el 90% de las veces. En táctil no hay hover: siempre visibles.
@@ -144,7 +142,7 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
           />
         )}
 
-        <span className="mx-1 h-4 w-px bg-hairline" aria-hidden />
+        <span className="mx-1 h-4 w-px bg-tinta/[.08]" aria-hidden />
 
         <AccionMensaje
           etiqueta={copy.utilSi}
@@ -269,17 +267,18 @@ export function EsperaRespuesta({
 /** Esqueleto del hilo completo, con la alternancia usuario/asistente real. */
 export function EsqueletoHilo() {
   return (
-    <div className="flex flex-col gap-8" aria-hidden>
+    <div className="flex flex-col gap-7" aria-hidden>
       {[0, 1].map((i) => (
-        <div key={i} className="flex flex-col gap-8">
+        <div key={i} className="flex flex-col gap-7">
           <div className="flex justify-end">
-            <Skeleton className="h-[52px] w-[60%] rounded-tarjeta" />
+            <Skeleton className="h-[44px] w-[60%] rounded-burbuja" />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[95%]" />
-            <Skeleton className="h-4 w-[88%]" />
-            <Skeleton className="h-4 w-[45%]" />
+          {/* Barras de 18 px cada 26 px: el interlineado de lectura. */}
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-[18px] w-full" />
+            <Skeleton className="h-[18px] w-[95%]" />
+            <Skeleton className="h-[18px] w-[88%]" />
+            <Skeleton className="h-[18px] w-[45%]" />
           </div>
         </div>
       ))}
@@ -311,70 +310,80 @@ function BotonCopiar({ texto }: { texto: string }) {
   }
 
   return (
-    <AccionMensaje
-      etiqueta={copiado ? copy.copiado : copy.copiar}
-      icono={copiado ? Check : Copy}
-      activo={copiado}
-      conTexto={copiado}
-      animarAncho
-      onClick={copiar}
-    />
+    <AccionMensaje etiqueta={copiado ? copy.copiado : copy.copiar} activo={copiado} onClick={copiar}>
+      {/* Los dos iconos se cruzan: el check entra trazándose. */}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {copiado ? (
+          <motion.span key="ok" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={springPress} className="flex">
+            <CheckTrazado />
+          </motion.span>
+        ) : (
+          <motion.span key="copiar" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={springPress} className="flex">
+            <Copy size={15} strokeWidth={2} />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </AccionMensaje>
   );
 }
 
+/** Check que se dibuja (pathLength), para confirmar "copiado" sin cambiar el ancho del botón. */
+export function CheckTrazado({ size = 15 }: { size?: number }) {
+  const reducido = useReducedMotion();
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <motion.path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.25}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={reducido ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.28, ease: [0.65, 0, 0.35, 1] }}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Acción de un mensaje: 32 × 32 `rounded-celda`, solo icono (la etiqueta va en
+ * `aria-label` y `title`). El hover solo cambia el fondo: nada se mueve.
+ */
 function AccionMensaje({
   etiqueta,
   icono: Icono,
   activo,
-  conTexto,
-  animarAncho,
   disabled,
   onClick,
+  children,
 }: {
   etiqueta: string;
-  icono: LucideIcon;
+  icono?: LucideIcon;
   activo?: boolean;
-  /** Muestra la etiqueta junto al icono — se usa para confirmar "Copiado". */
-  conTexto?: boolean;
-  /**
-   * Solo el botón de copiar cambia de ancho (le entra la palabra "Copiado"), y
-   * solo él necesita `layout`. Antes lo llevaban los cuatro botones de CADA
-   * respuesta: `layout` obliga a medir la caja en cada render del componente, y
-   * en un hilo largo eso son decenas de mediciones por render para animar un
-   * ancho que en tres de los cuatro no se mueve nunca.
-   */
-  animarAncho?: boolean;
   disabled?: boolean;
   onClick: () => void;
+  children?: ReactNode;
 }) {
   return (
     <motion.button
       type="button"
-      layout={animarAncho}
       onClick={onClick}
       disabled={disabled}
       aria-label={etiqueta}
       aria-pressed={activo}
       title={etiqueta}
-      whileTap={disabled ? undefined : { scale: 0.92 }}
-      transition={springSnappy}
+      whileTap={disabled ? undefined : { scale: 0.9 }}
+      transition={springPress}
       className={cn(
-        'inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-celda px-2.5 font-ui text-12 font-medium',
-        'transition-colors duration-150 md:min-h-[32px]',
+        'relative inline-flex h-11 w-11 items-center justify-center rounded-celda md:h-8 md:w-8',
+        'transition-colors duration-[120ms]',
         activo ? 'text-accent-fg' : 'text-text-3 hover:text-text-1',
-        'hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-text-3 disabled:hover:bg-transparent'
+        'hover:bg-tinta/[.05] disabled:cursor-not-allowed disabled:text-text-3 disabled:hover:bg-transparent'
       )}
     >
-      <Icono size={14} strokeWidth={2} />
-      {conTexto && (
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: dur.fast, ease }}
-        >
-          {etiqueta}
-        </motion.span>
-      )}
+      {children ?? (Icono && <Icono size={15} strokeWidth={2} />)}
     </motion.button>
   );
 }
