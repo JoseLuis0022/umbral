@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStickToBottom } from 'use-stick-to-bottom';
-import { ArrowDown, RotateCcw } from 'lucide-react';
+import { ArrowDown, Play, RotateCcw } from 'lucide-react';
 import type { ArchivoCompartido, ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
 import { dur, ease, salidaPanel, springPanel, springPress } from '../../lib/motion';
@@ -37,6 +37,8 @@ type Props = {
   pensoMs?: number | null;
   error: string | null;
   onReintentar: () => void;
+  /** El fallo llegó después de avanzar: "Continuar donde se quedó" en vez de empezar de cero. */
+  onContinuar?: () => void;
   onRegenerar: () => void;
   /** Firma completa (id + reacción) para que la prop sea estable y `memo` sirva en las filas. */
   onReaccion: (mensajeId: string, reaccion: 'positiva' | 'negativa') => void;
@@ -73,6 +75,7 @@ export function HiloMensajes({
   pensoMs,
   error,
   onReintentar,
+  onContinuar,
   onRegenerar,
   onReaccion,
   onDesplazado,
@@ -209,9 +212,22 @@ export function HiloMensajes({
                     tone="red"
                     className="flex-col items-start gap-3 sm:flex-row sm:items-center"
                     action={
-                      <Button variant="secondary" size="sm" onClick={onReintentar}>
-                        <RotateCcw size={14} /> {copyLocal.reintentar}
-                      </Button>
+                      onContinuar ? (
+                        // Continuar conserva lo que el agente ya hizo (su sesión);
+                        // reintentar empieza de cero. Continuar es lo normal.
+                        <span className="flex flex-wrap gap-2">
+                          <Button variant="secondary" size="sm" onClick={onContinuar}>
+                            <Play size={14} /> {copy.continuar}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={onReintentar}>
+                            <RotateCcw size={14} /> {copyLocal.reintentar}
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button variant="secondary" size="sm" onClick={onReintentar}>
+                          <RotateCcw size={14} /> {copyLocal.reintentar}
+                        </Button>
+                      )
                     }
                   >
                     {error}

@@ -57,12 +57,20 @@ CREATE TABLE IF NOT EXISTS consultas (
     tokens           TEXT,      -- JSON {entrada, salida, cacheLectura, cacheEscritura}
     herramientas     TEXT,      -- JSON ["Read", "Grep", …]
     modelo           TEXT,
-    estado           TEXT NOT NULL,   -- completa | cancelada | error
+    estado           TEXT NOT NULL,   -- corriendo | completa | cancelada | error
     error            TEXT
 );
 
 CREATE INDEX IF NOT EXISTS consultas_usuario_fecha ON consultas (usuario_id, creado_en);
 CREATE INDEX IF NOT EXISTS consultas_fecha ON consultas (creado_en);
+
+-- Factor de corrección del precio estimado por modelo (ver precios.py): se
+-- recalibra con el costo real que reporta el agente al terminar cada consulta.
+CREATE TABLE IF NOT EXISTS precios_calibrados (
+    modelo       TEXT PRIMARY KEY,
+    factor       REAL NOT NULL,
+    actualizado  TEXT NOT NULL
+);
 """
 
 # Columnas que se agregaron después de la primera versión del esquema. En una
@@ -182,6 +190,62 @@ def guardar_sesion(usuario_id: str, conversacion_id: str, perfil: str, sesion_sd
 
 
 # ── Registro de consultas ───────────────────────────────────────────────────
+
+
+def _serializar(campos: dict[str, Any]) -> dict[str, Any]:
+    campos = dict(campos)
+    for llave in ("tokens", "herramientas"):
+        if llave in campos and campos[llave] is not None:
+            campos[llave] = json.dumps(campos[llave], ensure_ascii=False)
+    return campos
+
+
+def abrir_consulta(**campos: Any) -> int:
+    """Registra la consulta AL EMPEZAR (estado "corriendo") y devuelve su id.
+
+    Antes solo se registraba al terminar: una tarea larga no aparecía en el
+    Tablero hasta el final, y una que fallaba o se cortaba gastaba sin que el
+    gasto quedara en ningún lado.
+    """
+    campos = _serializar({**campos, "creado_en": ahora(), "estado": "corriendo"})
+    columnas = ", ".join(campos)
+    marcas = ", ".join("?" for _ in campos)
+    with conexion() as con:
+        cursor = con.execute(f"INSERT INTO consultas ({columnas}) VALUES ({marcas})", tuple(campos.values()))
+        return int(cursor.lastrowid or 0)
+
+
+def actualizar_consulta(consulta_id: int, **campos: Any) -> None:
+    """Actualiza el avance (costo estimado, vueltas…) o el cierre de una consulta."""
+    if not campos:
+        return
+    campos = _serializar(campos)
+    asignaciones = ", ".join(f"{c} = ?" for c in campos)
+    with conexion() as con:
+        con.execute(f"UPDATE consultas SET {asignaciones} WHERE id = ?", (*campos.values(), consulta_id))
+
+
+def cerrar_huerfanas() -> int:
+    """Al arrancar: las consultas que seguían "corriendo" murieron con el proceso anterior."""
+    with conexion() as con:
+        cursor = con.execute(
+            "UPDATE consultas SET estado = 'error', error = COALESCE(error, 'interrumpido') WHERE estado = 'corriendo'"
+        )
+        return cursor.rowcount
+
+
+def factores_precio() -> dict[str, float]:
+    with conexion() as con:
+        return {f["modelo"]: float(f["factor"]) for f in con.execute("SELECT modelo, factor FROM precios_calibrados")}
+
+
+def guardar_factor_precio(modelo: str, factor: float) -> None:
+    with conexion() as con:
+        con.execute(
+            "INSERT INTO precios_calibrados (modelo, factor, actualizado) VALUES (?, ?, ?) "
+            "ON CONFLICT(modelo) DO UPDATE SET factor = excluded.factor, actualizado = excluded.actualizado",
+            (modelo, factor, ahora()),
+        )
 
 
 def registrar_consulta(**campos: Any) -> None:

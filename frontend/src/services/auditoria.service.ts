@@ -8,7 +8,7 @@ import { pedirJson } from './api';
  * Solo lectura: el administrador observa, no edita ni borra consultas.
  */
 
-export type EstadoConsulta = 'completa' | 'cancelada' | 'error';
+export type EstadoConsulta = 'corriendo' | 'completa' | 'cancelada' | 'error';
 
 export interface UsuarioAuditado {
   id: string;

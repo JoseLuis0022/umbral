@@ -24,6 +24,9 @@ log = logging.getLogger("lab")
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
     db.iniciar()
+    huerfanas = db.cerrar_huerfanas()
+    if huerfanas:
+        log.warning("%s consulta(s) quedaron a medias por un reinicio: se marcan como interrumpidas", huerfanas)
     if not ajustes.agente_cwd.is_dir():
         log.error("No existe la carpeta del agente: %s", ajustes.agente_cwd)
     if ajustes.motor == "sdk" and not ajustes.anthropic_api_key:

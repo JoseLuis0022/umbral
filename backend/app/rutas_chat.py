@@ -6,7 +6,7 @@ Antes de abrir el stream, la capa 2 revisa (y aquí sí responde con códigos HT
     404  ¿existe el perfil que pidió?
     403  ¿su rol incluye ese perfil?  ¿puede mandar parámetros?
     429  ¿le quedan consultas hoy?
-    409  ¿el perfil es exclusivo y ya está ocupado? ¿esta conversación ya trabaja?
+    409  ¿esta conversación ya trabaja? (un perfil exclusivo ocupado NO rechaza: espera)
     429  ¿ya tiene MAX_TRABAJOS_POR_USUARIO tareas en curso?
 
 Si todo pasa, crea un TRABAJO (ver trabajos.py) que corre el agente por su
@@ -16,6 +16,7 @@ encabezados HTTP ya se enviaron.
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -47,6 +48,8 @@ _candados: dict[str, asyncio.Lock] = {}
 # Tareas en curso por persona (en distintas conversaciones). Cada una es un
 # subproceso del agente: sin tope, una cuenta podría acaparar la máquina.
 MAX_TRABAJOS_POR_USUARIO = 3
+# Cada cuánto se escribe en la base el gasto de una consulta que sigue corriendo.
+SEGUNDOS_ENTRE_GUARDADOS = 5
 
 # Los modelos de la cuenta casi nunca cambian: se le pregunta a Anthropic una
 # vez cada 10 minutos, no en cada apertura del chat.
@@ -95,11 +98,11 @@ async def chat(peticion: PeticionChat, usuario: db.Usuario = Depends(usuario_act
         if db.consultas_desde(usuario.id, hace_un_dia) >= limite:
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, f"Llegaste al límite de {limite} consultas por día.")
 
-    candado = None
-    if perfil.exclusivo:
-        candado = _candados.setdefault(perfil.id, asyncio.Lock())
-        if candado.locked():
-            raise HTTPException(status.HTTP_409_CONFLICT, "Ese modo ya está trabajando en otra tarea. Intenta cuando termine.")
+    # Un perfil exclusivo (el Generador escribe archivos compartidos) no corre
+    # dos veces a la vez, pero tampoco RECHAZA: la tarea nueva espera su turno
+    # y arranca sola (evento `espera`). Así se pueden tener varias
+    # conversaciones abiertas sin que la segunda falle.
+    candado = _candados.setdefault(perfil.id, asyncio.Lock()) if perfil.exclusivo else None
 
     sesion_previa = None if parametros.reiniciar_memoria else db.sesion_de(usuario.id, peticion.conversacion_id, perfil.id)
     ajuste = Ajuste(
@@ -133,6 +136,11 @@ async def chat(peticion: PeticionChat, usuario: db.Usuario = Depends(usuario_act
     # La respuesta HTTP solo OBSERVA el trabajo: si el navegador se va, el
     # agente sigue y se puede volver a ver con GET /api/trabajos/{id}/eventos.
     return _sse(trabajos.observar(trabajo))
+
+
+@contextlib.asynccontextmanager
+async def _sin_candado() -> AsyncIterator[None]:
+    yield
 
 
 def _sse(flujo: AsyncIterator[str]) -> StreamingResponse:
@@ -179,6 +187,17 @@ async def _ejecutar(
 ) -> None:
     """Corre el agente de principio a fin, haya o no alguien mirando."""
     registro = Registro()
+    # La consulta queda registrada DESDE QUE EMPIEZA (estado "corriendo") y su
+    # gasto se actualiza mientras corre: el Tablero ve las tareas largas en vivo
+    # y una que falla o se cancela no se lleva su gasto sin dejar rastro.
+    consulta_id = db.abrir_consulta(
+        usuario_id=usuario.id,
+        conversacion_id=peticion.conversacion_id,
+        perfil=perfil.id,
+        motor=ajustes.motor,
+        pregunta=pregunta,
+    )
+    ultimo_guardado = time.monotonic()
     # Lo que la persona ve como respuesta, para la auditoría. Solo `texto`: el
     # razonamiento (`pensamiento`) no es parte de la respuesta.
     partes_respuesta: list[str] = []
@@ -195,21 +214,37 @@ async def _ejecutar(
             ajuste=ajuste,
             registro=registro,
         )
+        nonlocal ultimo_guardado
         async for ev in eventos:
+            if ev.get("tipo") == "error":
+                # ¿Se puede CONTINUAR en vez de empezar de cero? Si el agente ya
+                # avanzó (usó herramientas), su sesión guarda todo lo que hizo.
+                ev = {**ev, "reanudable": bool(registro.herramientas) and bool(registro.sesion_sdk)}
             if ev.get("tipo") == "texto":
                 partes_respuesta.append(str(ev.get("delta") or ""))
             elif ev.get("tipo") == "archivo":
                 # En Auditoría se ve qué material se mandó, junto a la respuesta.
                 partes_respuesta.append(f"\n\n📎 {ev.get('nombre')} ({ev.get('ruta')})")
             trabajo.agregar(ev)
+            trabajo.costo_usd = registro.costo_conocido
+            if time.monotonic() - ultimo_guardado >= SEGUNDOS_ENTRE_GUARDADOS:
+                ultimo_guardado = time.monotonic()
+                db.actualizar_consulta(
+                    consulta_id,
+                    costo_usd=registro.costo_conocido,
+                    sesion_sdk=registro.sesion_sdk,
+                    modelo=registro.modelo,
+                    herramientas=registro.herramientas,
+                )
 
     try:
-        async with _semaforo:
-            if candado is None:
+        if candado is not None and candado.locked():
+            trabajo.agregar(evento("espera", motivo=f"En espera: el modo {perfil.nombre} está terminando otra tarea"))
+        async with candado if candado is not None else _sin_candado():
+            if _semaforo.locked():
+                trabajo.agregar(evento("espera", motivo="En espera: el servidor está atendiendo otras consultas"))
+            async with _semaforo:
                 await correr_motor()
-            else:
-                async with candado:
-                    await correr_motor()
     except asyncio.CancelledError:
         # Solo llega aquí por POST /detener (o al apagar el servidor). Cancelar
         # la tarea cierra el subproceso `claude`. Quien siga observando (otra
@@ -223,21 +258,18 @@ async def _ejecutar(
     finally:
         if estado != "cancelada" and registro.error:
             estado = "error"
-        # Una consulta fallida no reemplaza la sesión buena anterior: si no, la
-        # siguiente pregunta reanudaría una sesión rota y fallaría igual.
-        if registro.sesion_sdk and not registro.error:
+        # La sesión se guarda si terminó bien O si avanzó antes de fallar o de
+        # que la detuvieran: así "Continuar" retoma con todo lo que ya hizo.
+        # Una que falló SIN avanzar no reemplaza la sesión buena anterior (la
+        # siguiente pregunta reanudaría una sesión vacía o rota).
+        if registro.sesion_sdk and (not registro.error or registro.herramientas or estado == "cancelada"):
             db.guardar_sesion(usuario.id, peticion.conversacion_id, perfil.id, registro.sesion_sdk)
-        db.registrar_consulta(
-            usuario_id=usuario.id,
-            conversacion_id=peticion.conversacion_id,
-            perfil=perfil.id,
-            motor=ajustes.motor,
-            # Las imágenes no se guardan (pesan y pueden ser personales); solo se
-            # anota cuántas venían, para que el registro diga qué se preguntó.
-            pregunta=pregunta,
+        db.actualizar_consulta(
+            consulta_id,
             respuesta="".join(partes_respuesta) or None,
             sesion_sdk=registro.sesion_sdk,
-            costo_usd=registro.costo_usd,
+            # El exacto si el agente terminó; si no, lo estimado en vivo.
+            costo_usd=registro.costo_conocido,
             vueltas=registro.vueltas,
             duracion_ms=registro.duracion_ms,
             tokens=registro.tokens,
@@ -246,8 +278,11 @@ async def _ejecutar(
             estado=estado,
             error=registro.error,
         )
+        trabajo.costo_usd = registro.costo_conocido
         log.info(
             "consulta %s · %s · %s · $%s · %s vueltas · %s reintentos · %s",
-            estado, usuario.correo, perfil.id, registro.costo_usd, registro.vueltas, registro.reintentos, trabajo.id,
+            estado, usuario.correo, perfil.id,
+            registro.costo_usd if registro.costo_usd is not None else f"{registro.costo_conocido} (estimado)",
+            registro.vueltas, registro.reintentos, trabajo.id,
         )
         trabajo.cerrar(estado)

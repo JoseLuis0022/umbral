@@ -92,6 +92,9 @@ export const chat = {
   trabajandoDetalle: 'Puedes cambiar de pantalla o cerrar la página: seguirá en el servidor.',
   tareasEnCurso: (n: number) => (n === 1 ? '1 tarea en curso' : `${n} tareas en curso`),
   pasos: (n: number) => (n === 1 ? '1 paso' : `${n} pasos`),
+  continuar: 'Continuar donde se quedó',
+  /** Lo que se le manda al agente al pulsar "Continuar": su sesión tiene todo lo que ya hizo. */
+  textoContinuar: 'Continúa la tarea desde donde te quedaste. Revisa primero lo que ya quedó hecho para no repetirlo.',
   errorTrabajoPerdido: 'Esta respuesta se perdió porque el servidor se reinició mientras trabajaba. Vuelve a pedirla.',
   /** Lo que se lee mientras algo se reintenta solo. */
   reintentando: (motivo: string, intento: number, maximo: number) => `${motivo}. Reintentando (${intento} de ${maximo})…`,
@@ -136,7 +139,7 @@ export const auditoria = {
   consultasDe: (n: number) => `${n} ${n === 1 ? 'consulta' : 'consultas'} en el último año`,
   estadoTitulo: 'Filtrar por cómo terminó',
   todosEstados: 'Cualquier estado',
-  estados: { completa: 'Completa', cancelada: 'Cancelada', error: 'Con error' },
+  estados: { corriendo: 'En curso', completa: 'Completa', cancelada: 'Cancelada', error: 'Con error' },
   actualizando: 'Actualizando…',
   conteo: (n: number, hayMas: boolean) => `${n}${hayMas ? '+' : ''} ${n === 1 && !hayMas ? 'consulta' : 'consultas'}`,
   cargarMas: 'Cargar más consultas',

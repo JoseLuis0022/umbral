@@ -69,7 +69,7 @@ class Trabajo:
         if ev.get("tipo") == "actividad" and ev.get("fase") == "inicio" and not ev.get("dentroDe"):
             self.pasos += 1
             self.actividad = ev.get("descripcion")
-        elif ev.get("tipo") == "reintento":
+        elif ev.get("tipo") in ("reintento", "espera"):
             self.actividad = ev.get("motivo")
         elif ev.get("tipo") == "texto":
             self.actividad = "Escribiendo la respuesta"

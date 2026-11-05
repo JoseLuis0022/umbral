@@ -278,7 +278,9 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     (conversacionId: string, trabajoId: string, desde: string) => {
       actualizar((previo) =>
         previo.map((c) =>
-          c.id === conversacionId ? { ...c, trabajoPendiente: trabajoId, trabajoDesde: desde, errorPendiente: undefined } : c
+          c.id === conversacionId
+            ? { ...c, trabajoPendiente: trabajoId, trabajoDesde: desde, errorPendiente: undefined, errorReanudable: undefined }
+            : c
         )
       );
     },
@@ -321,6 +323,14 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             siguiente.trabajoPendiente = undefined;
             siguiente.trabajoDesde = undefined;
           }
+          if (resultado.estado === 'error' && !yaEsta) {
+            // Aunque haya texto parcial: el aviso queda debajo, con "Continuar".
+            siguiente.errorPendiente = resultado.error?.message ?? copyChat.errorEnvio;
+            siguiente.errorReanudable = !!resultado.error?.reanudable;
+          } else if (hayRespuesta) {
+            siguiente.errorPendiente = undefined;
+            siguiente.errorReanudable = undefined;
+          }
           if (hayRespuesta) {
             const respuesta: Mensaje = {
               id: idNuevo('m'),
@@ -335,9 +345,6 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             };
             siguiente.mensajes = [...c.mensajes, respuesta];
             siguiente.ultimoMensajeEn = creadoEn;
-            siguiente.errorPendiente = undefined;
-          } else if (resultado.estado === 'error' && !yaEsta) {
-            siguiente.errorPendiente = resultado.error?.message ?? copyChat.errorEnvio;
           }
           return siguiente;
         })
@@ -417,7 +424,9 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             }
           : undefined;
 
-      actualizar((previo) => previo.map((c) => (c.id === conversacionId ? { ...c, errorPendiente: undefined } : c)));
+      actualizar((previo) =>
+        previo.map((c) => (c.id === conversacionId ? { ...c, errorPendiente: undefined, errorReanudable: undefined } : c))
+      );
       const perfil = todasRef.current.find((c) => c.id === conversacionId)?.perfil ?? PERFIL_BASE;
       await enPrimerPlano(
         conversacionId,
@@ -472,6 +481,45 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     soltarPrimerPlano();
     void enPrimerPlano(activaId, { conversacionId: activaId, mensajes: [], seguir: pendienteActivo }, false);
   }, [activaId, pendienteActivo, enPrimerPlano, soltarPrimerPlano]);
+
+  /*
+   * Trabajos HUÉRFANOS: corren (o terminaron) en el servidor para una
+   * conversación que este navegador no sabe que espera respuesta — otra
+   * pestaña los lanzó, se recargó antes de recibir el `inicio`, o el navegador
+   * corría código viejo. Se adoptan: la conversación vuelve a mostrarlos y
+   * recoge su respuesta. Se revisa al cargar y cada vez que la pestaña vuelve
+   * a estar visible.
+   */
+  const adoptarHuerfanos = useCallback(async () => {
+    if (!usuario) return;
+    let lista;
+    try {
+      lista = await listarTrabajos();
+    } catch {
+      return;
+    }
+    const adoptadas = new Set<string>();
+    for (const t of lista) {
+      if (t.estado === 'cancelada' || primerPlanoRef.current === t.id || adoptadas.has(t.conversacionId)) continue;
+      const conv = todasRef.current.find((c) => c.id === t.conversacionId && c.usuarioId === usuario.id);
+      if (!conv || conv.trabajoPendiente || conv.mensajes.some((m) => m.trabajoId === t.id)) continue;
+      // Ya tiene una respuesta posterior a ese trabajo: no era huérfano.
+      const ultimaRespuesta = [...conv.mensajes].reverse().find((m) => m.rol === 'asistente');
+      if (ultimaRespuesta && new Date(ultimaRespuesta.creadoEn).getTime() >= new Date(t.creadoEn).getTime()) continue;
+      adoptadas.add(conv.id);
+      marcarPendiente(conv.id, t.id, t.creadoEn);
+    }
+  }, [marcarPendiente, usuario]);
+
+  useEffect(() => {
+    if (cargando || !usuario) return;
+    void adoptarHuerfanos();
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') void adoptarHuerfanos();
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
+  }, [adoptarHuerfanos, cargando, usuario]);
 
   // Sondeo de los trabajos que nadie mira: avance para la barra, y recogida al terminar.
   const clavePendientes = todas

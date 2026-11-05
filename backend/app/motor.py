@@ -50,7 +50,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from . import archivos, corpus
+from . import archivos, corpus, precios
 from .config import ajustes
 from .esquemas import DocumentoAdjunto, ImagenAdjunta
 from .guardias import hook_rutas_bloqueadas, reglas_bloqueo
@@ -94,6 +94,37 @@ ERROR_POR_FALLA_API = {
 #     vio nada de la respuesta (ni texto ni archivos): repetir a media
 #     respuesta duplicaría lo que ya leyó.
 REINTENTOS_API = 6
+
+# ── Costo en vivo ────────────────────────────────────────────────────────────
+# El costo EXACTO lo da el agente al final; mientras corre se ESTIMA con el
+# `usage` de cada mensaje del stream (incluidos subagentes) y precios que se
+# calibran solos (precios.py). Así una consulta que falla, se cancela o tarda
+# 20 minutos también deja su gasto registrado.
+
+
+def contar_uso(ev: dict[str, Any], clave: str, vigentes: dict[str, tuple[str | None, int]], registro: "Registro") -> None:
+    """Suma al costo estimado lo que dice un evento del stream de la API."""
+    tipo = ev.get("type")
+    if tipo == "message_start":
+        mensaje = ev.get("message") or {}
+        uso = mensaje.get("usage") or {}
+        modelo = mensaje.get("model") or registro.modelo
+        salida_inicial = int(uso.get("output_tokens") or 0)
+        registro.costo_estimado += precios.estimar(
+            modelo,
+            int(uso.get("input_tokens") or 0),
+            salida_inicial,
+            int(uso.get("cache_creation_input_tokens") or 0),
+            int(uso.get("cache_read_input_tokens") or 0),
+        )
+        vigentes[clave] = (modelo, salida_inicial)
+    elif tipo == "message_delta" and clave in vigentes:
+        # `output_tokens` del delta es ACUMULADO para ese mensaje: se suma la diferencia.
+        nuevo = (ev.get("usage") or {}).get("output_tokens")
+        if nuevo is not None:
+            modelo, previo = vigentes[clave]
+            registro.costo_estimado += precios.estimar(modelo, 0, max(0, int(nuevo) - previo), 0, 0)
+            vigentes[clave] = (modelo, int(nuevo))
 INTENTOS_AGENTE = 3
 ESPERA_AGENTE_S = (2, 5)
 # Fallas pasajeras: vale la pena volver a intentar. Las demás (API key, saldo,
@@ -157,6 +188,15 @@ class Registro:
     fuente_llave: str | None = None
     contexto: dict[str, Any] | None = None
     reintentos: int = 0
+    # Estimado en vivo (ver PRECIOS_MTOK); `costo_usd` es el exacto del final.
+    costo_estimado: float = 0.0
+
+    @property
+    def costo_conocido(self) -> float | None:
+        """El exacto si ya llegó; si no, el estimado (o None si no se gastó nada)."""
+        if self.costo_usd is not None:
+            return self.costo_usd
+        return round(self.costo_estimado, 6) if self.costo_estimado else None
 
 
 def consultar(
@@ -196,6 +236,9 @@ async def _con_reintentos(
                 ev["tipo"] == "error"
                 and ev.get("codigo") in CODIGOS_REINTENTABLES
                 and not visible
+                # Si ya avanzó (usó herramientas), repetir desde cero tiraría ese
+                # trabajo y lo cobraría dos veces: mejor ofrecer "Continuar".
+                and not registro.herramientas
                 and intento < intentos
             ):
                 retenido = ev
@@ -461,6 +504,7 @@ async def _consultar_sdk(
         # Con permiso, se ve en el Proceso como razonamiento; sin permiso, no sale.
         return [evento("pensamiento", delta=texto.strip() + "\n")] if ajuste.ver_interno and texto.strip() else []
     abiertas: dict[str, dict[str, Any]] = {}
+    usos_vigentes: dict[str, tuple[str | None, int]] = {}
     # tool_use_id → ruta pedida a compartir_archivo, para emitir `archivo` al terminar.
     por_compartir: dict[str, str] = {}
 
@@ -492,6 +536,8 @@ async def _consultar_sdk(
                     continue
 
                 if isinstance(m, StreamEvent):
+                    # El gasto se cuenta para TODOS (también subagentes), antes de filtrar.
+                    contar_uso(m.event, m.parent_tool_use_id or "", usos_vigentes, registro)
                     if m.parent_tool_use_id:
                         continue
                     ev = m.event
@@ -600,6 +646,11 @@ async def _consultar_sdk(
     uso = resultado.usage or {}
     registro.sesion_sdk = resultado.session_id or registro.sesion_sdk
     registro.costo_usd = resultado.total_cost_usd
+    # El costo real por modelo corrige el estimado de las próximas consultas.
+    try:
+        precios.calibrar(resultado.model_usage)
+    except Exception:
+        log.warning("No se pudo calibrar los precios", exc_info=True)
     registro.vueltas = resultado.num_turns
     registro.duracion_ms = resultado.duration_ms
     registro.tokens = {

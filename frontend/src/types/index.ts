@@ -117,8 +117,10 @@ export interface Conversacion {
   trabajoPendiente?: string;
   /** Inicio del trabajo pendiente (ISO), para el cronómetro de la barra. */
   trabajoDesde?: string;
-  /** La última respuesta falló sin dejar texto (p. ej. se perdió con un reinicio). */
+  /** La última respuesta falló (p. ej. se cortó o se perdió con un reinicio). */
   errorPendiente?: string;
+  /** Ese fallo llegó después de avanzar: se ofrece "Continuar donde se quedó". */
+  errorReanudable?: boolean;
 }
 
 export interface Sesion {
@@ -260,6 +262,8 @@ export interface EventoError {
   mensaje: string;
   /** La causa técnica. Solo llega a quien tiene permiso de ver lo interno. */
   detalle?: string;
+  /** El agente ya había avanzado: se puede CONTINUAR desde ahí en vez de empezar de cero. */
+  reanudable?: boolean;
 }
 
 /**

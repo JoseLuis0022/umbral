@@ -392,6 +392,9 @@ export default function Chat() {
               pensoMs={streamAqui ? pensoMs : null}
               error={ocupado ? null : errorAqui}
               onReintentar={reintentar}
+              onContinuar={
+                conversacionActiva?.errorReanudable ? () => void enviar(copy.textoContinuar, []) : undefined
+              }
               onRegenerar={regenerar}
               onReaccion={alReaccionar}
               onDesplazado={setDesplazado}

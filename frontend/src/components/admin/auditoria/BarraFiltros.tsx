@@ -38,7 +38,7 @@ const TEXTO_FECHAS: TextosRangoFechas = {
   sinElegir: 'Sin elegir',
 };
 
-const ESTADOS: (EstadoConsulta | '')[] = ['', 'completa', 'cancelada', 'error'];
+const ESTADOS: (EstadoConsulta | '')[] = ['', 'corriendo', 'completa', 'cancelada', 'error'];
 
 /**
  * Cabecera del panel de auditoría: búsqueda en pregunta y respuesta, persona,

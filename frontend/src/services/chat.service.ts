@@ -68,11 +68,14 @@ export class ErrorChat extends Error {
   tipo: TipoErrorChat;
   /** Código del protocolo cuando el error lo reportó el backend dentro del stream. */
   codigo?: CodigoErrorChat;
-  constructor(tipo: TipoErrorChat, mensaje: string, codigo?: CodigoErrorChat) {
+  /** El agente ya había avanzado: se puede continuar desde ahí. */
+  reanudable: boolean;
+  constructor(tipo: TipoErrorChat, mensaje: string, codigo?: CodigoErrorChat, reanudable = false) {
     super(mensaje);
     this.name = 'ErrorChat';
     this.tipo = tipo;
     this.codigo = codigo;
+    this.reanudable = reanudable;
   }
 }
 
@@ -149,6 +152,8 @@ export interface OpcionesEnvio {
   alActividad?: (actividad: ActividadAgente) => void;
   /** El agente mandó un archivo del curso. */
   alArchivo?: (archivo: ArchivoCompartido) => void;
+  /** La tarea hace fila (el Generador termina otra, o el servidor está lleno); arranca sola. */
+  alEspera?: (motivo: string) => void;
   /** Algo falló y se está reintentando solo. Con capa `agente`, lo del intento anterior se descarta. */
   alReintento?: (reintento: EventoReintento) => void;
   /** Costo y tokens reales de la consulta. Llega al final, también tras un error del agente. */
@@ -177,6 +182,7 @@ type EventoProtocolo =
   | { tipo: 'actividad'; datos: ActividadAgente }
   | { tipo: 'archivo'; datos: ArchivoCompartido }
   | { tipo: 'reintento'; datos: EventoReintento }
+  | { tipo: 'espera'; datos: { motivo: string } }
   | { tipo: 'fin'; datos: ResumenConsulta }
   | { tipo: 'error'; datos: EventoError };
 
@@ -187,6 +193,7 @@ const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>([
   'actividad',
   'archivo',
   'reintento',
+  'espera',
   'fin',
   'error',
 ]);
@@ -255,6 +262,9 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         archivos.push(evento.datos);
         opciones.alArchivo?.(evento.datos);
         return;
+      case 'espera':
+        opciones.alEspera?.(evento.datos.motivo);
+        return;
       case 'reintento':
         // La consulta vuelve a empezar: el razonamiento del intento roto no cuenta.
         if (evento.datos.capa === 'agente') pensamiento = '';
@@ -277,7 +287,8 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
           // La causa técnica (solo para quien puede verla) va entre paréntesis:
           // "falló" sin un porqué no le sirve a nadie.
           (evento.datos.mensaje || copyChat.errorEnvio) + (evento.datos.detalle ? ` (${evento.datos.detalle})` : ''),
-          evento.datos.codigo
+          evento.datos.codigo,
+          !!evento.datos.reanudable
         );
         return;
       case 'inicio':

@@ -4,6 +4,8 @@ El navegador nunca ve los mensajes crudos del SDK (traen rutas absolutas,
 entradas de herramientas, system prompt, razonamiento). Ve SOLO estos eventos,
 tipados igual en `frontend/src/types/index.ts`:
 
+    espera       {motivo}                                ← la tarea hace fila (Generador ocupado
+                  o servidor lleno); arranca sola cuando le toca
     inicio       {conversacionId, perfil, motor, trabajoId}
                   trabajoId: para volver a ver la consulta (GET /api/trabajos/{id}/eventos)
                   o detenerla (POST /api/trabajos/{id}/detener)
@@ -38,7 +40,7 @@ SSE): mantienen viva la conexión mientras el modelo piensa.
 import json
 from typing import Any, Literal
 
-TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "archivo", "reintento", "fin", "error"]
+TipoEvento = Literal["inicio", "espera", "pensamiento", "texto", "actividad", "archivo", "reintento", "fin", "error"]
 
 # Códigos de error estables: el front decide el mensaje y el tono por código.
 CodigoError = Literal[

@@ -208,6 +208,11 @@ export function useStreamingChat() {
           if (vigente() && inicio.trabajoId) trabajoActual.current = inicio.trabajoId;
           peticion.alInicio?.(inicio);
         },
+        alEspera: (motivo) => {
+          if (!vigente()) return;
+          reintentando = true; // misma mecánica: la frase se retira con lo primero que llegue
+          setActividad(motivo);
+        },
         alReintento: (r) => {
           if (!vigente()) return;
           reintentando = true;
