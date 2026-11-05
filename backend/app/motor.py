@@ -74,6 +74,9 @@ ERROR_POR_FALLA_API = {
     "authentication_failed": ("credenciales", "La API key de Anthropic no es válida."),
     "billing_error": ("saldo", "La cuenta de Anthropic no tiene saldo."),
     "rate_limit": ("limite_api", "Anthropic está limitando las peticiones. Intenta en un momento."),
+    # Caída de red o de Anthropic: el CLI reintenta varios minutos y luego se rinde.
+    "server_error": ("conexion", "No pudimos conectar con Anthropic. Revisa tu conexión a internet e intenta de nuevo."),
+    "unknown": ("conexion", "No pudimos conectar con Anthropic. Revisa tu conexión a internet e intenta de nuevo."),
 }
 
 
@@ -469,7 +472,9 @@ async def _consultar_sdk(
         return
     # Respaldo si no llegaron deltas: `result` es SOLO la respuesta final. No se
     # usa `texto_bloques`, que incluye la narración previa a las herramientas.
-    if not hay_texto and resultado.result:
+    # Con error, `result` trae el mensaje crudo del CLI ("API Error: Connection
+    # refused…"): ese ya salió traducido como evento `error`, no como respuesta.
+    if not hay_texto and resultado.result and not (error_emitido or resultado.is_error):
         yield evento("texto", delta=resultado.result)
     uso = resultado.usage or {}
     registro.sesion_sdk = resultado.session_id or registro.sesion_sdk
@@ -484,6 +489,8 @@ async def _consultar_sdk(
     }
     if resultado.is_error and not error_emitido:
         codigo, texto = ERROR_POR_SUBTIPO.get(resultado.subtype, ("motor", "El agente no pudo terminar la respuesta."))
+        if "ECONNREFUSED" in (resultado.result or "") or "Connection" in (resultado.result or ""):
+            codigo, texto = ERROR_POR_FALLA_API["server_error"]
         registro.error = codigo
         yield evento("error", codigo=codigo, mensaje=texto)
     yield _evento_fin(registro)
