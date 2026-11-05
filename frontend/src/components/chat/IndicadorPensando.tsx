@@ -188,20 +188,19 @@ export function PensandoUmbral({
       <motion.span layoutId={layoutId} transition={springLayout} className="flex shrink-0 text-accent">
         <IsotipoPensando tamano={28} dibujar />
       </motion.span>
-      {/* `key`: cada frase nueva entra con un fundido corto en vez de
-          sustituir el texto de golpe a media animación. */}
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={frase}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: dur.fast, ease }}
-          className="min-w-0 truncate font-ui text-14"
-        >
-          <TextoBrillante>{frase}</TextoBrillante>
-        </motion.span>
-      </AnimatePresence>
+      {/* `key`: cada frase nueva entra con un fundido corto. Sin salida
+          animada a propósito: con `mode="wait"` la frase vieja tenía que irse
+          antes de que entrara la nueva, y cuando el agente encadena pasos
+          rápidos la fila se quedaba EN BLANCO justo en la espera. */}
+      <motion.span
+        key={frase}
+        initial={{ opacity: 0.35 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: dur.fast, ease }}
+        className="min-w-0 truncate font-ui text-14"
+      >
+        <TextoBrillante>{frase}</TextoBrillante>
+      </motion.span>
     </motion.span>
   );
 }
