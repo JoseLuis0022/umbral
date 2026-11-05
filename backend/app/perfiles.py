@@ -37,6 +37,8 @@ class Perfil:
     skills: bool = False
     # Un solo trabajo a la vez: el perfil escribe archivos compartidos.
     exclusivo: bool = False
+    # Explícito a propósito: con None el CLI elige por su cuenta, y la interfaz
+    # no podría decir qué modelo contesta. Se publica en /auth/yo.
     modelo: str | None = None
     esfuerzo: str | None = None
 
@@ -53,6 +55,9 @@ PERFILES: dict[str, Perfil] = {
         presupuesto_usd=0.75,
         # Entregas calificadas del equipo: no se comparten con la clase.
         rutas_bloqueadas=("Prácticas",),
+        # El que el CLI usaba por defecto (visto en los logs): mismo
+        # comportamiento, ahora escrito y visible en el selector.
+        modelo="claude-opus-5-5",
     ),
     "generador": Perfil(
         id="generador",
@@ -65,6 +70,7 @@ PERFILES: dict[str, Perfil] = {
         presupuesto_usd=8.0,
         skills=True,
         exclusivo=True,
+        modelo="claude-opus-5-5",
     ),
 }
 

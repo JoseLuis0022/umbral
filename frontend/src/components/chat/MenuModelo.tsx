@@ -52,17 +52,23 @@ type Props = {
    * menú tapaba su borde superior: dos esquinas redondeadas encimadas.
    */
   anclaRef?: RefObject<HTMLElement>;
+  /** Modelo del perfil. En automático, el disparador dice ESTE nombre, no "Automático". */
+  modeloPredeterminado?: string | null;
 };
 
-export const MenuModelo = memo(function MenuModelo({ modelos, ajuste, onCambiar, anclaRef }: Props) {
+export const MenuModelo = memo(function MenuModelo({ modelos, ajuste, onCambiar, anclaRef, modeloPredeterminado }: Props) {
   const compacto = useEsCompacto();
   const { principales, mas } = useMemo(() => agruparModelos(modelos), [modelos]);
 
-  const nombreModelo = ajuste.modelo === PREDETERMINADO ? copyLocal.automatico : nombreCorto(ajuste.modelo, modelos);
+  // "Automático" no dice quién contesta: se nombra el modelo real del perfil.
+  // La fila del menú sigue llamándose Automático (sigue al perfil si cambia).
+  const nombrePredeterminado = modeloPredeterminado ? nombreCorto(modeloPredeterminado, modelos) : null;
+  const nombreModelo =
+    ajuste.modelo === PREDETERMINADO ? nombrePredeterminado ?? copyLocal.automatico : nombreCorto(ajuste.modelo, modelos);
   const nombreEsfuerzo = textoEsfuerzo(ajuste.esfuerzo);
   const etiqueta = copyLocal.modeloYEsfuerzo(nombreModelo, nombreEsfuerzo);
 
-  const datos = { principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef };
+  const datos = { principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef, nombrePredeterminado };
   return compacto ? <HojaModelo {...datos} /> : <MenuEscritorio {...datos} />;
 });
 
@@ -75,6 +81,7 @@ type Datos = {
   nombreEsfuerzo: string;
   etiqueta: string;
   anclaRef?: RefObject<HTMLElement>;
+  nombrePredeterminado: string | null;
 };
 
 /** El disparador: modelo en text-1, esfuerzo en text-3, chevron de 12 px. Fundido cruzado al cambiar. */
@@ -112,7 +119,7 @@ const CLASE_DISPARADOR =
 const CLASE_FILA =
   'relative flex h-8 cursor-default select-none items-center gap-2 rounded-celda px-2.5 font-ui text-14 text-text-1 outline-none transition-colors duration-[120ms] data-[highlighted]:bg-tinta/[.05] data-[state=open]:bg-tinta/[.05] data-[disabled]:text-text-3';
 
-function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef }: Datos) {
+function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef, nombrePredeterminado }: Datos) {
   const [abierto, setAbierto] = useState(false);
   const disparadorRef = useRef<HTMLButtonElement>(null);
   // Distancia del disparador al borde superior del composer + 8 px de aire.
@@ -185,7 +192,7 @@ function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nom
                 className="w-[260px] rounded-menu bg-surface-3 p-1.5 shadow-menu outline-none"
               >
                 <Menu.RadioGroup value={ajuste.modelo} onValueChange={(modelo) => onCambiar({ modelo })}>
-                  <FilaRadio valor={PREDETERMINADO} texto={copyLocal.automatico} atajo={1} grupo="principal" />
+                  <FilaRadio valor={PREDETERMINADO} texto={copyLocal.automatico} pista={nombrePredeterminado} atajo={1} grupo="principal" />
                   {principales.map((m, i) => (
                     <FilaRadio key={m.id} valor={m.id} texto={m.nombre} atajo={i + 2} grupo="principal" />
                   ))}
@@ -265,9 +272,12 @@ function FilaRadio({
   atajo,
   titulo,
   grupo,
+  pista,
 }: {
   valor: string;
   texto: string;
+  /** Texto secundario tras el nombre ("Automático  Opus 5.5"). */
+  pista?: string | null;
   atajo?: number;
   /** El id técnico solo como `title`, para distinguir dos versiones con el mismo nombre. */
   titulo?: string;
@@ -276,7 +286,10 @@ function FilaRadio({
 }) {
   return (
     <Menu.RadioItem value={valor} textValue={texto} title={titulo} className={CLASE_FILA}>
-      <span className="min-w-0 flex-1 truncate">{texto}</span>
+      <span className="min-w-0 flex-1 truncate">
+        {texto}
+        {pista && <span className="ml-1.5 text-text-3">{pista}</span>}
+      </span>
       <span className="flex w-3.5 shrink-0 justify-center">
         <Menu.ItemIndicator asChild>
           <motion.span layoutId={`check-${grupo}`} transition={springLayout} className="flex text-accent-fg">
@@ -297,7 +310,7 @@ function FilaRadio({
 
 type Pagina = 'principal' | 'esfuerzo' | 'mas';
 
-function HojaModelo({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta }: Datos) {
+function HojaModelo({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, nombrePredeterminado }: Datos) {
   const [abierto, setAbierto] = useState(false);
   const [pagina, setPagina] = useState<Pagina>('principal');
   const disparador = useRef<HTMLButtonElement>(null);
@@ -365,7 +378,7 @@ function HojaModelo({ principales, mas, ajuste, onCambiar, nombreModelo, nombreE
 
               {pagina === 'principal' && (
                 <>
-                  <FilaHoja texto={copyLocal.automatico} activa={ajuste.modelo === PREDETERMINADO} onClick={() => elegir({ modelo: PREDETERMINADO })} />
+                  <FilaHoja texto={nombrePredeterminado ? `${copyLocal.automatico} · ${nombrePredeterminado}` : copyLocal.automatico} activa={ajuste.modelo === PREDETERMINADO} onClick={() => elegir({ modelo: PREDETERMINADO })} />
                   {principales.map((m) => (
                     <FilaHoja key={m.id} texto={m.nombre} activa={ajuste.modelo === m.id} onClick={() => elegir({ modelo: m.id })} />
                   ))}

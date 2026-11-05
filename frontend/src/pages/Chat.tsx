@@ -6,12 +6,10 @@ import type { ImagenPreparada } from '../lib/imagenes';
 import { cn } from '../lib/cn';
 import { dur, ease, springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { esSoloLectura } from '../lib/fechas';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { Button, Drawer, EmptyState, IconButton, StatusPill, useEsCompacto, useToast } from '../components/ui';
+import { Button, Drawer, EmptyState, IconButton, useEsCompacto, useToast } from '../components/ui';
 import {
-  AvisoSoloLectura,
   BarraEntrada,
   ContenidoHistorial,
   EstadoVacio,
@@ -53,7 +51,9 @@ export default function Chat() {
   const reducido = useReducedMotion();
   const compacto = useEsCompacto();
   const { push } = useToast();
-  const { usuario } = useAuth();
+  const { usuario, perfiles } = useAuth();
+  // El chat habla con el perfil de consulta: su modelo es el "Automático".
+  const modeloDelPerfil = perfiles.find((p) => p.id === 'consulta')?.modelo ?? null;
 
   const {
     conversaciones,
@@ -103,9 +103,7 @@ export default function Chat() {
   const [plegadoTerminado, setPlegadoTerminado] = useState(false);
   const contenidoPanelOculto = !panelAbierto && plegadoTerminado;
 
-  // "Solo lectura" y "hace 3 h" se CALCULAN contra el reloj, así que la
-  // pantalla necesita su propio latido: sin él una conversación que cumple sus
-  // cinco horas con la pestaña abierta seguiría aceptando mensajes.
+  // "Hace 3 h" se CALCULA contra el reloj: la pantalla necesita su propio latido.
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setAhora(Date.now()), 60_000);
@@ -121,7 +119,6 @@ export default function Chat() {
 
   const idAbierto = conversacionActiva?.id ?? null;
   const noEncontrada = !!conversacionId && !cargando && !conversacionActiva;
-  const soloLectura = !!conversacionActiva && esSoloLectura(conversacionActiva.ultimoMensajeEn, ahora);
 
   // El stream es global (solo hay uno), pero solo se pinta en la conversación
   // a la que pertenece: si el usuario se va a otro hilo mientras responde, el
@@ -140,7 +137,6 @@ export default function Chat() {
   const enBlanco =
     !compacto &&
     !noEncontrada &&
-    !soloLectura &&
     !(cargando && !!conversacionId) &&
     (conversacionActiva?.mensajes.length ?? 0) === 0 &&
     !(streamAqui && (ocupado || estadoStream === 'error'));
@@ -189,17 +185,6 @@ export default function Chat() {
     },
     [navigate, seleccionar]
   );
-
-  /** Desde una conversación cerrada: sesión nueva con el tema ya escrito en el campo. */
-  const retomarTema = useCallback(() => {
-    const titulo = conversacionActiva?.titulo ?? '';
-    setCajonAbierto(false);
-    setImagenes([]);
-    setTexto(copyLocal.contextoNuevaSesion(titulo));
-    seleccionar(null);
-    if (conversacionId) navigate('/chat');
-    setSenalFoco((n) => n + 1);
-  }, [conversacionActiva, conversacionId, navigate, seleccionar]);
 
   function alEnviar() {
     if ((!texto.trim() && !imagenes.length) || ocupado) return;
@@ -268,7 +253,9 @@ export default function Chat() {
         onImagenes={setImagenes}
         contexto={conversacionActiva?.contexto}
         ajustesModelo={
-          puedeAjustarModelo ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo } : undefined
+          puedeAjustarModelo
+            ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo, modeloPredeterminado: modeloDelPerfil }
+            : undefined
         }
         onEnviar={alEnviar}
         onDetener={detener}
@@ -361,9 +348,6 @@ export default function Chat() {
             {conversacionActiva?.titulo ?? TEXTO.sesionNueva}
           </h1>
 
-          {soloLectura && (
-            <StatusPill label={copyLocal.soloLecturaEtiqueta} tone="gray" className="shrink-0" />
-          )}
         </header>
 
         {enBlanco ? (
@@ -386,7 +370,6 @@ export default function Chat() {
               archivosEnVivo={streamAqui ? archivosEnVivo : []}
               pensoMs={streamAqui ? pensoMs : null}
               error={streamAqui && estadoStream === 'error' ? errorStream : null}
-              soloLectura={soloLectura}
               onReintentar={reintentar}
               onRegenerar={regenerar}
               onReaccion={alReaccionar}
@@ -396,7 +379,7 @@ export default function Chat() {
 
             <div className="shrink-0 px-4 pb-4 lg:px-6">
               <div className="mx-auto w-full max-w-[720px]">
-                {soloLectura ? <AvisoSoloLectura onNuevaSesion={retomarTema} /> : noEncontrada ? null : composer}
+                {noEncontrada ? null : composer}
               </div>
             </div>
           </>

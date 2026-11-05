@@ -41,6 +41,8 @@ export type AjustesModelo = {
   modelos: ModeloDisponible[];
   ajuste: AjusteModelo;
   onCambiar: (cambio: Partial<AjusteModelo>) => void;
+  /** El modelo del perfil: lo que el disparador nombra cuando está en automático. */
+  modeloPredeterminado?: string | null;
 };
 
 type Props = {
@@ -300,7 +302,13 @@ export function BarraEntrada({
               // El hueco del disparador se reserva mientras llega el código: sin
               // él, la fila de herramientas brincaría al aparecer el selector.
               <Suspense fallback={<span className="h-8 w-28" aria-hidden />}>
-                <MenuModelo modelos={ajustesModelo.modelos} ajuste={ajustesModelo.ajuste} onCambiar={ajustesModelo.onCambiar} anclaRef={composer} />
+                <MenuModelo
+                  modelos={ajustesModelo.modelos}
+                  ajuste={ajustesModelo.ajuste}
+                  onCambiar={ajustesModelo.onCambiar}
+                  modeloPredeterminado={ajustesModelo.modeloPredeterminado}
+                  anclaRef={composer}
+                />
               </Suspense>
             )}
             <AnilloContexto contexto={contexto} anclaRef={composer} />

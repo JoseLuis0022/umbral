@@ -36,7 +36,6 @@ type Props = {
   /** Lo que tardó el primer token ("Pensó 8 s"). */
   pensoMs?: number | null;
   error: string | null;
-  soloLectura: boolean;
   onReintentar: () => void;
   onRegenerar: () => void;
   /** Firma completa (id + reacción) para que la prop sea estable y `memo` sirva en las filas. */
@@ -73,7 +72,6 @@ export function HiloMensajes({
   archivosEnVivo = [],
   pensoMs,
   error,
-  soloLectura,
   onReintentar,
   onRegenerar,
   onReaccion,
@@ -171,7 +169,6 @@ export function HiloMensajes({
                     key={m.id}
                     mensaje={m}
                     esUltima={i === ultimaAsistente && !hayVivo}
-                    soloLectura={soloLectura}
                     ocupado={ocupado}
                     onRegenerar={onRegenerar}
                     onReaccion={onReaccion}

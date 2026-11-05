@@ -96,7 +96,6 @@ export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaj
 export const RespuestaAsistente = memo(function RespuestaAsistente({
   mensaje,
   esUltima,
-  soloLectura,
   ocupado,
   onRegenerar,
   onReaccion,
@@ -104,7 +103,6 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
   mensaje: Mensaje;
   /** Solo la última respuesta se puede regenerar: rehacer una de en medio dejaría el hilo sin sentido. */
   esUltima: boolean;
-  soloLectura: boolean;
   ocupado: boolean;
   onRegenerar: () => void;
   /*
@@ -135,7 +133,7 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
       >
         <BotonCopiar texto={mensaje.contenido} />
 
-        {esUltima && !soloLectura && (
+        {esUltima && (
           <AccionMensaje
             etiqueta={copy.regenerar}
             icono={RefreshCw}

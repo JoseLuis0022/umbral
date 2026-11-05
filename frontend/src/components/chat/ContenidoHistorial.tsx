@@ -1,10 +1,10 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { Lock, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Conversacion } from '../../types';
 import { cn } from '../../lib/cn';
-import { esSoloLectura, grupoDeFecha, haceCuanto, type GrupoHistorial } from '../../lib/fechas';
+import { grupoDeFecha, haceCuanto, type GrupoHistorial } from '../../lib/fechas';
 import { salidaPanel, springLayout, springPanel, dur } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Button, EmptyState, Field, Input, Modal, Skeleton } from '../ui';
@@ -107,7 +107,6 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
                       key={conv.id}
                       conv={conv}
                       activa={conv.id === activaId}
-                      cerrada={esSoloLectura(conv.ultimoMensajeEn, ahora)}
                       ahora={ahora}
                       onAbrir={() => onAbrir(conv.id)}
                       onMenu={(boton) => abrirMenu(conv, boton)}
@@ -210,14 +209,12 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
 function FilaConversacion({
   conv,
   activa,
-  cerrada,
   ahora,
   onAbrir,
   onMenu,
 }: {
   conv: Conversacion;
   activa: boolean;
-  cerrada: boolean;
   ahora: number;
   onAbrir: () => void;
   onMenu: (boton: HTMLElement) => void;
@@ -250,10 +247,6 @@ function FilaConversacion({
         <span className={cn('min-w-0 flex-1 truncate font-ui text-14', activa ? 'font-medium text-text-1' : 'text-text-2 group-hover:text-text-1')}>
           {conv.titulo}
         </span>
-        {/* Indicador discreto de solo lectura: el candado no compite con el
-            título, y el `title` da la explicación a quien la busque. */}
-        {cerrada && <Lock size={12} strokeWidth={2} aria-hidden className="shrink-0 text-text-3" />}
-        {cerrada && <span className="sr-only">{copyLocal.soloLecturaEtiqueta}</span>}
         <span className="sr-only">{haceCuanto(conv.ultimoMensajeEn, ahora)}</span>
       </button>
 

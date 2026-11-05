@@ -2,17 +2,6 @@
 // Fuente única: si el chat agrupa "Hoy / Ayer" con una regla y la auditoría
 // filtra con otra, las dos pantallas acaban discrepando sobre el mismo dato.
 
-export const CINCO_HORAS_MS = 5 * 60 * 60 * 1000;
-
-/**
- * Una conversación se cierra cinco horas después de su último mensaje.
- * Se CALCULA, nunca se almacena: guardarlo obligaría a un proceso que lo
- * actualice y quedaría desincronizado en cuanto la app estuviera cerrada.
- */
-export function esSoloLectura(ultimoMensajeEn: string, ahora = Date.now()) {
-  return ahora - new Date(ultimoMensajeEn).getTime() > CINCO_HORAS_MS;
-}
-
 export type GrupoHistorial = 'hoy' | 'ayer' | 'semana' | 'anteriores';
 
 export function grupoDeFecha(iso: string, ahora = new Date()): GrupoHistorial {

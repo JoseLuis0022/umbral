@@ -21,11 +21,9 @@ import {
 } from '../context/PreferenciasContext';
 import { useAuth } from '../context/AuthContext';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { CINCO_HORAS_MS } from '../lib/fechas';
 import { borrarTodo } from '../services/simulacion';
 import { ajustes as copy } from '../copy';
 
-const HORAS_CIERRE = CINCO_HORAS_MS / 3_600_000;
 
 // Cadenas que no existen todavía en src/copy (ver reporte).
 const TEXTO = {
@@ -65,9 +63,6 @@ const TEXTO = {
 
   // — Privacidad —
   privacidad: 'Privacidad y datos',
-  cierre: 'Cierre de las conversaciones',
-  cierreValor: `${HORAS_CIERRE} horas`,
-  cierreDetalle: `Una conversación pasa a solo lectura ${HORAS_CIERRE} horas después de su último mensaje. Puedes seguir leyéndola y abrir una sesión nueva sobre el mismo tema cuando quieras.`,
   auditoria: 'Quién puede leer tus conversaciones',
   auditoriaDetalle:
     'La Universidad audita el uso de la herramienta: un administrador puede abrir cualquier conversación con tu nombre, tu área y tu correo a la vista. No hay modo privado ni conversaciones ocultas.',
@@ -290,7 +285,6 @@ export default function Ajustes() {
           icono={ShieldCheck}
           aviso={<Banner tone="blue">{TEXTO.auditoriaBanner}</Banner>}
         >
-          <FilaTexto titulo={TEXTO.cierre} valor={TEXTO.cierreValor} detalle={TEXTO.cierreDetalle} />
           <FilaTexto
             titulo={TEXTO.auditoria}
             detalle={`${TEXTO.auditoriaDetalle}${esAdmin ? ` ${TEXTO.auditoriaAdmin}` : ''}`}

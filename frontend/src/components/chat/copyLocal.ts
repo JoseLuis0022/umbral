@@ -11,8 +11,6 @@ export const copyLocal = {
   mostrarHistorial: 'Mostrar conversaciones',
   ocultarHistorial: 'Ocultar conversaciones',
   opcionesConversacion: 'Opciones de la conversación',
-  soloLecturaEtiqueta: 'Solo lectura',
-  soloLecturaTitulo: 'Sesión cerrada, solo lectura',
 
   // Renombrar
   renombrarTitulo: 'Renombrar conversación',
@@ -102,8 +100,6 @@ export const copyLocal = {
   cerrarVisor: 'Cerrar',
   formatoArchivo: { pdf: 'PDF', html: 'Apunte web', txt: 'Texto', md: 'Texto', otro: 'Archivo' } as Record<string, string>,
 
-  // Nueva sesión desde una conversación cerrada
-  contextoNuevaSesion: (titulo: string) => `Retomo el tema de "${titulo}": `,
 } as const;
 
 /** Muchas pantallas saludan por nombre; el apellido sobra en un saludo. */

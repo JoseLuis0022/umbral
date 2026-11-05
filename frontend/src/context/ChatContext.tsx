@@ -27,10 +27,9 @@ const CLAVE = 'conversaciones';
  *
  * Las semillas de `conversaciones.ts` calculan sus fechas hacia atrás desde
  * "ahora" en cada arranque, justamente para que la demostración siempre tenga
- * casos de los cuatro grupos (Hoy / Ayer / Últimos 7 días / Anteriores) y de
- * los dos modos (activa y solo lectura). Si guardáramos esas fechas para
- * siempre, al día siguiente TODA la lista sería "Anteriores" y estaría en solo
- * lectura: la pantalla se vería rota sin estarlo. Guardar con fecha de corte
+ * casos de los cuatro grupos (Hoy / Ayer / Últimos 7 días / Anteriores). Si
+ * guardáramos esas fechas para siempre, al día siguiente TODA la lista sería
+ * "Anteriores": la pantalla se vería rota sin estarlo. Guardar con fecha de corte
  * conserva lo que el usuario hizo en su sesión y devuelve el escenario limpio
  * al día siguiente.
  */

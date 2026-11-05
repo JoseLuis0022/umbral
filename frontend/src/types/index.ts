@@ -12,6 +12,8 @@ export interface PerfilAgente {
   id: string;
   nombre: string;
   descripcion: string;
+  /** Modelo con el que contesta si nadie elige otro (lo que muestra "Automático"). */
+  modelo?: string | null;
 }
 
 export interface Usuario {
@@ -95,8 +97,6 @@ export interface Conversacion {
   mensajes: Mensaje[];
   creadoEn: string;
   ultimoMensajeEn: string;
-  // `soloLectura` NO se almacena: se deriva de ultimoMensajeEn en cada render.
-  // Guardarlo obligaría a un job que lo actualice y quedaría desincronizado.
   analisis?: AnalisisConversacion;
   /** Último uso de contexto que reportó el agente para esta conversación. */
   contexto?: ContextoSesion;

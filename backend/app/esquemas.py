@@ -39,6 +39,8 @@ class PerfilPublico(Modelo):
     id: str
     nombre: str
     descripcion: str
+    # Modelo con el que contesta si nadie elige otro (el "Automático" del selector).
+    modelo: str | None = None
 
 
 class Yo(Modelo):
@@ -130,7 +132,7 @@ def publico(usuario: db.Usuario) -> Yo:
             rol=usuario.rol,
             iniciales=iniciales(usuario.nombre),
         ),
-        perfiles=[PerfilPublico(id=p.id, nombre=p.nombre, descripcion=p.descripcion) for p in perfiles],
+        perfiles=[PerfilPublico(id=p.id, nombre=p.nombre, descripcion=p.descripcion, modelo=p.modelo) for p in perfiles],
         permisos=list(rol(usuario.rol).permisos),
     )
 
