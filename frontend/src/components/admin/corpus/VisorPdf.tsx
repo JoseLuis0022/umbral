@@ -19,11 +19,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.m
  * Se carga con `lazy` desde el visor: pdf.js pesa, y solo lo necesita quien
  * abre un PDF.
  */
-export default function VisorPdf({ archivo, onError }: { archivo: Blob; onError: () => void }) {
+export default function VisorPdf({
+  archivo,
+  onError,
+  paginaInicial = 1,
+}: {
+  archivo: Blob;
+  onError: () => void;
+  /** Página con la que abre (una cita `#page=N`). */
+  paginaInicial?: number;
+}) {
   const contenedor = useRef<HTMLDivElement>(null);
   const [ancho, setAncho] = useState(0);
   const [paginas, setPaginas] = useState(0);
-  const [pagina, setPagina] = useState(1);
+  const [pagina, setPagina] = useState(paginaInicial);
 
   useEffect(() => {
     const nodo = contenedor.current;
@@ -33,7 +42,7 @@ export default function VisorPdf({ archivo, onError }: { archivo: Blob; onError:
     return () => observador.disconnect();
   }, []);
 
-  useEffect(() => setPagina(1), [archivo]);
+  useEffect(() => setPagina(paginaInicial), [archivo, paginaInicial]);
 
   const esqueleto = <Skeleton className="aspect-[4/3] w-full rounded-tarjeta" />;
 
@@ -61,7 +70,11 @@ export default function VisorPdf({ archivo, onError }: { archivo: Blob; onError:
         {ancho > 0 && (
           <Document
             file={archivo}
-            onLoadSuccess={({ numPages }) => setPaginas(numPages)}
+            onLoadSuccess={({ numPages }) => {
+              setPaginas(numPages);
+              // Una cita a una página que no existe no deja el visor en blanco.
+              setPagina((p) => Math.min(Math.max(1, p), numPages));
+            }}
             onLoadError={onError}
             loading={esqueleto}
             error={<span />}

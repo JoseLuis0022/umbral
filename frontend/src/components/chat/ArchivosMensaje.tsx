@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { VisorImagen } from '../VisorImagen';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -223,10 +223,36 @@ function TarjetaArchivo({ archivo, onAbrir }: { archivo: ArchivoCompartido; onAb
   );
 }
 
-/** El archivo, leído encima del chat. Escape o clic fuera lo cierran. */
-function VisorEmergente({ archivo, onCerrar }: { archivo: ArchivoCompartido | null; onCerrar: () => void }) {
+/**
+ * El archivo, leído encima del chat. Escape o clic fuera lo cierran.
+ * Lo usan las tarjetas de archivo y las citas de fuentes (`CitaFuente`), que
+ * además piden resaltar un fragmento o abrir en una página.
+ */
+export function VisorEmergente({
+  archivo,
+  onCerrar,
+  resaltar,
+  pagina,
+}: {
+  archivo: ArchivoCompartido | null;
+  onCerrar: () => void;
+  resaltar?: string;
+  pagina?: number;
+}) {
   const reducido = useReducedMotion();
   const cerrar = useCallback(() => onCerrar(), [onCerrar]);
+  // Estable por ruta: el visor vuelve a descargar cuando cambia este objeto, y
+  // el chat se repinta una vez por frame mientras llega una respuesta.
+  const ruta = archivo?.ruta;
+  const formato = archivo?.formato;
+  const paraVisor = useMemo(
+    () =>
+      archivo
+        ? { ruta: archivo.ruta, nombre: archivo.nombre, tipo: archivo.formato, tamanoBytes: archivo.tamanoBytes, modificado: '' }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ruta, formato]
+  );
 
   useEffect(() => {
     if (!archivo) return;
@@ -263,14 +289,17 @@ function VisorEmergente({ archivo, onCerrar }: { archivo: ArchivoCompartido | nu
             <Suspense fallback={<div className="h-full w-full rounded-tarjeta bg-surface-1 shadow-3" />}>
               <VisorArchivo
                 origen="chat"
-                archivo={{
-                  ruta: archivo.ruta,
-                  nombre: archivo.nombre,
-                  tipo: archivo.formato,
-                  tamanoBytes: archivo.tamanoBytes,
-                  modificado: '',
-                }}
-                subtitulo={`${copyLocal.formatoArchivo[archivo.formato] ?? copyLocal.formatoArchivo.otro} · ${tamanoLegible(archivo.tamanoBytes)} · ${archivo.coleccion}`}
+                archivo={paraVisor}
+                // Una cita no conoce el tamaño (llega 0): "0 B" sería falso.
+                subtitulo={[
+                  copyLocal.formatoArchivo[archivo.formato] ?? copyLocal.formatoArchivo.otro,
+                  archivo.tamanoBytes ? tamanoLegible(archivo.tamanoBytes) : null,
+                  archivo.coleccion,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                resaltar={resaltar}
+                pagina={pagina}
                 accion={
                   <IconButton aria-label={copyLocal.cerrarVisor} onClick={cerrar} className="h-9 w-9 shrink-0 rounded-full">
                     <X size={18} aria-hidden />

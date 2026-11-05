@@ -2,17 +2,27 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { marked } from 'marked';
 import remend from 'remend';
 import { AnimatePresence, motion } from 'framer-motion';
-import ReactMarkdown, { type Components } from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Copy } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { VisorImagen } from './VisorImagen';
+import { CitaFuente } from './chat/CitaFuente';
+import { esFuente, transformarUrl } from '../lib/fuentes';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { springSoft, dur, ease } from '../lib/motion';
 
 // Array estable: `[remarkGfm]` escrito en línea es una referencia nueva en cada
 // render y obliga a react-markdown a rehacer su cadena de procesado.
 const REMARK_PLUGINS = [remarkGfm];
+
+/*
+ * react-markdown BORRA los protocolos que no conoce (por seguridad: así no
+ * pasa un `javascript:`). Las citas del agente usan el esquema propio
+ * `fuente:` (lib/fuentes.ts), así que ese se deja pasar; lo demás sigue la
+ * regla por defecto. Función de módulo: estable entre renders.
+ */
+const transformarEnlace = (url: string) => transformarUrl(url, defaultUrlTransform);
 
 /**
  * Reubica las rutas de archivos servidos desde `public/` cuando la app no vive
@@ -73,7 +83,12 @@ const COMPONENTES: Components = {
   ol: ({ children }) => <ol className="mb-3.5 flex list-decimal flex-col gap-1.5 pl-5 last:mb-0">{children}</ol>,
   li: ({ children }) => <li className="pl-1 marker:text-text-3">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-text-1">{children}</strong>,
-  a: ({ children, href }) => (
+  a: ({ children, href, title }) =>
+    esFuente(href) ? (
+      <CitaFuente href={href} titulo={title}>
+        {children}
+      </CitaFuente>
+    ) : (
     <a
       href={href}
       target="_blank"
@@ -82,7 +97,7 @@ const COMPONENTES: Components = {
     >
       {children}
     </a>
-  ),
+    ),
   blockquote: ({ children }) => (
     <blockquote className="mb-3.5 border-l-2 border-tinta/15 pl-4 text-text-2 last:mb-0">{children}</blockquote>
   ),
@@ -142,7 +157,7 @@ export const Markdown = memo(function Markdown({
 }) {
   return (
     <div className={cn('font-ui text-16 text-text-1', className)}>
-      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES} urlTransform={transformarEnlace}>
         {children}
       </ReactMarkdown>
     </div>
@@ -153,7 +168,7 @@ export const Markdown = memo(function Markdown({
  * cadena: mientras el bloque no cambie, React no vuelve a analizarlo. */
 const BloqueMarkdown = memo(function BloqueMarkdown({ fuente }: { fuente: string }) {
   return (
-    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES}>
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTES} urlTransform={transformarEnlace}>
       {fuente}
     </ReactMarkdown>
   );

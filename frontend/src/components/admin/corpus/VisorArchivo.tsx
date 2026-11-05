@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, Download, FileQuestion, FileText } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 import { formatoFechaLarga, tamanoLegible } from '../../../lib/fechas';
 import { Markdown } from '../../Markdown';
+import { buscarFragmento } from '../../../lib/fuentes';
 import { Banner, Button, EmptyState, ErrorState, Skeleton, useToast } from '../../ui';
 import { corpus as copy } from '../../../copy';
 import {
@@ -54,6 +55,8 @@ export function VisorArchivo({
   origen = 'corpus',
   subtitulo,
   accion,
+  resaltar,
+  pagina,
   className,
 }: {
   archivo: ArchivoCorpus | null;
@@ -64,6 +67,10 @@ export function VisorArchivo({
   subtitulo?: string;
   /** Algo más en la cabecera, a la derecha de Descargar (el chat pone Cerrar). */
   accion?: ReactNode;
+  /** Fragmento a marcar y llevar a la vista (texto plano). Lo trae una cita. */
+  resaltar?: string;
+  /** Página con la que abre un PDF. Lo trae una cita `#page=N`. */
+  pagina?: number;
   className?: string;
 }) {
   const { push } = useToast();
@@ -185,7 +192,7 @@ export function VisorArchivo({
         ) : carga.estado === 'pdf' ? (
           <div className="px-4 py-4 lg:px-6">
             <Suspense fallback={<Skeleton className="aspect-[4/3] w-full rounded-tarjeta" />}>
-              <VisorPdf archivo={carga.blob} onError={alFallarPdf} />
+              <VisorPdf archivo={carga.blob} onError={alFallarPdf} paginaInicial={pagina} />
             </Suspense>
           </div>
         ) : archivo.tipo === 'html' ? (
@@ -206,15 +213,42 @@ export function VisorArchivo({
             </Markdown>
           </div>
         ) : (
-          <pre
-            key={archivo.ruta}
-            className="max-w-[90ch] whitespace-pre-wrap break-words px-6 py-5 font-ui text-14 leading-relaxed text-text-1"
-          >
-            {carga.contenido}
-          </pre>
+          <TextoPlano key={archivo.ruta} contenido={carga.contenido} resaltar={resaltar} />
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Texto corrido (las transcripciones). Si una cita trae un fragmento, se marca
+ * la primera coincidencia y se lleva al centro de la vista: abrir la clase
+ * entera y dejar que la persona busque la frase sería no haber citado.
+ */
+function TextoPlano({ contenido, resaltar }: { contenido: string; resaltar?: string }) {
+  const marca = useRef<HTMLElement>(null);
+  const tramo = useMemo(() => (resaltar ? buscarFragmento(contenido, resaltar) : null), [contenido, resaltar]);
+
+  useEffect(() => {
+    // Un frame después: el <pre> ya tiene su alto y el scroll cae donde debe.
+    const id = requestAnimationFrame(() => marca.current?.scrollIntoView({ block: 'center' }));
+    return () => cancelAnimationFrame(id);
+  }, [tramo]);
+
+  return (
+    <pre className="max-w-[90ch] whitespace-pre-wrap break-words px-6 py-5 font-ui text-14 leading-relaxed text-text-1">
+      {tramo ? (
+        <>
+          {contenido.slice(0, tramo.inicio)}
+          <mark ref={marca} className="rounded-xs bg-accent-soft px-0.5 text-text-1 ring-1 ring-accent/30">
+            {contenido.slice(tramo.inicio, tramo.fin)}
+          </mark>
+          {contenido.slice(tramo.fin)}
+        </>
+      ) : (
+        contenido
+      )}
+    </pre>
   );
 }
 
