@@ -85,24 +85,42 @@ export default {
       13: ['13px', { lineHeight: '18px' }],
       14: ['14px', { lineHeight: '20px' }],
       15: ['15px', { lineHeight: '22px' }],
+      // EXCEPCIÓN DOCUMENTADA (docs/especificacion-diseno.md §2): tamaños de
+      // LECTURA. 16/26 es el cuerpo de la respuesta del agente y de los
+      // documentos (≈72 caracteres por línea en 680 px); 18/26 es su h2. No se
+      // usan en el chrome de la interfaz, que sigue en 12–15.
+      16: ['16px', { lineHeight: '26px', letterSpacing: '-0.003em' }],
+      18: ['18px', { lineHeight: '26px', fontWeight: '600', letterSpacing: '-0.006em' }],
       22: ['22px', { lineHeight: '28px', fontWeight: '600' }],
       28: ['28px', { lineHeight: '34px', fontWeight: '600' }],
+      // Saludo del estado vacío del chat (32/40), la única portada del chrome.
+      32: ['32px', { lineHeight: '40px', fontWeight: '600', letterSpacing: '-0.015em' }],
       40: ['40px', { lineHeight: '44px', fontWeight: '600' }],
       // Único tamaño fluido: portadas y titulares de marca, fuera del chrome.
       display: ['clamp(2rem, 1.2rem + 3.2vw, 3.25rem)', { lineHeight: '1.05', letterSpacing: '-0.022em' }],
     },
 
-    // Radios ANIDADOS: modal > tarjeta > control > celda. La regla es
-    // "radio interior = radio exterior − padding", por eso los contenedores
-    // grandes son generosos y los controles cortos se mantienen contenidos:
-    // el mismo radio absoluto en un input de 40px se lee como pastilla, y la
-    // pastilla completa se reserva para un solo componente (StatusPill).
+    // Radios ANIDADOS (docs/especificacion-diseno.md §2). La regla es
+    // "radio interior = radio exterior − padding": un menú de 14 px con 6 px de
+    // relleno lleva filas de 8 px (`celda`). Los contenedores grandes son
+    // generosos y los controles cortos se mantienen contenidos: el mismo radio
+    // absoluto en un input de 40 px se lee como pastilla.
+    //
+    //   xs 6 · chips de código, kbd        menu 14 · menús y popovers
+    //   celda 8 · filas, acciones          burbuja 20 · mensaje del usuario
+    //   control 10 · botones, inputs       composer 24 · barra de entrada
+    //   tarjeta 20 · tarjetas              modal 28 · modales y hojas
+    //   pastilla 999 · StatusPill y chips de sugerencia del chat
     borderRadius: {
       none: '0px',
+      xs: '6px',
       celda: '8px',
       control: '10px',
+      menu: '14px',
+      burbuja: '20px',
       tarjeta: '20px',
-      modal: '24px',
+      composer: '24px',
+      modal: '28px',
       pastilla: '999px',
       full: '9999px',
     },
@@ -113,6 +131,12 @@ export default {
       1: 'var(--shadow-1)',
       2: 'var(--shadow-2)',
       3: 'var(--shadow-3)',
+      // El borde como ANILLO de sombra: se compone con la elevación sin
+      // doblarse. Ningún componente combina `border` con una sombra aparte.
+      anillo: 'var(--ring-1)',
+      composer: 'var(--shadow-composer)',
+      'composer-foco': 'var(--shadow-composer-focus)',
+      menu: 'var(--shadow-menu)',
       none: 'none',
     },
 
@@ -123,6 +147,9 @@ export default {
           azul,
           pizarra,
         },
+        // Burbuja del usuario: un gris pizarra sin borde ni sombra, para que se
+        // lea como mensaje y no como tarjeta.
+        burbuja: 'var(--burbuja-usuario)',
         semantic: {
           riesgo: { DEFAULT: '#8F2E22', 50: '#FBF0EE', 100: '#F5DDD9', 700: '#6E2119' },
           exito: { DEFAULT: '#1E7A4F', 50: '#EBF6F0', 100: '#D3EBE0', 700: '#155C3B' },
@@ -180,54 +207,82 @@ export default {
       },
 
       keyframes: {
+        // Brillo de la frase de actividad: una banda de 25 % del ancho recorre
+        // el texto de izquierda a derecha (ver `TextoBrillante`, que pone el
+        // gradiente de tres paradas y el `background-size` de 250 %).
         brillo: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
+          '0%': { backgroundPosition: '100% 0' },
+          '100%': { backgroundPosition: '0% 0' },
         },
         entrarAbajo: {
           from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'none' },
         },
-        // Cursor de escritura del chat. Va en CSS y no en Framer Motion porque
-        // el componente que lo contiene se re-renderiza una vez por frame
-        // mientras llega texto, y una animación de JS se reiniciaba en cada uno
-        // de esos renders sin llegar nunca a parpadear. Termina en opacidad 1
-        // a propósito: con prefers-reduced-motion la regla global colapsa la
-        // duración y el cursor se queda VISIBLE, no apagado.
+        // Cursor de escritura. Va en CSS y no en Framer Motion porque el
+        // componente que lo contiene se re-renderiza una vez por frame mientras
+        // llega texto, y una animación de JS se reiniciaba en cada render.
         parpadeo: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.15' },
         },
-        // Punto de "trabajando" de la cadena de agentes. Mismo motivo que
-        // `parpadeo`: su componente se re-renderiza una vez por frame mientras
-        // llega texto, y una animación de JS se reiniciaba sin llegar a latir —
-        // justo en los 3-4 s de espera que la cadena existe para explicar.
-        // Termina en su estado visible para que reduced-motion deje el punto ahí.
+        // Punto de "trabajando" de la cadena de agentes del Laboratorio.
         latido: {
           '0%, 100%': { opacity: '1', transform: 'none' },
           '50%': { opacity: '0.25', transform: 'scale(0.75)' },
         },
-        // Isotipo "pensando": cada nodo de la M late por turno (el retraso lo
-        // pone el componente), como si el agente recorriera sus pasos. Termina
-        // en su estado de reposo para que reduced-motion deje el isotipo quieto
-        // y visible.
-        nodo: {
-          '0%, 60%, 100%': { opacity: '0.45', transform: 'scale(0.82)' },
-          '25%': { opacity: '1', transform: 'scale(1.12)' },
+        /*
+         * EL ISOTIPO PENSANDO (docs/especificacion-diseno.md §3).
+         *
+         * Ciclo de 1,8 s: 1,6 s de recorrido + 200 ms de pausa. Un pulso de
+         * luz (`pulsoTrazo`, segundo trazo con `pathLength=100` y
+         * `stroke-dasharray: 14 200`) viaja por la M; cuando su centro pasa por
+         * un nodo, el nodo crece (`nodoPaso`) y en el valle sale una onda
+         * (`ondaValle`). Los retrasos de cada nodo los pone el componente y
+         * salen de la geometría: pico izquierdo al 26 % del trazo, valle al
+         * 50 %, pico derecho al 74 %.
+         *
+         * Todo es CSS porque el hilo se re-renderiza una vez por frame mientras
+         * llega texto y una animación de JS se reiniciaría en cada render.
+         * Antes los keyframes existían pero el servidor de Vite que estaba
+         * corriendo no había releído esta configuración: si una animación nueva
+         * "no se mueve", reinicia Vite antes de buscar el error en el código.
+         */
+        pulsoTrazo: {
+          '0%': { strokeDashoffset: '14' },
+          '88.9%, 100%': { strokeDashoffset: '-100' },
         },
-        // Halo del nodo del valle: una onda que se expande y se desvanece.
-        onda: {
-          '0%': { opacity: '0.55', transform: 'scale(0.6)' },
-          '70%, 100%': { opacity: '0', transform: 'scale(1.35)' },
+        nodoPaso: {
+          '0%, 22%, 100%': { transform: 'scale(1)' },
+          '10%': { transform: 'scale(1.25)' },
+        },
+        ondaValle: {
+          '0%': { opacity: '0', transform: 'scale(1)' },
+          '2%': { opacity: '0.5', transform: 'scale(1)' },
+          '39%, 100%': { opacity: '0', transform: 'scale(2.8)' },
+        },
+        // Los tres puntos de la burbujita "sigue trabajando": una ola que
+        // levanta cada punto 2 px y lo enciende por turno.
+        puntoOla: {
+          '0%, 60%, 100%': { opacity: '0.35', transform: 'translateY(0) scale(0.85)' },
+          '30%': { opacity: '1', transform: 'translateY(-2px) scale(1)' },
+        },
+        // Latido de espera para movimiento reducido: solo opacidad, sin
+        // desplazamiento ni escala. Es también la forma quieta de los nodos.
+        espera: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
         },
       },
       animation: {
-        nodo: 'nodo 1.8s cubic-bezier(0.32, 0.72, 0, 1) infinite',
-        onda: 'onda 1.8s cubic-bezier(0.32, 0.72, 0, 1) infinite',
-        brillo: 'brillo 1.6s linear infinite',
+        brillo: 'brillo 2.2s linear infinite',
         entrarAbajo: 'entrarAbajo 220ms cubic-bezier(0.32, 0.72, 0, 1) both',
         parpadeo: 'parpadeo 1s linear infinite',
         latido: 'latido 1.2s ease-in-out infinite',
+        pulsoTrazo: 'pulsoTrazo 1.8s linear infinite both',
+        nodoPaso: 'nodoPaso 1.8s cubic-bezier(0.32, 0.72, 0, 1) infinite both',
+        ondaValle: 'ondaValle 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite both',
+        puntoOla: 'puntoOla 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite both',
+        espera: 'espera 2.4s ease-in-out infinite',
       },
 
       screens: {

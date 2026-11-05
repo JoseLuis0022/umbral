@@ -36,7 +36,58 @@ export const springSnappy: Transition = { type: 'spring', stiffness: 500, dampin
  *  más rígido acentúa cualquier frame perdido y se siente trabado. */
 export const springSoft: Transition = { type: 'spring', stiffness: 260, damping: 30 };
 
+/*
+ * LA COREOGRAFÍA DEL CHAT (docs/especificacion-diseno.md §2)
+ *
+ * Los tres resortes de arriba se quedan como alias para el resto de la app.
+ * Encima van cuatro resortes con un PAPEL cada uno, para que no todo se mueva
+ * con el mismo `springSnappy` y la misma `y: 8` —que es lo que hacía que la
+ * interfaz se sintiera plana—:
+ *
+ *  - press: la respuesta a un dedo. Muy rígido y ligero (ζ ≈ 0.98): comprime y
+ *    vuelve sin rebote. Va con `whileTap: { scale: 0.96 }`; el hover NO mueve
+ *    nada, solo cambia el color en 120 ms.
+ *  - mensaje: lo que entra al hilo. Más masa (ζ ≈ 0.89): llega con peso, sube
+ *    12 px y se enfoca desde un blur de 2 px.
+ *  - panel: menús y popovers. Nacen del ancla (`scale .97`, `y ∓4`) y se van
+ *    con un tween de 120 ms: nadie mira lo que se cierra.
+ *  - layout: lo que cambia de sitio o de tamaño (el composer que baja del
+ *    centro al fondo, la altura del campo, el pliegue del Proceso).
+ */
+export const springPress: Transition = { type: 'spring', stiffness: 700, damping: 40, mass: 0.6 };
+export const springMensaje: Transition = { type: 'spring', stiffness: 320, damping: 32, mass: 1 };
+export const springPanel: Transition = { type: 'spring', stiffness: 420, damping: 36, mass: 0.8 };
+export const springLayout: Transition = { type: 'spring', stiffness: 380, damping: 38 };
+
+/** Salida de menús y popovers: corta y acelerando, sin resorte. */
+export const salidaPanel: Transition = { duration: 0.12, ease: [0.4, 0, 1, 1] };
+
 export const ease = [0.32, 0.72, 0, 1] as const;
+
+/** Transición de ruta: entra en 220 ms subiendo 6 px, sale en 100 ms. Sin desplazamiento horizontal. */
+export const transicionRuta = {
+  entrada: { duration: 0.22, ease },
+  salida: { duration: 0.1, ease },
+};
+
+/** Entrada de un mensaje al hilo. El del usuario además crece desde su esquina. */
+export const entradaMensaje = {
+  initial: { opacity: 0, y: 12, filter: 'blur(2px)' },
+  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  transition: springMensaje,
+};
+export const entradaMensajeUsuario = {
+  initial: { opacity: 0, y: 12, scale: 0.98, filter: 'blur(2px)' },
+  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
+  transition: springMensaje,
+  style: { transformOrigin: 'bottom right' },
+};
+/** La misma entrada con movimiento reducido: solo opacidad. */
+export const entradaReducida = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { duration: 0.15, ease },
+};
 
 // Excepción documentada a "siempre springs": un contador numérico necesita una
 // curva DISEÑADA (desaceleración fuerte y predecible), no física de resorte —

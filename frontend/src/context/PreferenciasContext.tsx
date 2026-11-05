@@ -99,6 +99,8 @@ html[data-movimiento='reducido'] .animate-parpadeo,
 html[data-movimiento='reducido'] .animate-latido,
 html[data-movimiento='reducido'] .animate-pulse,
 html[data-movimiento='reducido'] .animate-brillo,
+html[data-movimiento='reducido'] .animate-espera,
+html[data-movimiento='reducido'] .animate-puntoOla,
 html[data-movimiento='reducido'] .animate-spin {
   animation: pulsoEspera 2.4s ease-in-out infinite !important;
   animation-duration: 2.4s !important;
