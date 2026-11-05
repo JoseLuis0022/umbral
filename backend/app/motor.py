@@ -41,7 +41,6 @@ from claude_agent_sdk import (
     ResultMessage,
     StreamEvent,
     SystemMessage,
-    TextBlock,
     ToolResultBlock,
     ToolUseBlock,
     UserMessage,
@@ -56,6 +55,13 @@ from .protocolo import evento
 log = logging.getLogger("lab.motor")
 
 HERRAMIENTAS_SUBAGENTE = {"Task", "Agent"}
+
+# Narración vs respuesta. Antes de usar una herramienta, el modelo a veces
+# escribe su plan ("Necesito los seis pasos. Leo clase-04…") como texto normal.
+# Eso NO es la respuesta: es proceso, y puede traer nombres de archivos. Cada
+# bloque de texto se retiene hasta este largo; si antes llega una herramienta,
+# era narración. Si lo supera o el turno termina, es respuesta y se transmite.
+UMBRAL_NARRACION = 280
 
 ERROR_POR_SUBTIPO = {
     "error_max_turns": ("limite_vueltas", "El agente llegó al máximo de pasos sin terminar."),
@@ -297,9 +303,24 @@ async def _consultar_sdk(
 
     hay_texto = False       # ya se pintó algo de la respuesta
     separar = False         # hubo herramientas desde el último texto
-    texto_bloques = ""      # respaldo, por si no llegaran los deltas
     error_emitido = False
+    retenido = ""           # texto del bloque actual que aún no se sabe si es respuesta
+    confirmado = False      # el bloque actual ya se está transmitiendo como respuesta
     resultado: ResultMessage | None = None
+
+    def como_respuesta(texto: str) -> list[dict[str, Any]]:
+        nonlocal separar, hay_texto
+        salida = []
+        if separar and hay_texto:
+            salida.append(evento("texto", delta="\n\n"))
+        separar = False
+        hay_texto = True
+        salida.append(evento("texto", delta=texto))
+        return salida
+
+    def como_narracion(texto: str) -> list[dict[str, Any]]:
+        # Con permiso, se ve en el Proceso como razonamiento; sin permiso, no sale.
+        return [evento("pensamiento", delta=texto.strip() + "\n")] if ajuste.ver_interno and texto.strip() else []
     abiertas: dict[str, dict[str, Any]] = {}
 
     try:
@@ -321,16 +342,34 @@ async def _consultar_sdk(
                     if m.parent_tool_use_id:
                         continue
                     ev = m.event
-                    if ev.get("type") == "content_block_delta":
+                    tipo_ev = ev.get("type")
+                    if tipo_ev == "content_block_start":
+                        tipo_bloque = (ev.get("content_block") or {}).get("type")
+                        if tipo_bloque == "tool_use" and retenido:
+                            for e in como_narracion(retenido):
+                                yield e
+                            retenido = ""
+                        if tipo_bloque == "text":
+                            confirmado = False
+                    elif tipo_ev == "content_block_delta":
                         delta = ev.get("delta") or {}
                         if delta.get("type") == "text_delta" and delta.get("text"):
-                            if separar and hay_texto:
-                                yield evento("texto", delta="\n\n")
-                            separar = False
-                            hay_texto = True
-                            yield evento("texto", delta=delta["text"])
+                            if confirmado:
+                                yield evento("texto", delta=delta["text"])
+                            else:
+                                retenido += delta["text"]
+                                if len(retenido) >= UMBRAL_NARRACION:
+                                    for e in como_respuesta(retenido):
+                                        yield e
+                                    retenido = ""
+                                    confirmado = True
                         elif delta.get("type") == "thinking_delta" and delta.get("thinking") and ajuste.ver_interno:
                             yield evento("pensamiento", delta=delta["thinking"])
+                    elif tipo_ev == "message_delta" and retenido:
+                        motivo = (ev.get("delta") or {}).get("stop_reason")
+                        for e in como_narracion(retenido) if motivo == "tool_use" else como_respuesta(retenido):
+                            yield e
+                        retenido = ""
                     continue
 
                 if isinstance(m, AssistantMessage):
@@ -340,9 +379,7 @@ async def _consultar_sdk(
                         error_emitido = True
                         yield evento("error", codigo=codigo, mensaje=texto)
                     for bloque in m.content:
-                        if isinstance(bloque, TextBlock) and m.parent_tool_use_id is None:
-                            texto_bloques += bloque.text
-                        elif isinstance(bloque, ToolUseBlock):
+                        if isinstance(bloque, ToolUseBlock):
                             es_subagente = bloque.name in HERRAMIENTAS_SUBAGENTE
                             nombre = (bloque.input.get("subagent_type") or "subagente") if es_subagente else bloque.name
                             info = {
@@ -385,10 +422,15 @@ async def _consultar_sdk(
             yield evento("error", codigo="motor", mensaje="El agente falló al responder.")
         return
 
+    if retenido:
+        for e in como_respuesta(retenido):
+            yield e
     if resultado is None:
         return
-    if not hay_texto and (texto_bloques or resultado.result):
-        yield evento("texto", delta=texto_bloques or resultado.result or "")
+    # Respaldo si no llegaron deltas: `result` es SOLO la respuesta final. No se
+    # usa `texto_bloques`, que incluye la narración previa a las herramientas.
+    if not hay_texto and resultado.result:
+        yield evento("texto", delta=resultado.result)
     uso = resultado.usage or {}
     registro.sesion_sdk = resultado.session_id or registro.sesion_sdk
     registro.costo_usd = resultado.total_cost_usd
