@@ -66,7 +66,7 @@ export interface Mensaje {
 export interface ArchivoCompartido {
   ruta: string;
   nombre: string;
-  formato: 'md' | 'txt' | 'html' | 'pdf' | 'otro';
+  formato: 'md' | 'txt' | 'html' | 'pdf' | 'imagen' | 'otro';
   tamanoBytes: number;
   /** "Apuntes", "Diapositivas del profesor", "Transcripciones". */
   coleccion: string;

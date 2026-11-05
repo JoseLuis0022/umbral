@@ -1,13 +1,14 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { VisorImagen } from '../VisorImagen';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Download, FileText, Presentation, ScrollText, X, type LucideIcon } from 'lucide-react';
+import { Download, FileText, ImageOff, Presentation, ScrollText, X, type LucideIcon } from 'lucide-react';
 import type { ArchivoCompartido } from '../../types';
 import { cn } from '../../lib/cn';
 import { tamanoLegible } from '../../lib/fechas';
 import { dur, ease, salidaPanel, springPanel, springPress } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { guardarEnDisco } from '../../services/corpus.service';
+import { descargarBlob, guardarEnDisco } from '../../services/corpus.service';
 import { Backdrop, IconButton, useToast } from '../ui';
 import { copyLocal } from './copyLocal';
 
@@ -32,12 +33,17 @@ export const ArchivosMensaje = memo(function ArchivosMensaje({
   const [abierto, setAbierto] = useState<ArchivoCompartido | null>(null);
   const reducido = useReducedMotion();
   if (!archivos.length) return null;
+  // Las imágenes van en galería (verlas es el punto); el resto, como tarjetas.
+  const imagenes = archivos.filter((a) => a.formato === 'imagen');
+  const documentos = archivos.filter((a) => a.formato !== 'imagen');
 
   return (
-    <>
-      <ul aria-label={copyLocal.archivosEtiqueta} className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
+      {imagenes.length > 0 && <GaleriaImagenes imagenes={imagenes} />}
+      {documentos.length > 0 && (
+      <ul aria-label={copyLocal.archivosEtiqueta} className="flex flex-col gap-2">
         <AnimatePresence initial={false}>
-          {archivos.map((a) => (
+          {documentos.map((a) => (
             <motion.li
               key={a.ruta}
               layout="position"
@@ -50,10 +56,119 @@ export const ArchivosMensaje = memo(function ArchivosMensaje({
           ))}
         </AnimatePresence>
       </ul>
+      )}
       <VisorEmergente archivo={abierto} onCerrar={() => setAbierto(null)} />
-    </>
+    </div>
   );
 });
+
+/**
+ * Imágenes que mandó el agente (p. ej. un PDF pasado a PNG): cuadrícula de
+ * miniaturas. Cada una se pide con el token (un `src` directo no lo lleva) y
+ * vive como object URL mientras la galería exista.
+ */
+function GaleriaImagenes({ imagenes }: { imagenes: ArchivoCompartido[] }) {
+  const { push } = useToast();
+  const [vista, setVista] = useState<{ src: string; alt: string } | null>(null);
+  const [descargando, setDescargando] = useState(false);
+
+  const descargarTodas = async () => {
+    setDescargando(true);
+    try {
+      for (const a of imagenes) await guardarEnDisco({ ruta: a.ruta, nombre: a.nombre, tipo: 'imagen' }, 'chat');
+    } catch {
+      push({ message: copyLocal.descargaFallo, tone: 'error' });
+    } finally {
+      setDescargando(false);
+    }
+  };
+
+  return (
+    <section aria-label={copyLocal.galeriaEtiqueta(imagenes.length)} className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-ui text-13 text-text-2">{copyLocal.galeriaEtiqueta(imagenes.length)}</p>
+        {imagenes.length > 1 && (
+          <button
+            type="button"
+            onClick={descargarTodas}
+            disabled={descargando}
+            className="flex h-8 items-center gap-1.5 rounded-celda px-2 font-ui text-13 font-medium text-text-2 transition-colors duration-[120ms] hover:bg-tinta/[.05] hover:text-text-1 disabled:opacity-60"
+          >
+            <Download size={14} aria-hidden className={cn(descargando && 'animate-pulse')} />
+            {copyLocal.descargarTodas}
+          </button>
+        )}
+      </div>
+      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {imagenes.map((a, i) => (
+          <MiniaturaRemota key={a.ruta} archivo={a} orden={i} onAbrir={setVista} />
+        ))}
+      </ul>
+      <VisorImagen src={vista?.src ?? null} alt={vista?.alt} onCerrar={() => setVista(null)} />
+    </section>
+  );
+}
+
+function MiniaturaRemota({
+  archivo,
+  orden,
+  onAbrir,
+}: {
+  archivo: ArchivoCompartido;
+  orden: number;
+  onAbrir: (v: { src: string; alt: string }) => void;
+}) {
+  const reducido = useReducedMotion();
+  const [url, setUrl] = useState<string | null>(null);
+  const [fallo, setFallo] = useState(false);
+
+  useEffect(() => {
+    const control = new AbortController();
+    let creada: string | null = null;
+    descargarBlob(archivo.ruta, control.signal, 'chat')
+      .then((blob) => {
+        creada = URL.createObjectURL(blob);
+        setUrl(creada);
+      })
+      .catch(() => {
+        if (!control.signal.aborted) setFallo(true);
+      });
+    return () => {
+      control.abort();
+      if (creada) URL.revokeObjectURL(creada);
+    };
+  }, [archivo.ruta]);
+
+  return (
+    <motion.li
+      initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={reducido ? { duration: dur.fast, ease } : { ...springPanel, delay: Math.min(orden, 12) * 0.02 }}
+    >
+      <button
+        type="button"
+        onClick={() => url && onAbrir({ src: url, alt: archivo.nombre })}
+        disabled={!url}
+        title={`${archivo.nombre} · ${tamanoLegible(archivo.tamanoBytes)}`}
+        aria-label={copyLocal.abrirArchivo(archivo.nombre)}
+        className="group/mini relative block aspect-[4/3] w-full overflow-hidden rounded-control bg-bg shadow-anillo outline-none transition-shadow duration-150 ease-umbral enabled:hover:shadow-menu focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {url ? (
+          <img src={url} alt="" draggable={false} className="h-full w-full object-cover transition-transform duration-300 ease-umbral group-hover/mini:scale-[1.03]" />
+        ) : fallo ? (
+          <span className="flex h-full w-full items-center justify-center text-text-3">
+            <ImageOff size={18} aria-hidden />
+          </span>
+        ) : (
+          <span className="block h-full w-full animate-pulse bg-tinta/[.04]" aria-hidden />
+        )}
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/50 to-transparent px-2 pb-1 pt-4 text-left font-ui text-12 text-white opacity-0 transition-opacity duration-150 group-hover/mini:opacity-100 group-focus-visible/mini:opacity-100">
+          {archivo.nombre}
+        </span>
+      </button>
+    </motion.li>
+  );
+}
 
 const ICONOS: Record<string, LucideIcon> = { pdf: FileText, html: Presentation, txt: ScrollText, md: ScrollText };
 
@@ -76,7 +191,7 @@ function TarjetaArchivo({ archivo, onAbrir }: { archivo: ArchivoCompartido; onAb
 
   return (
     // Radios anidados: tarjeta 14 con 8 de aire → la ficha del icono lleva 6.
-    <div className="group relative flex w-full max-w-[380px] items-center gap-3 rounded-menu bg-surface-1 p-2 pr-1.5 shadow-anillo transition-shadow duration-150 ease-umbral hover:shadow-menu">
+    <div className="group/tarjeta relative flex w-full max-w-[380px] items-center gap-3 rounded-menu bg-surface-1 p-2 pr-1.5 shadow-anillo transition-shadow duration-150 ease-umbral hover:shadow-menu">
       <motion.button
         type="button"
         onClick={onAbrir}

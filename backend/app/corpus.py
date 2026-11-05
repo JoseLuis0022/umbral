@@ -24,7 +24,13 @@ from .esquemas import ArchivoCorpus
 # Tope para devolver un archivo de texto entero en JSON.
 MAX_BYTES_TEXTO = 3 * 1024 * 1024
 
-_TIPOS = {".md": "md", ".txt": "txt", ".html": "html", ".htm": "html", ".pdf": "pdf"}
+_TIPOS = {
+    ".md": "md", ".txt": "txt", ".html": "html", ".htm": "html", ".pdf": "pdf",
+    ".png": "imagen", ".jpg": "imagen", ".jpeg": "imagen", ".webp": "imagen", ".gif": "imagen",
+}
+
+# Para servir imágenes con su tipo MIME correcto.
+TIPOS_IMAGEN = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 
 
 @dataclass(frozen=True)
@@ -68,9 +74,12 @@ COLECCIONES: tuple[Coleccion, ...] = (
     Coleccion(
         "apuntes",
         "Apuntes",
-        "Los apuntes por tema y para cada examen, en HTML (y su PDF cuando existe).",
+        "Los apuntes por tema y para cada examen (HTML y PDF), con sus figuras e imágenes.",
         "Apuntes",
-        (".html", ".pdf"),
+        # Con subcarpetas e imágenes: las figuras de Apuntes/img y lo que el
+        # generador produzca aquí (p. ej. un PDF pasado a PNG) se pueden mandar.
+        (".html", ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif"),
+        recursiva=True,
         compartible=True,
     ),
     Coleccion(

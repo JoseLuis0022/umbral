@@ -161,7 +161,7 @@ function EtiquetaTipo({ tipo, nombre, activo }: { tipo: ArchivoCorpus['tipo']; n
         activo ? 'bg-surface-1 text-text-2' : 'bg-bg text-text-3'
       )}
     >
-      {tipo === 'otro' ? extension(nombre) : tipo}
+      {tipo === 'otro' ? extension(nombre) : tipo === 'imagen' ? 'img' : tipo}
     </span>
   );
 }

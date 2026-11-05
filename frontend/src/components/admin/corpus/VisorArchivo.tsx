@@ -36,6 +36,7 @@ type Carga =
   | { estado: 'error' }
   | { estado: 'texto'; contenido: string }
   | { estado: 'pdf'; blob: Blob }
+  | { estado: 'imagen'; url: string }
   | { estado: 'sinVista' };
 
 /**
@@ -78,8 +79,14 @@ export function VisorArchivo({
     }
     const control = new AbortController();
     setCarga({ estado: 'cargando' });
+    let url: string | null = null;
     const promesa =
-      archivo.tipo === 'pdf'
+      archivo.tipo === 'imagen'
+        ? descargarBlob(archivo.ruta, control.signal, origen).then((blob): Carga => {
+            url = URL.createObjectURL(blob);
+            return { estado: 'imagen', url };
+          })
+        : archivo.tipo === 'pdf'
         ? descargarBlob(archivo.ruta, control.signal, origen).then((blob): Carga => ({ estado: 'pdf', blob }))
         : leerTexto(archivo.ruta, control.signal, origen).then((r): Carga => ({ estado: 'texto', contenido: r.contenido }));
     promesa
@@ -91,7 +98,10 @@ export function VisorArchivo({
       });
     // Cambiar de archivo cancela la descarga anterior: un PDF de 8 MB que
     // llega tarde no debe pisar al archivo que ya se está leyendo.
-    return () => control.abort();
+    return () => {
+      control.abort();
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [archivo, intento, origen]);
 
   const descargar = useCallback(async () => {
@@ -164,6 +174,14 @@ export function VisorArchivo({
           />
         ) : carga.estado === 'sinVista' ? (
           <EmptyState icon={FileQuestion} title={copy.sinVistaTitulo} description={copy.sinVistaDetalle} />
+        ) : carga.estado === 'imagen' ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 lg:p-6">
+            <img
+              src={carga.url}
+              alt={archivo.nombre}
+              className="max-h-full max-w-full rounded-celda object-contain shadow-anillo"
+            />
+          </div>
         ) : carga.estado === 'pdf' ? (
           <div className="px-4 py-4 lg:px-6">
             <Suspense fallback={<Skeleton className="aspect-[4/3] w-full rounded-tarjeta" />}>

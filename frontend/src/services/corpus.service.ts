@@ -10,7 +10,7 @@ import { ErrorApi, mensajeDeError, pedir, pedirJson } from './api';
  * dejaría la carpeta y lo que el agente cree saber desincronizados.
  */
 
-export type TipoArchivo = 'md' | 'txt' | 'html' | 'pdf' | 'otro';
+export type TipoArchivo = 'md' | 'txt' | 'html' | 'pdf' | 'imagen' | 'otro';
 
 export interface ArchivoCorpus {
   /** Relativa a la carpeta del agente, con "/". Es el identificador. */
@@ -87,7 +87,7 @@ export async function guardarEnDisco(
   origen: OrigenArchivo = 'corpus'
 ): Promise<void> {
   let blob: Blob;
-  if (archivo.tipo === 'pdf') {
+  if (archivo.tipo === 'pdf' || archivo.tipo === 'imagen') {
     blob = await descargarBlob(archivo.ruta, undefined, origen);
   } else if (archivo.tipo === 'otro') {
     // El backend no previsualiza ni entrega binarios que no sean PDF.

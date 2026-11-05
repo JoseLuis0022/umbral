@@ -104,7 +104,9 @@ export const copyLocal = {
   descargarArchivo: (nombre: string) => `Descargar ${nombre}`,
   descargaFallo: 'No pudimos descargar el archivo. Intenta de nuevo.',
   cerrarVisor: 'Cerrar',
-  formatoArchivo: { pdf: 'PDF', html: 'Apunte web', txt: 'Texto', md: 'Texto', otro: 'Archivo' } as Record<string, string>,
+  galeriaEtiqueta: (n: number) => `${n} ${n === 1 ? 'imagen' : 'imágenes'}`,
+  descargarTodas: 'Descargar todas',
+  formatoArchivo: { pdf: 'PDF', html: 'Apunte web', txt: 'Texto', md: 'Texto', imagen: 'Imagen', otro: 'Archivo' } as Record<string, string>,
 
 } as const;
 

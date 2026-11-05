@@ -244,7 +244,7 @@ class ResumenAuditoria(Modelo):
     por_dia: list[ResumenDia]
 
 
-TipoArchivo = Literal["md", "txt", "html", "pdf", "otro"]
+TipoArchivo = Literal["md", "txt", "html", "pdf", "imagen", "otro"]
 
 
 class ArchivoCorpus(Modelo):

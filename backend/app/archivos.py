@@ -58,7 +58,8 @@ def resolver_compartible(ruta: str, bloqueadas: tuple[str, ...] = ()) -> tuple[s
     if coleccion is None or not coleccion.compartible:
         raise NoCompartible(
             "Ese archivo es interno o privado y no se puede mandar. "
-            "Solo se comparten apuntes, diapositivas del profesor y transcripciones."
+            "Solo se comparten apuntes (con sus imágenes, dentro de Apuntes/), diapositivas del "
+            "profesor y transcripciones. Si generaste archivos, guárdalos dentro de Apuntes/."
         )
     partes = PurePosixPath(relativa).parts
     for b in bloqueadas:
@@ -85,11 +86,12 @@ def servidor_mcp(bloqueadas: tuple[str, ...]) -> McpSdkServerConfig:
     @tool(
         NOMBRE_HERRAMIENTA,
         (
-            "Manda al usuario un archivo del material del curso (apuntes HTML/PDF, diapositivas "
-            "del profesor en PDF o transcripciones de clase). El usuario lo recibe como una tarjeta "
-            "en el chat, con botones para abrirlo y descargarlo. Úsala cuando pida un archivo, un "
-            "PDF, unas diapositivas o 'mándame / pásame' algo. `ruta` es relativa a la carpeta del "
-            "curso, exactamente como la devolvió Glob. Puedes llamarla varias veces."
+            "Manda al usuario un archivo del material del curso: apuntes (HTML, PDF e imágenes PNG/JPG "
+            "dentro de Apuntes/, incluidas sus subcarpetas), diapositivas del profesor en PDF o "
+            "transcripciones de clase. Un documento llega como tarjeta para abrir y descargar; las "
+            "imágenes, como galería. Úsala cuando pida un archivo, un PDF, unas diapositivas, unas "
+            "imágenes o 'mándame / pásame' algo. `ruta` es relativa a la carpeta del curso, como la "
+            "devolvió Glob. Llámala una vez por archivo; para muchas imágenes, llámala varias veces."
         ),
         {"ruta": str},
     )
@@ -126,6 +128,8 @@ def descargar(ruta: str = Query(min_length=1, max_length=500)):  # noqa: ANN201 
     except NoCompartible:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Ese archivo no está disponible.") from None
     tipo = corpus.tipo(real.name)
+    if tipo == "imagen":
+        return FileResponse(real, media_type=corpus.TIPOS_IMAGEN[real.suffix.lower()])
     if tipo == "pdf":
         return FileResponse(real, media_type="application/pdf", filename=corpus.nfc(real.name), content_disposition_type="inline")
     if tipo == "otro":

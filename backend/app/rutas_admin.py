@@ -191,6 +191,8 @@ def corpus() -> Corpus:
 def archivo(ruta: str = Query(min_length=1, max_length=500)):  # noqa: ANN201 — JSON o PDF
     relativa, real = material.resolver(ruta)
     tipo = material.tipo(real.name)
+    if tipo == "imagen":
+        return FileResponse(real, media_type=material.TIPOS_IMAGEN[real.suffix.lower()])
     if tipo == "pdf":
         return FileResponse(real, media_type="application/pdf", filename=material.nfc(real.name), content_disposition_type="inline")
     if tipo == "otro":
