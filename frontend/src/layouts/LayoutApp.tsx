@@ -3,8 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useNavigationType, useOutlet
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { SquarePen, Settings } from 'lucide-react';
 import { cn } from '../lib/cn';
-import { springSoft, dur, ease } from '../lib/motion';
-import { useRouteDirection, pageTransitionVariants } from '../lib/routeTransition';
+import { pageTransitionVariants } from '../lib/routeTransition';
 import { MarcaProducto } from '../components/brand/Logo';
 import { MenuUsuario } from '../components/shell/MenuUsuario';
 import { NavAdmin } from '../components/shell/NavAdmin';
@@ -29,7 +28,6 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
   const location = useLocation();
   const navigate = useNavigate();
   const navType = useNavigationType();
-  const direction = useRouteDirection();
   const { esAdmin } = useAuth();
   const contenido = useRef<HTMLElement>(null);
 
@@ -71,7 +69,15 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
           navegador a mantener una capa de `backdrop-filter` de 100vw × 64 px y
           reprocesarla cada vez que algo cambiaba debajo, transiciones de ruta
           incluidas. El color no cambia: sin nada detrás, el 85 % resuelve igual. */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-hairline bg-surface-2/85 px-4 lg:px-6">
+      {/* En el chat (`scrollPropio`) la barra no lleva hairline ni fondo
+          propio: debajo va la cabecera del chat, y dos líneas seguidas eran
+          doble cromo. La única línea aparece cuando el hilo tiene scroll. */}
+      <header
+        className={cn(
+          'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 lg:px-6',
+          scrollPropio ? 'border-transparent bg-bg' : 'border-hairline bg-surface-2'
+        )}
+      >
         <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           <NavLink to="/chat" className="shrink-0" aria-label="Ir al inicio">
             <MarcaProducto />
@@ -141,8 +147,8 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
               venir de una pantalla larga (el tablero) dejaba cientos de píxeles
               de scroll vacío en la siguiente. Esperando a que salga, en el
               <main> nunca hay más de una pantalla y el alto no puede mentir. */}
-          <AnimatePresence mode="wait" custom={direction} initial={false}>
-            <TransicionPagina key={location.pathname} direction={direction}>
+          <AnimatePresence mode="wait" initial={false}>
+            <TransicionPagina key={location.pathname}>
               {/* Un límite por pantalla, con `key` = ruta: si una pantalla falla,
                   la cabecera sigue viva y navegar a otra la reinicia limpia. */}
               <LimiteError key={location.pathname}>{contenidoRuta}</LimiteError>
@@ -161,7 +167,7 @@ function EnlaceNav({ to, children }: { to: string; children: ReactNode }) {
       className={({ isActive }) =>
         cn(
           'whitespace-nowrap rounded-control px-2.5 py-1.5 font-ui text-14 font-medium transition-colors duration-150 sm:px-3',
-          isActive ? 'bg-accent-soft text-accent-fg' : 'text-text-2 hover:bg-accent-soft hover:text-text-1'
+          isActive ? 'bg-accent-soft text-accent-fg' : 'text-text-2 hover:bg-tinta/[.05] hover:text-text-1'
         )
       }
     >
@@ -173,27 +179,24 @@ function EnlaceNav({ to, children }: { to: string; children: ReactNode }) {
 // forwardRef es obligatorio: AnimatePresence necesita el nodo real para saber
 // cuándo termina de salir. Sin él, Framer Motion falla en silencio y la
 // pantalla entrante no llega a montarse.
-const TransicionPagina = forwardRef<HTMLDivElement, { direction: number; children?: ReactNode }>(
-  function TransicionPagina({ direction, children }, ref) {
+const TransicionPagina = forwardRef<HTMLDivElement, { children?: ReactNode }>(
+  function TransicionPagina({ children }, ref) {
     const isPresent = useIsPresent();
     return (
       <motion.div
         ref={ref}
-        custom={direction}
         variants={pageTransitionVariants}
         initial="enter"
         animate="center"
-        exit="exit"
         /*
-         * La SALIDA es un tween corto, no el resorte de la entrada.
+         * La SALIDA es un tween de 100 ms (va en las variantes).
          *
          * Con `mode="wait"` las dos fases van en serie, así que la salida se
-         * paga entera antes de ver nada nuevo: un resorte de ~265 ms ahí
-         * duplicaría la espera percibida al cambiar de pantalla. Además, una
-         * salida no necesita física — nadie está mirando lo que se va; lo que
-         * tiene que sentirse vivo es lo que llega.
+         * paga entera antes de ver nada nuevo; una salida no necesita física
+         * —nadie está mirando lo que se va—. Lo que tiene que sentirse vivo es
+         * lo que llega: 220 ms subiendo 6 px.
          */
-        transition={isPresent ? springSoft : { duration: dur.fast, ease }}
+        exit="exit"
         style={{ pointerEvents: isPresent ? 'auto' : 'none' }}
         /*
          * `h-full` + padding: el envoltorio ocupa exactamente el alto que le

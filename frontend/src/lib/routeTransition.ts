@@ -1,30 +1,16 @@
-import { useRef } from 'react';
-import { useLocation, useNavigationType } from 'react-router-dom';
 import type { Variants } from 'framer-motion';
+import { transicionRuta } from './motion';
 
-// Continuidad espacial a nivel de shell: cada pantalla entra desde la derecha
-// al avanzar y desde la izquierda al volver, para que la transición explique
-// de dónde viene y a dónde va el contenido.
-//
-// React Router expone el TIPO de navegación (PUSH/POP/REPLACE) por transición,
-// no una dirección persistente; la dirección se deriva aquí comparando la key
-// de location actual contra la anterior. POP (atrás/adelante del navegador, o
-// un navigate(-1) propio) invierte la animación; PUSH/REPLACE siempre avanza.
-export function useRouteDirection() {
-  const location = useLocation();
-  const navType = useNavigationType();
-  const prevKeyRef = useRef(location.key);
-  const dirRef = useRef(1);
-
-  if (prevKeyRef.current !== location.key) {
-    dirRef.current = navType === 'POP' ? -1 : 1;
-    prevKeyRef.current = location.key;
-  }
-  return dirRef.current;
-}
-
+/*
+ * Transición de ruta (docs/especificacion-diseno.md §2): la pantalla nueva
+ * entra subiendo 6 px en 220 ms y la vieja se va en 100 ms, sin desplazamiento
+ * horizontal. Antes cada pantalla entraba 24 px de lado según la dirección de
+ * la navegación; en una app de pantallas hermanas (no un flujo de pasos) ese
+ * barrido lateral sugería una jerarquía que no existe y era lo que más se
+ * movía de toda la interfaz.
+ */
 export const pageTransitionVariants: Variants = {
-  enter: (direction: number) => ({ opacity: 0, x: direction >= 0 ? 24 : -24 }),
-  center: { opacity: 1, x: 0 },
-  exit: (direction: number) => ({ opacity: 0, x: direction >= 0 ? -24 : 24 }),
+  enter: { opacity: 0, y: 6 },
+  center: { opacity: 1, y: 0, transition: transicionRuta.entrada },
+  exit: { opacity: 0, transition: transicionRuta.salida },
 };

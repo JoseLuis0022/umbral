@@ -1,11 +1,11 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { Lock, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Conversacion } from '../../types';
 import { cn } from '../../lib/cn';
 import { esSoloLectura, grupoDeFecha, haceCuanto, type GrupoHistorial } from '../../lib/fechas';
-import { springSnappy, dur, ease } from '../../lib/motion';
+import { salidaPanel, springLayout, springPanel, dur } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { Button, EmptyState, Field, Input, Modal, Skeleton } from '../ui';
 import { chat as copy } from '../../copy';
@@ -91,10 +91,14 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
             }
           />
         ) : (
-          <div className="flex flex-col gap-4">
+          // `LayoutGroup` con id: el panel de escritorio y el cajón móvil montan
+          // dos copias de esta lista, y sin espacio de nombres el tinte de la
+          // fila activa saltaría de una a otra.
+          <LayoutGroup id={conEncabezado ? 'historial-panel' : 'historial-cajon'}>
+          <div className="flex flex-col gap-5">
             {grupos.map((grupo) => (
               <section key={grupo.clave}>
-                <h3 className="px-2 pb-1 font-ui text-12 font-semibold uppercase tracking-wide text-text-3">
+                <h3 className="px-2.5 pb-1 font-ui text-12 font-medium text-text-3">
                   {copy.grupos[grupo.clave]}
                 </h3>
                 <ul className="flex flex-col">
@@ -113,6 +117,7 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
               </section>
             ))}
           </div>
+          </LayoutGroup>
         )}
       </div>
 
@@ -217,39 +222,39 @@ function FilaConversacion({
   onAbrir: () => void;
   onMenu: (boton: HTMLElement) => void;
 }) {
+  const reducido = useReducedMotion();
   return (
     <li className="group relative">
+      {/* La fila activa se marca con un tinte neutro que VIAJA de fila en
+          fila (`layoutId`), no con azul: el azul de marca es para acciones. */}
+      {activa && (
+        <motion.span
+          layoutId={reducido ? undefined : 'historial-activa'}
+          transition={springLayout}
+          aria-hidden
+          className="absolute inset-0 rounded-celda bg-tinta/[.06]"
+        />
+      )}
       <button
         type="button"
         onClick={onAbrir}
         aria-current={activa ? 'true' : undefined}
+        // Una línea por fila (36 px): la antigüedad pasa al `title`. Con dos
+        // renglones la lista se leía como una tabla, no como un índice.
+        title={`${conv.titulo} · ${haceCuanto(conv.ultimoMensajeEn, ahora)}`}
         className={cn(
-          'flex min-h-[44px] w-full items-center gap-2 rounded-celda py-2 pl-2.5 pr-9 text-left transition-colors duration-150',
-          activa ? 'bg-accent-soft' : 'hover:bg-bg'
+          'relative flex h-11 w-full items-center gap-2 rounded-celda pl-2.5 pr-9 text-left transition-colors duration-[120ms] lg:h-9',
+          !activa && 'hover:bg-tinta/[.04]'
         )}
       >
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span
-            className={cn(
-              'truncate font-ui text-14',
-              activa ? 'font-medium text-accent-fg' : 'text-text-1'
-            )}
-          >
-            {conv.titulo}
-          </span>
-          <span className="truncate font-ui text-12 text-text-3">{haceCuanto(conv.ultimoMensajeEn, ahora)}</span>
+        <span className={cn('min-w-0 flex-1 truncate font-ui text-14', activa ? 'font-medium text-text-1' : 'text-text-2 group-hover:text-text-1')}>
+          {conv.titulo}
         </span>
         {/* Indicador discreto de solo lectura: el candado no compite con el
             título, y el `title` da la explicación a quien la busque. */}
-        {cerrada && (
-          <Lock
-            size={12}
-            strokeWidth={2}
-            aria-hidden
-            className="shrink-0 text-text-3"
-          />
-        )}
+        {cerrada && <Lock size={12} strokeWidth={2} aria-hidden className="shrink-0 text-text-3" />}
         {cerrada && <span className="sr-only">{copyLocal.soloLecturaEtiqueta}</span>}
+        <span className="sr-only">{haceCuanto(conv.ultimoMensajeEn, ahora)}</span>
       </button>
 
       <button
@@ -260,8 +265,8 @@ function FilaConversacion({
           onMenu(e.currentTarget);
         }}
         className={cn(
-          'absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-celda text-text-3',
-          'transition-colors duration-150 hover:bg-surface-1 hover:text-text-1',
+          'absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-xs text-text-3',
+          'transition-colors duration-[120ms] hover:bg-tinta/[.06] hover:text-text-1',
           // En escritorio aparece al pasar el cursor; en táctil no hay hover,
           // así que ahí vive visible desde el principio.
           'lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:focus-visible:opacity-100'
@@ -325,12 +330,12 @@ function MenuFila({
             ref={menu}
             role="menu"
             aria-label={copyLocal.opcionesConversacion}
-            initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: -4 }}
+            initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: -4 }}
             animate={reducido ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, transition: { duration: dur.fast, ease } }}
-            transition={springSnappy}
+            exit={{ opacity: 0, transition: salidaPanel }}
+            transition={reducido ? { duration: dur.fast } : springPanel}
             style={{ top: estado.y + ajuste, left: estado.x, transformOrigin: 'top right' }}
-            className="absolute w-52 -translate-x-full overflow-hidden rounded-tarjeta border border-hairline bg-surface-3 p-1 shadow-3"
+            className="absolute w-52 -translate-x-full overflow-hidden rounded-menu bg-surface-3 p-1.5 shadow-menu"
           >
             <OpcionMenu icono={Pencil} onClick={() => onRenombrar(estado.conv)}>
               {copy.renombrar}
@@ -363,8 +368,8 @@ function OpcionMenu({
       role="menuitem"
       onClick={onClick}
       className={cn(
-        'flex min-h-[44px] w-full items-center gap-2.5 rounded-celda px-3 font-ui text-14 transition-colors duration-150 md:min-h-[36px]',
-        peligro ? 'text-status-red hover:bg-status-red-soft' : 'text-text-1 hover:bg-accent-soft'
+        'flex min-h-[44px] w-full items-center gap-2.5 rounded-celda px-2.5 font-ui text-14 transition-colors duration-[120ms] md:min-h-8',
+        peligro ? 'text-status-red hover:bg-status-red-soft' : 'text-text-1 hover:bg-tinta/[.05]'
       )}
     >
       <Icono size={15} strokeWidth={2} />
@@ -373,7 +378,7 @@ function OpcionMenu({
   );
 }
 
-/** Altura real de una fila (44 px) para que la lista no brinque al cargar. */
+/** Altura real de una fila (44 px en táctil, 36 px en escritorio) para que la lista no brinque al cargar. */
 function EsqueletoHistorial() {
   return (
     <div className="flex flex-col gap-4" aria-hidden>
@@ -381,7 +386,7 @@ function EsqueletoHistorial() {
         <div key={grupo} className="flex flex-col gap-1">
           <Skeleton className="mb-1 ml-2 h-3 w-20" />
           {Array.from({ length: cuantas }).map((_, i) => (
-            <Skeleton key={i} className="h-[44px] w-full rounded-celda" />
+            <Skeleton key={i} className="h-11 w-full rounded-celda lg:h-9" />
           ))}
         </div>
       ))}
