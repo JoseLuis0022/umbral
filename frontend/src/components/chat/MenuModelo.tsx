@@ -73,7 +73,8 @@ type Datos = {
 /** El disparador: modelo en text-1, esfuerzo en text-3, chevron de 12 px. Fundido cruzado al cambiar. */
 const Disparador = motion.button;
 
-function ContenidoDisparador({ nombreModelo, nombreEsfuerzo }: { nombreModelo: string; nombreEsfuerzo: string }) {
+/** `nombreEsfuerzo` es `null` cuando el esfuerzo está en automático: no se nombra. */
+function ContenidoDisparador({ nombreModelo, nombreEsfuerzo }: { nombreModelo: string; nombreEsfuerzo: string | null }) {
   return (
     <>
       <AnimatePresence mode="popLayout" initial={false}>
@@ -88,7 +89,7 @@ function ContenidoDisparador({ nombreModelo, nombreEsfuerzo }: { nombreModelo: s
           <span className="text-text-1">{nombreModelo}</span>
           {/* El esfuerzo solo se nombra cuando se eligió uno: "Automático ·
               Automático" se leía como un error de la interfaz. */}
-          {ajuste.esfuerzo !== PREDETERMINADO && <span className="text-text-3"> · {nombreEsfuerzo}</span>}
+          {nombreEsfuerzo && <span className="text-text-3"> · {nombreEsfuerzo}</span>}
         </motion.span>
       </AnimatePresence>
       <ChevronDown size={12} strokeWidth={2.25} className="shrink-0 text-text-3" aria-hidden />
@@ -140,7 +141,10 @@ function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nom
     >
       <Menu.Trigger asChild>
         <Disparador type="button" layout="size" transition={springLayout} aria-label={etiqueta} title={etiqueta} className={CLASE_DISPARADOR}>
-          <ContenidoDisparador nombreModelo={nombreModelo} nombreEsfuerzo={nombreEsfuerzo} />
+          <ContenidoDisparador
+          nombreModelo={nombreModelo}
+          nombreEsfuerzo={ajuste.esfuerzo === PREDETERMINADO ? null : nombreEsfuerzo}
+        />
         </Disparador>
       </Menu.Trigger>
 
@@ -317,7 +321,10 @@ function HojaModelo({ principales, mas, ajuste, onCambiar, nombreModelo, nombreE
         data-state={abierto ? 'open' : 'closed'}
         className={CLASE_DISPARADOR}
       >
-        <ContenidoDisparador nombreModelo={nombreModelo} nombreEsfuerzo={nombreEsfuerzo} />
+        <ContenidoDisparador
+          nombreModelo={nombreModelo}
+          nombreEsfuerzo={ajuste.esfuerzo === PREDETERMINADO ? null : nombreEsfuerzo}
+        />
       </button>
 
       <PanelAnclado abierto={abierto} cerrar={cerrar} disparadorRef={disparador} tituloHoja={copyLocal.modeloEtiqueta}>
