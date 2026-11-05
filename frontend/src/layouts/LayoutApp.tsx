@@ -17,7 +17,7 @@ import { chat as copyChat, navegacion as copyNav, ajustes as copyAjustes } from 
  *
  * No hay barra lateral global a propósito. El único panel lateral de la app es
  * el historial de conversaciones, y vive DENTRO de /chat: si fuera global,
- * ocuparía ancho permanente en Al día y en Administración, donde no significa
+ * ocuparía ancho permanente en Ajustes y en Administración, donde no significa
  * nada.
  *
  * El scroll vive en el contenedor de contenido, no en el body, para que la
@@ -49,8 +49,8 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
    *
    * El scroll de la app vive en este <main>, no en el documento, así que el
    * navegador no lo reinicia por su cuenta: la pantalla nueva se montaba
-   * conservando el `scrollTop` de la anterior. Recorrer Al día hasta abajo y
-   * abrir una guía dejaba el detalle empezado a media página, y la transición
+   * conservando el `scrollTop` de la anterior. Recorrer el tablero hasta abajo y
+   * abrir otra pantalla la dejaba empezada a media página, y la transición
    * horizontal de 24 px se sumaba a un salto vertical de cientos.
    *
    * Va en `useLayoutEffect` para que ocurra ANTES del pintado (en un efecto
@@ -77,7 +77,6 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
           </NavLink>
           <nav className="flex min-w-0 items-center gap-0.5 sm:gap-1">
             <EnlaceNav to="/chat">{copyNav.inicio}</EnlaceNav>
-            <EnlaceNav to="/al-dia">{copyNav.alDia}</EnlaceNav>
             {esAdmin && <NavAdmin />}
           </nav>
         </div>
@@ -117,8 +116,7 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
 
           El <main> lleva `layoutScroll` porque Framer mide las animaciones de
           layout en coordenadas de viewport: sin ese aviso, cualquier animación
-          `layout`/`layoutId` de dentro (la rejilla de Al día, las pastillas de
-          los selectores) queda desfasada si este contenedor se desplaza a media
+          `layout`/`layoutId` de dentro (las pastillas de los selectores) queda desfasada si este contenedor se desplaza a media
           animación, y el indicador aterriza en el sitio equivocado. */}
       {scrollPropio ? (
         <div className="min-h-0 flex-1">

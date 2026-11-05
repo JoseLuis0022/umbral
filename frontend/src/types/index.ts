@@ -112,27 +112,6 @@ export interface Documento {
   subidoEn: string;
 }
 
-export type CategoriaGuia = 'Correo' | 'Documentos' | 'Reuniones' | 'TI' | 'Gobernanza';
-
-export interface PasoGuia {
-  titulo: string;
-  contenido: string; // markdown
-}
-
-export interface Guia {
-  id: string;
-  titulo: string;
-  resumen: string;
-  categoria: CategoriaGuia;
-  estrellas: number;
-  votadaPorMi: boolean;
-  minutosLectura: number;
-  requisitos: string[];
-  pasos: PasoGuia[];
-  siAlgoFalla: string;
-  preguntaSugerida: string; // precarga el chat desde el detalle
-}
-
 export interface Sesion {
   usuario: Usuario;
   perfiles: PerfilAgente[];

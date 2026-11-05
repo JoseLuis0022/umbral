@@ -18,8 +18,8 @@ const REMARK_PLUGINS = [remarkGfm];
  * Reubica las rutas de archivos servidos desde `public/` cuando la app no vive
  * en la raíz del dominio.
  *
- * El markdown —el de las guías y el que llega del agente— escribe sus imágenes
- * como `/guias/…`, que es la forma correcta de nombrarlas y la única que el
+ * El markdown —el que llega del agente y el del corpus— puede escribir sus
+ * imágenes como `/…`, que es la forma correcta de nombrarlas y la única que el
  * autor de un contenido puede conocer. Pero publicada en
  * https://tu-dominio.com/Umbral/, esa ruta apunta a la raíz del dominio,
  * fuera de la carpeta de la app, y todas las capturas salen rotas. Vite reescribe
@@ -36,7 +36,7 @@ function resolverRutaPublica(src: string): string {
 
 /**
  * Renderizador de markdown del proyecto. Lo usan las respuestas del asistente y
- * el contenido de las guías, así que vive fuera de `ui/` pero es compartido:
+ * los documentos del corpus, así que vive fuera de `ui/` pero es compartido:
  * dos renderizadores distintos harían que el mismo markdown se viera diferente
  * en cada pantalla.
  *

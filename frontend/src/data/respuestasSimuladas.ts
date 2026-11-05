@@ -254,7 +254,7 @@ Mientras tanto, esto es lo que resuelvo con más frecuencia:
 Dos cosas que conviene tener presentes:
 
 1. Si vas a compartir un documento, **quita los datos que identifiquen a una persona** antes de pegarlo.
-2. Lo que te responda hay que verificarlo cuando la decisión sea importante. La sección **Al día** tiene guías cortas con los procedimientos oficiales.
+2. Lo que te responda hay que verificarlo cuando la decisión sea importante.
 
 ¿Sobre cuál de esos temas quieres que empecemos?`,
 };

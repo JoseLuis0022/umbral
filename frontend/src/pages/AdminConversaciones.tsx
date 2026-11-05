@@ -41,7 +41,7 @@ const TEXTO = {
   desplegarLista: 'Desplegar la lista de conversaciones',
 };
 
-/** Clave propia de esta pantalla: plegar aquí no pliega Corpus ni Boletines. */
+/** Clave propia de esta pantalla: plegar aquí no pliega Corpus ni el Laboratorio. */
 const CLAVE_PLEGADO = 'panel-plegado:auditoria';
 
 type EstadoCarga = 'cargando' | 'actualizando' | 'listo' | 'error';

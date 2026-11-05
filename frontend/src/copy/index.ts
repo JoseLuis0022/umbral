@@ -46,37 +46,35 @@ export const chat = {
   utilNo: 'Respuesta poco útil',
   // Rotan cada 4 segundos bajo el saludo del estado vacío.
   preguntasRotativas: [
-    '¿Cómo resumo 250 correos sin leerlos uno por uno?',
-    '¿Cómo restablezco mi contraseña institucional?',
-    '¿Puedo usar IA para calificar exámenes?',
-    '¿Cómo saco la minuta de una reunión de Teams?',
-    '¿Cómo convierto un documento de 40 páginas en cinco puntos?',
+    '¿Qué es la ecualización de histograma y cuándo conviene?',
+    '¿En qué se diferencia el filtro de mediana del promedio?',
+    '¿Qué entra en el próximo examen?',
+    '¿Cómo se interpreta el espectro de Fourier de una imagen?',
+    '¿Qué es la apertura en morfología matemática?',
   ],
 
   /**
    * Banco de sugerencias del estado vacío. Se muestran de cuatro en cuatro y
    * van rotando (ver `EstadoVacio`).
    *
-   * TODAS preguntan CÓMO se hace algo, nunca ordenan la tarea. La diferencia no
-   * es de estilo: "Resume mi bandeja de entrada" promete que la herramienta va
-   * a entrar al correo de la persona y hacerlo, y no es lo que hace. Esto es un
-   * asistente que ENSEÑA a usar Copilot y las herramientas institucionales, así
-   * que la primera frase que alguien lee tiene que fijar esa expectativa; si la
-   * fija mal, la segunda pregunta ya es un reclamo.
+   * Todas son preguntas que el agente de Procesamiento Digital de Imágenes
+   * puede contestar con lo que hay en su carpeta (clases, diapositivas,
+   * apuntes): un chip que el agente no sabe responder enseña, en la primera
+   * frase, a desconfiar de él.
    */
   chips: [
-    '¿Cómo resumo mi bandeja de entrada?',
-    '¿Cómo hago el resumen de un documento de Word?',
-    '¿Cómo saco la minuta de una reunión de Teams?',
-    '¿Qué dice la política de IA de la Universidad?',
-    '¿Cómo restablezco mi contraseña institucional?',
-    '¿Cómo entro a Brightspace si me rechaza la contraseña?',
-    '¿Cómo comparo dos versiones de un reglamento?',
-    '¿Cómo redacto una convocatoria con ayuda de IA?',
-    '¿Qué datos de estudiantes no puedo subir a la IA?',
-    '¿Cómo configuro mi correo institucional en el teléfono?',
-    '¿Cómo traduzco una carta sin que suene a traducción?',
-    '¿Cómo preparo una rúbrica de evaluación con IA?',
+    '¿Qué es la ecualización de histograma?',
+    '¿Cómo funciona el filtro de Sobel?',
+    '¿Qué es unsharp masking y high-boost?',
+    '¿Qué dijo el profesor sobre la transformada de Fourier?',
+    '¿Cuál es la diferencia entre filtrado espacial y en frecuencia?',
+    '¿Qué es la transformada de Radón?',
+    '¿Cuándo uso un filtro de mediana?',
+    '¿Qué es la erosión y la dilatación?',
+    '¿Qué temas entran en el próximo examen?',
+    '¿Qué es la corrección gamma?',
+    '¿Cómo se muestrea y cuantiza una imagen?',
+    '¿Qué modelos de ruido vimos en clase?',
   ],
   soloLecturaTitulo: 'Esta sesión se cerró',
   soloLecturaDetalle: 'Las conversaciones se cierran cinco horas después del último mensaje. Puedes seguir leyéndola.',
@@ -90,32 +88,14 @@ export const chat = {
   errorTimeout: 'El asistente tardó demasiado en responder. Intenta de nuevo o reformula tu pregunta.',
 };
 
-export const alDia = {
-  titulo: 'Al día',
-  subtitulo: 'Guías cortas para resolver lo del día a día.',
-  ordenEstrellas: 'Más útiles',
-  ordenRecientes: 'Recientes',
-  todasCategorias: 'Todas',
-  minutos: (n: number) => `${n} min de lectura`,
-  votar: 'Marcar como útil',
-  quitarVoto: 'Quitar mi voto',
-  requisitos: 'Antes de empezar',
-  pasos: 'Pasos',
-  siAlgoFalla: 'Si algo falla',
-  preguntarAsistente: 'Preguntar al asistente',
-  vacio: 'No hay guías en esta categoría.',
-};
-
 export const navegacion = {
   inicio: 'Inicio',
-  alDia: 'Al día',
   /** Rótulo del grupo de administración en el menú plegado. */
   administracion: 'Administración',
   mas: 'Más',
   tablero: 'Tablero',
   corpus: 'Corpus',
   auditoria: 'Auditoría',
-  boletines: 'Boletines',
   laboratorio: 'Laboratorio',
 };
 
@@ -155,8 +135,6 @@ export const admin = {
 
   tableroTitulo: 'Tablero',
   tableroSubtitulo: 'Uso, ahorro y riesgo de la herramienta en toda la universidad.',
-  boletinesTitulo: 'Boletines de Al día',
-  boletinesSubtitulo: 'Aquí se redacta y se publica lo que lee la comunidad.',
   laboratorioTitulo: 'Laboratorio',
   laboratorioSubtitulo: 'Prueba el asistente con otros ajustes antes de moverlos en producción.',
 };
@@ -169,7 +147,7 @@ export const ajustes = {
   densidadCompacta: 'Compacta',
   tipografia: 'Tamaño de tipografía',
   restablecer: 'Restablecer datos de demostración',
-  restablecerDetalle: 'Devuelve conversaciones, guías y corpus a su estado inicial. No se puede deshacer.',
+  restablecerDetalle: 'Borra lo que este navegador guarda (lista de conversaciones y preferencias). No se puede deshacer.',
   restablecerConfirmar: 'Restablecer datos',
   datosRestablecidos: 'Datos de demostración restablecidos',
 };

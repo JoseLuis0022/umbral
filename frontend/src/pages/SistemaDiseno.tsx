@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CalendarDays, Download, FileText, Newspaper, Plus, Users } from 'lucide-react';
+import { CalendarDays, Download, FileText, Plus, Users } from 'lucide-react';
 import {
   AnimatedNumber, Banner, Button, Card, DataTable, Drawer, EmptyState, ErrorState, Field,
   IconButton, Input, KpiCard, Modal, PageEnter, Pagination, SegmentedControl, Select,
@@ -115,7 +115,7 @@ export function SistemaDiseno() {
 
         <Seccion titulo="Indicadores" descripcion="Las cifras cuentan al entrar en pantalla, no al cargar la app, y arrancan cerca del valor final para que se sientan aterrizando y no progresando.">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard icon={Newspaper} label="Guías publicadas" value={<AnimatedNumber value={241} />} detail="Ciclo 2026" />
+            <KpiCard icon={FileText} label="Archivos del corpus" value={<AnimatedNumber value={241} />} detail="Carpeta del agente" />
             <KpiCard icon={Users} label="Consultas atendidas" value={<AnimatedNumber value={17191} />} detail="Últimos 30 días" />
             <KpiCard icon={CalendarDays} label="Sesiones activas" value={<AnimatedNumber value={38} />} detail="Ahora mismo" />
             <KpiCard icon={FileText} label="Pendientes" value={<AnimatedNumber value={7} />} detail="Requieren revisión" active />
@@ -218,10 +218,10 @@ export function SistemaDiseno() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="rounded-tarjeta border border-hairline bg-surface-1">
                 <EmptyState
-                  icon={Newspaper}
-                  title="Todavía no hay guías"
-                  description="Crea la primera y aparecerá aquí junto con sus lecturas."
-                  action={<Button size="sm" onClick={() => setModalAbierto(true)}><Plus size={14} /> Crear guía</Button>}
+                  icon={Users}
+                  title="Todavía nadie ha preguntado"
+                  description="Cuando alguien use el asistente, su consulta aparecerá aquí."
+                  action={<Button size="sm" onClick={() => setModalAbierto(true)}><Plus size={14} /> Invitar a alguien</Button>}
                 />
               </div>
               <div className="rounded-tarjeta border border-hairline bg-surface-1">

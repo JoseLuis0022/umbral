@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessagesSquare, PanelLeft, PanelLeftClose, Plus } from 'lucide-react';
 import type { ImagenPreparada } from '../lib/imagenes';
@@ -49,7 +49,6 @@ const ANCHO_PANEL = 292;
  */
 export default function Chat() {
   const { conversacionId } = useParams<{ conversacionId: string }>();
-  const location = useLocation();
   const navigate = useNavigate();
   const reducido = useReducedMotion();
   const { push } = useToast();
@@ -113,41 +112,6 @@ export default function Chat() {
     seleccionar(conversacionId ?? null);
   }, [conversacionId, seleccionar]);
 
-  /*
-   * Pregunta que llega desde una guía de Al día:
-   * `navigate('/chat', { state: { pregunta } })`.
-   *
-   * Se PRECARGA, no se envía. El botón de la guía dice "Preguntar al
-   * asistente", no "Preguntar ahora": quien llega ahí casi siempre quiere
-   * añadir su caso concreto ("…en la licenciatura de Comunicación") antes de
-   * mandarla, y enviarla sola gasta el turno en una respuesta genérica.
-   *
-   * Y siempre abre SESIÓN NUEVA. La pregunta viene de un tema que el usuario
-   * acaba de leer, no del hilo que tuviera abierto; colarla al final de una
-   * conversación sobre otra cosa arrastra ese contexto a la respuesta y además
-   * deja el título de la conversación mintiendo sobre su contenido. En la
-   * práctica el CTA ya navega a `/chat` sin id, pero la sesión nueva se fuerza
-   * aquí y no se da por supuesta, para que el contrato aguante si algún día el
-   * botón se dispara desde otro sitio.
-   */
-  const preguntaEntrante = (location.state as { pregunta?: string } | null)?.pregunta;
-
-  useEffect(() => {
-    if (!preguntaEntrante) return;
-    setImagenes([]);
-    setTexto(preguntaEntrante);
-    // Mueve el cursor al final del texto ya cargado (lo hace `BarraEntrada`).
-    setSenalFoco((n) => n + 1);
-
-    // `state: null` + `replace`: sin esto, un F5 en /chat volvería a inyectar
-    // la pregunta encima de lo que el usuario llevara escrito.
-    if (conversacionId) {
-      seleccionar(null);
-      navigate('/chat', { replace: true, state: null });
-    } else {
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [preguntaEntrante, conversacionId, location.pathname, navigate, seleccionar]);
 
   const idAbierto = conversacionActiva?.id ?? null;
   const noEncontrada = !!conversacionId && !cargando && !conversacionActiva;

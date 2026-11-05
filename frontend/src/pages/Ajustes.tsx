@@ -51,10 +51,10 @@ const TEXTO = {
   restablecerPreferencias: 'Volver a los ajustes de fábrica',
   preferenciasRestablecidas: 'Ajustes de fábrica restaurados',
 
-  // — Chat y guías, todavía sin conectar —
-  chatYGuias: 'Chat y guías',
+  // — Chat, todavía sin conectar —
+  chat: 'Chat',
   pendiente: 'Siguiente versión',
-  chatYGuiasNota:
+  chatNota:
     'Estos ajustes ya están diseñados, pero todavía no hacen nada: por eso no los ponemos como interruptores. Se conectan en la siguiente versión.',
   envio: 'Tecla para enviar en el chat',
   envioDetalle: 'Elegir entre Enter para enviar o Cmd/Ctrl + Enter, con Enter para el salto de línea.',
@@ -62,10 +62,6 @@ const TEXTO = {
   avisoIADetalle: 'Ocultar la línea bajo el campo de escritura una vez que ya la leíste.',
   idioma: 'Idioma de las respuestas',
   idiomaDetalle: 'Pedirle al asistente que responda siempre en español o en inglés, sin repetirlo cada vez.',
-  aperturaAlDia: 'Cómo abre “Al día”',
-  aperturaAlDiaDetalle: 'Fijar la categoría y el orden con los que quieres encontrar la galería de guías.',
-  notificaciones: 'Resumen por correo',
-  notificacionesDetalle: 'Un correo semanal con las guías nuevas de tu área.',
 
   // — Privacidad —
   privacidad: 'Privacidad y datos',
@@ -79,9 +75,9 @@ const TEXTO = {
     'Tu perfil es de administrador: tú también ves las conversaciones de toda la comunidad en Auditoría, con los mismos datos.',
   auditoriaBanner: 'Aquí no se esconde nada: esto es lo que la herramienta guarda y quién lo ve.',
   almacenamiento: 'Dónde viven estos datos',
-  almacenamientoValor: 'En este navegador',
+  almacenamientoValor: 'Navegador y servidor',
   almacenamientoDetalle:
-    'Esta es una maqueta de demostración: conversaciones, guías, corpus y estos ajustes se guardan en el almacenamiento local de este equipo. Nada viaja a un servidor.',
+    'Tus preferencias y la lista de conversaciones se guardan en este navegador. Cada pregunta y cada respuesta del asistente quedan registradas en el servidor del laboratorio.',
 
   // — Cuenta —
   cuenta: 'Cuenta',
@@ -283,16 +279,10 @@ export default function Ajustes() {
           </FilaAjuste>
         </Seccion>
 
-        <Seccion titulo={TEXTO.chatYGuias} icono={MessagesSquare} nota={TEXTO.chatYGuiasNota}>
+        <Seccion titulo={TEXTO.chat} icono={MessagesSquare} nota={TEXTO.chatNota}>
           <FilaPendiente titulo={TEXTO.envio} detalle={TEXTO.envioDetalle} etiqueta={TEXTO.pendiente} />
           <FilaPendiente titulo={TEXTO.avisoIA} detalle={TEXTO.avisoIADetalle} etiqueta={TEXTO.pendiente} />
           <FilaPendiente titulo={TEXTO.idioma} detalle={TEXTO.idiomaDetalle} etiqueta={TEXTO.pendiente} />
-          <FilaPendiente titulo={TEXTO.aperturaAlDia} detalle={TEXTO.aperturaAlDiaDetalle} etiqueta={TEXTO.pendiente} />
-          <FilaPendiente
-            titulo={TEXTO.notificaciones}
-            detalle={TEXTO.notificacionesDetalle}
-            etiqueta={TEXTO.pendiente}
-          />
         </Seccion>
 
         <Seccion

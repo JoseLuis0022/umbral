@@ -6,7 +6,6 @@ import {
   FlaskConical,
   LayoutDashboard,
   MessagesSquare,
-  Newspaper,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
@@ -22,7 +21,7 @@ import { navegacion as copy } from '../../copy';
  * entra y sale de Corpus y Auditoría decenas de veces al día, y esconderlas
  * detrás de un avatar cobraba dos clics por cada viaje.
  *
- * Son cinco, así que no siempre caben. Por encima de `xl` se muestran todas;
+ * Son cuatro, así que no siempre caben. Por encima de `xl` se muestran todas;
  * por debajo se pliegan en un único botón "Más". No se recortan a las tres que
  * quepan: una navegación que cambia de contenido según el ancho obliga a
  * aprenderla dos veces.
@@ -38,7 +37,6 @@ export const ENTRADAS_ADMIN: EntradaAdmin[] = [
   { a: '/admin/tablero', etiqueta: copy.tablero, icono: LayoutDashboard },
   { a: '/admin/corpus', etiqueta: copy.corpus, icono: ShieldCheck },
   { a: '/admin/conversaciones', etiqueta: copy.auditoria, icono: MessagesSquare },
-  { a: '/admin/al-dia', etiqueta: copy.boletines, icono: Newspaper },
   { a: '/admin/laboratorio', etiqueta: copy.laboratorio, icono: FlaskConical },
 ];
 
@@ -49,7 +47,7 @@ export function NavAdmin() {
   return (
     <>
       {/* El filete separa dos mundos: usar la herramienta y administrarla. Sin
-          él, "Al día" y "Tablero" se leen como hermanos y no lo son. */}
+          él, "Inicio" y "Tablero" se leen como hermanos y no lo son. */}
       <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-hairlineStrong xl:block" />
 
       <div className="hidden items-center gap-1 xl:flex">
@@ -76,7 +74,7 @@ export function NavAdmin() {
   );
 }
 
-/** Las mismas cinco entradas, en un desplegable, cuando no caben en línea. */
+/** Las mismas cuatro entradas, en un desplegable, cuando no caben en línea. */
 function MenuPlegado() {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

@@ -9,7 +9,7 @@ import { cn } from '../../lib/cn';
  *
  *  - **Amplia** (por defecto): título de 22 px, subtítulo debajo y acciones a
  *    la derecha. Se usa donde el contenido cabe de sobra y una línea de
- *    contexto ayuda a quien llega por primera vez — Ajustes, Perfil, Al día.
+ *    contexto ayuda a quien llega por primera vez — Ajustes, Perfil.
  *
  *  - **Compacta** (`compacto`): título y acciones en LA MISMA fila, a 15 px.
  *    Se usa en las pantallas de trabajo diario. Ahí la cabecera amplia costaba

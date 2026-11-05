@@ -60,7 +60,7 @@ const TEXTO = {
   desplegarLista: 'Desplegar la lista de archivos',
 };
 
-/** Clave propia de esta pantalla: plegar aquí no pliega Auditoría ni Boletines. */
+/** Clave propia de esta pantalla: plegar aquí no pliega Auditoría ni el Laboratorio. */
 const CLAVE_PLEGADO = 'panel-plegado:corpus';
 
 type EstadoCarga = 'cargando' | 'listo' | 'error';

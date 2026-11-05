@@ -7,14 +7,11 @@ import { RutaProtegida } from './components/RutaProtegida';
 import { LayoutApp } from './layouts/LayoutApp';
 import Login from './pages/Login';
 import Chat from './pages/Chat';
-import AlDia from './pages/AlDia';
-import AlDiaDetalle from './pages/AlDiaDetalle';
 import Ajustes from './pages/Ajustes';
 import Perfil from './pages/Perfil';
 import AdminCorpus from './pages/AdminCorpus';
 import AdminConversaciones from './pages/AdminConversaciones';
 import AdminTablero from './pages/AdminTablero';
-import AdminBoletines from './pages/AdminBoletines';
 import AdminLaboratorio from './pages/AdminLaboratorio';
 import NoEncontrada from './pages/NoEncontrada';
 import { SistemaDiseno } from './pages/SistemaDiseno';
@@ -44,7 +41,7 @@ const BASE_RUTAS = import.meta.env.BASE_URL.replace(/\/$/, '');
  *    elemento raíz: la densidad y el tamaño de texto tienen que estar puestos
  *    antes del primer pintado, o la app arranca con una talla y salta a otra.
  *  - `ChatProvider` cuelga por encima de las rutas, no dentro de /chat, para
- *    que el historial no se recargue cada vez que alguien entra a una guía y
+ *    que el historial no se recargue cada vez que alguien entra a Ajustes y
  *    vuelve. Depende de `useAuth`, así que va por dentro de `AuthProvider`.
  */
 export default function App() {
@@ -71,8 +68,6 @@ export default function App() {
 
                 <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
                   <Route path="/" element={<Navigate to="/chat" replace />} />
-                  <Route path="/al-dia" element={<AlDia />} />
-                  <Route path="/al-dia/:guiaId" element={<AlDiaDetalle />} />
                   <Route path="/ajustes" element={<Ajustes />} />
                   <Route path="/perfil" element={<Perfil />} />
 
@@ -87,10 +82,6 @@ export default function App() {
                   <Route
                     path="/admin/conversaciones"
                     element={<RutaProtegida soloAdmin><AdminConversaciones /></RutaProtegida>}
-                  />
-                  <Route
-                    path="/admin/al-dia"
-                    element={<RutaProtegida soloAdmin><AdminBoletines /></RutaProtegida>}
                   />
                   <Route
                     path="/admin/laboratorio"
