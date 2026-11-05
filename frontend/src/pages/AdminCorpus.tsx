@@ -168,11 +168,14 @@ export default function AdminCorpus() {
   }
 
   // ── Nivel 1: portada de carpetas ──
+  // PageEnter envuelve a cada hijo en su propio contenedor animado: sin pasarle
+  // al último `flex-1 min-h-0`, el área con scroll crecía con su contenido y
+  // la página no se podía desplazar hasta las carpetas de abajo.
   if (!coleccion) {
     return (
-      <PageEnter className="flex h-full flex-col">
+      <PageEnter className="flex h-full flex-col [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1 [&>*:last-child]:flex-col">
         <PageHeader compacto title={copy.titulo} subtitle={copy.subtitulo} />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8">
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-8 pt-1">
           <div className="mb-6 max-w-md">{buscador}</div>
           {cargando ? (
             <EsqueletoCarpetas />
