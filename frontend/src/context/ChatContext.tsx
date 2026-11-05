@@ -68,6 +68,18 @@ function guardarConversaciones(lista: Conversacion[]) {
  * final: "¿Cómo resumo 250 correos…?" da un título mejor sin el signo.
  */
 // Sin `export`: este archivo solo exporta el provider y su hook (Fast Refresh).
+/** En el mensaje se guarda la FICHA de cada archivo; los datos completos quedan en memoria, por id. */
+function fichasDe(preparados: AdjuntoPreparado[]): Adjunto[] {
+  return preparados.map((a) => ({
+    id: a.id,
+    nombre: a.nombre,
+    tipo: a.clase === 'imagen' ? a.tipo : a.clase === 'video' ? 'video' : a.formato,
+    tamanoBytes: a.tamanoBytes,
+    miniatura: a.clase === 'documento' ? undefined : a.miniatura,
+    formato: a.clase === 'documento' ? a.formato : a.clase,
+  }));
+}
+
 function tituloDesde(texto: string) {
   const limpio = texto.replace(/\s+/g, ' ').trim();
   const palabras = limpio.split(' ');
@@ -123,6 +135,10 @@ type ChatCtx = {
   /** Cuántas conversaciones tienen un trabajo en curso (para el indicador de la barra). */
   trabajosEnCurso: number;
 
+  /** Fijar, archivar o marcar como (no) leída. */
+  marcar: (id: string, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => void;
+  /** Saca un mensaje de la cola antes de que se mande. */
+  quitarDeCola: (conversacionId: string, mensajeId: string) => void;
   renombrar: (id: string, titulo: string) => void;
   eliminar: (id: string) => void;
   reaccionar: (conversacionId: string, mensajeId: string, reaccion: 'positiva' | 'negativa') => void;
@@ -186,7 +202,11 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     setPensoMs(pensoRef.current);
   }, [stream.estado]);
 
-  const [todas, setTodas] = useState<Conversacion[]>([]);
+  // Los DATOS se leen de inmediato; solo la pantalla espera (ver abajo). Antes
+  // la lista empezaba vacía y se llenaba tras la latencia artificial: enviar un
+  // mensaje en ese instante guardaba una lista con solo la conversación nueva y
+  // BORRABA el resto del historial.
+  const [todas, setTodas] = useState<Conversacion[]>(() => cargarConversaciones());
   const [cargando, setCargando] = useState(true);
   const [activaId, setActivaId] = useState<string | null>(null);
   const [streamEnId, setStreamEnId] = useState<string | null>(null);
@@ -217,7 +237,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
   // Espejo síncrono de la lista: `enviar` y `regenerar` necesitan leer el
   // estado más reciente dentro de un callback que puede haberse creado en un
   // render anterior, y una closure sobre `todas` les daría datos viejos.
-  const todasRef = useRef<Conversacion[]>([]);
+  const todasRef = useRef<Conversacion[]>(todas);
   todasRef.current = todas;
 
   useEffect(() => {
@@ -228,7 +248,6 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       // se acaba construyendo una pantalla que no contempla su propia carga.
       await esperar();
       if (!vivo) return;
-      setTodas(cargarConversaciones());
       setCargando(false);
     })();
     return () => {
@@ -265,6 +284,22 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
   const seleccionar = useCallback((id: string | null) => {
     setActivaId(id);
   }, []);
+
+  const marcar = useCallback(
+    (id: string, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => {
+      actualizar((previo) =>
+        previo.map((c) => {
+          if (c.id !== id) return c;
+          const siguiente = { ...c, ...cambios };
+          // Archivar desfija (una fijada archivada no tendría dónde verse).
+          if (cambios.archivada) siguiente.fijada = undefined;
+          if (cambios.fijada) siguiente.archivada = undefined;
+          return siguiente;
+        })
+      );
+    },
+    [actualizar]
+  );
 
   /**
    * Pide la respuesta y la confirma en la conversación.
@@ -330,6 +365,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           } else if (hayRespuesta) {
             siguiente.errorPendiente = undefined;
             siguiente.errorReanudable = undefined;
+          }
+          // Terminó sin que la estuvieras viendo: queda marcada como no leída.
+          if ((hayRespuesta || resultado.estado === 'error') && rutaRef.current !== `/chat/${conversacionId}`) {
+            siguiente.noLeida = true;
           }
           if (hayRespuesta) {
             const respuesta: Mensaje = {
@@ -402,9 +441,9 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     [finalizar, marcarPendiente, stream]
   );
 
-  /** Pide la respuesta de `historial` en vivo. */
-  const responder = useCallback(
-    async (conversacionId: string, historial: Mensaje[]) => {
+  /** Lo que viaja al backend para responder a `historial`. */
+  const peticionPara = useCallback(
+    (conversacionId: string, historial: Mensaje[]): Parameters<typeof stream.iniciar>[0] => {
       // Los archivos completos viven en memoria (lib/adjuntos.ts). Si la sesión
       // se recargó, ya no están: el mensaje se reenvía sin ellos.
       const adjuntos = historial[historial.length - 1]?.adjuntos ?? [];
@@ -414,7 +453,6 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           return completo ? [completo] : [];
         })
       );
-
       const { modelo, esfuerzo } = ajusteRef.current;
       const parametros: ParametrosModelo | undefined =
         puedeAjustarModelo && (modelo !== PREDETERMINADO || esfuerzo !== PREDETERMINADO)
@@ -423,27 +461,59 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
               esfuerzo: esfuerzo !== PREDETERMINADO ? esfuerzo : undefined,
             }
           : undefined;
+      return {
+        conversacionId,
+        perfil: todasRef.current.find((c) => c.id === conversacionId)?.perfil ?? PERFIL_BASE,
+        mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
+        // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
+        adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
+        imagenes,
+        documentos,
+        parametros,
+      };
+    },
+    [puedeAjustarModelo, stream]
+  );
 
+  const limpiarError = useCallback(
+    (conversacionId: string) =>
       actualizar((previo) =>
         previo.map((c) => (c.id === conversacionId ? { ...c, errorPendiente: undefined, errorReanudable: undefined } : c))
-      );
-      const perfil = todasRef.current.find((c) => c.id === conversacionId)?.perfil ?? PERFIL_BASE;
-      await enPrimerPlano(
-        conversacionId,
-        {
-          conversacionId,
-          perfil,
-          mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
-          // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
-          adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
-          imagenes,
-          documentos,
-          parametros,
-        },
-        true
-      );
+      ),
+    [actualizar]
+  );
+
+  /** Pide la respuesta de `historial` en vivo. */
+  const responder = useCallback(
+    async (conversacionId: string, historial: Mensaje[]) => {
+      limpiarError(conversacionId);
+      await enPrimerPlano(conversacionId, peticionPara(conversacionId, historial), true);
     },
-    [actualizar, enPrimerPlano, puedeAjustarModelo]
+    [enPrimerPlano, limpiarError, peticionPara]
+  );
+
+  /**
+   * Lanza la respuesta SIN ocupar la conexión en vivo (la conversación no está
+   * abierta): en cuanto el servidor confirma el trabajo, se deja de observar y
+   * lo recoge el sondeo al terminar. Es lo que usa la cola de una conversación
+   * que trabaja en segundo plano.
+   */
+  const lanzarEnSegundoPlano = useCallback(
+    async (conversacionId: string, historial: Mensaje[]) => {
+      limpiarError(conversacionId);
+      const control = new AbortController();
+      const resultado = await enviarMensaje({
+        ...peticionPara(conversacionId, historial),
+        senal: control.signal,
+        alInicio: (inicio) => {
+          if (!inicio.trabajoId) return;
+          marcarPendiente(conversacionId, inicio.trabajoId, new Date().toISOString());
+          control.abort();
+        },
+      });
+      if (resultado.estado === 'error') finalizar(conversacionId, undefined, resultado, []);
+    },
+    [finalizar, limpiarError, marcarPendiente, peticionPara]
   );
 
   /** Repite los eventos de un trabajo que terminó sin nadie mirando y guarda su respuesta. */
@@ -481,6 +551,78 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     soltarPrimerPlano();
     void enPrimerPlano(activaId, { conversacionId: activaId, mensajes: [], seguir: pendienteActivo }, false);
   }, [activaId, pendienteActivo, enPrimerPlano, soltarPrimerPlano]);
+
+  // Abrirla la da por leída. (Si se marcó a mano mientras estaba abierta, se
+  // respeta hasta que se vuelva a abrir.)
+  const noLeidaActiva = todas.find((c) => c.id === activaId)?.noLeida;
+  const ultimaAbierta = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activaId || ultimaAbierta.current === activaId) return;
+    ultimaAbierta.current = activaId;
+    if (noLeidaActiva) marcar(activaId, { noLeida: undefined });
+  }, [activaId, marcar, noLeidaActiva]);
+
+  /*
+   * COLA: lo que se escribió mientras la conversación trabajaba se manda solo,
+   * de uno en uno, cuando termina. Se decide con un efecto (y no al terminar
+   * cada respuesta) para que funcione igual al recoger un trabajo en segundo
+   * plano, tras recargar, o al despejar un error con "Continuar". Un error
+   * DETIENE la cola: lo que sigue probablemente dependía de esa respuesta.
+   */
+  const activaRef = useRef(activaId);
+  activaRef.current = activaId;
+  const despachandoRef = useRef(new Set<string>());
+  const [turnoCola, setTurnoCola] = useState(0);
+  useEffect(() => {
+    if (cargando) return;
+    for (const conv of todas) {
+      if (!conv.cola?.length || conv.trabajoPendiente || conv.errorPendiente) continue;
+      if (despachandoRef.current.has(conv.id) || (stream.activo && streamEnId === conv.id)) continue;
+      const [siguiente, ...resto] = conv.cola;
+      const creadoEn = new Date().toISOString();
+      const mensaje: Mensaje = {
+        id: siguiente.id,
+        rol: 'usuario',
+        contenido: siguiente.contenido,
+        creadoEn,
+        adjuntos: siguiente.adjuntos,
+        reaccion: null,
+      };
+      const historial = [...conv.mensajes, mensaje];
+      despachandoRef.current.add(conv.id);
+      actualizar((previo) =>
+        previo.map((c) =>
+          c.id === conv.id ? { ...c, cola: resto.length ? resto : undefined, mensajes: historial, ultimoMensajeEn: creadoEn } : c
+        )
+      );
+      // Abierta: se responde en vivo (soltando otra que estuviera en vivo).
+      // Cerrada: se lanza en segundo plano y no le roba la pantalla a nadie.
+      let envio: Promise<void>;
+      if (activaRef.current === conv.id) {
+        soltarPrimerPlano();
+        envio = responder(conv.id, historial);
+      } else {
+        envio = lanzarEnSegundoPlano(conv.id, historial);
+      }
+      void envio.finally(() => {
+        despachandoRef.current.delete(conv.id);
+        setTurnoCola((n) => n + 1); // por si quedó otro en la cola
+      });
+    }
+  }, [actualizar, cargando, lanzarEnSegundoPlano, responder, soltarPrimerPlano, stream.activo, streamEnId, todas, turnoCola]);
+
+  const quitarDeCola = useCallback(
+    (conversacionId: string, mensajeId: string) => {
+      actualizar((previo) =>
+        previo.map((c) => {
+          if (c.id !== conversacionId) return c;
+          const cola = (c.cola ?? []).filter((m) => m.id !== mensajeId);
+          return { ...c, cola: cola.length ? cola : undefined };
+        })
+      );
+    },
+    [actualizar]
+  );
 
   /*
    * Trabajos HUÉRFANOS: corren (o terminaron) en el servidor para una
@@ -575,22 +717,25 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       const contenido = texto.trim();
       if ((!contenido && !preparados.length) || !usuario) return null;
       const destino = activaId ? todasRef.current.find((c) => c.id === activaId) : undefined;
-      // Esta conversación ya trabaja: no se encima otra pregunta.
-      if (destino?.trabajoPendiente || (stream.activo && streamEnId === destino?.id)) return null;
+      // Esta conversación ya trabaja: el mensaje va a la COLA y se manda solo al terminar.
+      if (
+        destino &&
+        (destino.trabajoPendiente ||
+          (stream.activo && streamEnId === destino.id) ||
+          despachandoRef.current.has(destino.id) ||
+          destino.cola?.length)
+      ) {
+        const enCola = { id: idNuevo('m'), contenido, adjuntos: preparados.length ? fichasDe(preparados) : undefined, creadoEn: new Date().toISOString() };
+        actualizar((previo) => previo.map((c) => (c.id === destino.id ? { ...c, cola: [...(c.cola ?? []), enCola] } : c)));
+        return destino.id;
+      }
       // Otra conversación trabaja en vivo: se suelta (sigue en el servidor).
       soltarPrimerPlano();
       // Las tareas largas avisan al terminar; el permiso solo se puede pedir dentro de un clic.
       if ((destino?.perfil ?? perfilNuevoRef.current) !== PERFIL_BASE) pedirPermisoAvisos();
       // En el mensaje se guarda la FICHA de cada archivo (con su miniatura si
       // es imagen o video); los datos completos se quedan en memoria, por id.
-      const adjuntos: Adjunto[] = preparados.map((a) => ({
-        id: a.id,
-        nombre: a.nombre,
-        tipo: a.clase === 'imagen' ? a.tipo : a.clase === 'video' ? 'video' : a.formato,
-        tamanoBytes: a.tamanoBytes,
-        miniatura: a.clase === 'documento' ? undefined : a.miniatura,
-        formato: a.clase === 'documento' ? a.formato : a.clase,
-      }));
+      const adjuntos = fichasDe(preparados);
 
       const creadoEn = new Date().toISOString();
       const mensaje: Mensaje = {
@@ -721,6 +866,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       streamEnId,
       progresoTrabajos,
       trabajosEnCurso,
+      quitarDeCola,
+      marcar,
       renombrar,
       eliminar,
       reaccionar,
@@ -752,6 +899,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       streamEnId,
       progresoTrabajos,
       trabajosEnCurso,
+      quitarDeCola,
+      marcar,
       renombrar,
       eliminar,
       reaccionar,

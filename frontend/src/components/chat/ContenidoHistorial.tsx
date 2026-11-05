@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Loader2, MailOpen, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import type { Conversacion } from '../../types';
 import { cn } from '../../lib/cn';
 import { grupoDeFecha, haceCuanto, type GrupoHistorial } from '../../lib/fechas';
@@ -22,6 +22,8 @@ type Props = {
   onNueva: () => void;
   onRenombrar: (id: string, titulo: string) => void;
   onEliminar: (id: string) => void;
+  /** Fijar, archivar o marcar como (no) leída. */
+  onMarcar: (id: string, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => void;
   /** El cajón móvil ya tiene su propio encabezado; el panel de escritorio no. */
   conEncabezado?: boolean;
 };
@@ -42,8 +44,10 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
   onNueva,
   onRenombrar,
   onEliminar,
+  onMarcar,
   conEncabezado = true,
 }: Props) {
+  const [verArchivadas, setVerArchivadas] = useState(false);
   const [menuDe, setMenuDe] = useState<{ conv: Conversacion; x: number; y: number } | null>(null);
   const [renombrando, setRenombrando] = useState<Conversacion | null>(null);
   const [eliminando, setEliminando] = useState<Conversacion | null>(null);
@@ -53,11 +57,18 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
   // la versión anterior creaba 4 × N objetos Date en cada render.
   const grupos = useMemo(() => {
     const referencia = new Date(ahora);
-    return ORDEN.map((clave) => ({
-      clave,
-      items: conversaciones.filter((c) => grupoDeFecha(c.ultimoMensajeEn, referencia) === clave),
-    })).filter((g) => g.items.length > 0);
+    // Fijadas arriba; luego por fecha; las archivadas, aparte y plegadas.
+    const visibles = conversaciones.filter((c) => !c.archivada && !c.fijada);
+    const porFecha = ORDEN.map((clave) => ({
+      clave: clave as string,
+      titulo: copy.grupos[clave],
+      items: visibles.filter((c) => grupoDeFecha(c.ultimoMensajeEn, referencia) === clave),
+    }));
+    return [{ clave: 'fijadas', titulo: copy.grupoFijadas, items: conversaciones.filter((c) => c.fijada && !c.archivada) }, ...porFecha].filter(
+      (g) => g.items.length > 0
+    );
   }, [conversaciones, ahora]);
+  const archivadas = useMemo(() => conversaciones.filter((c) => c.archivada), [conversaciones]);
 
   function abrirMenu(conv: Conversacion, boton: HTMLElement) {
     const caja = boton.getBoundingClientRect();
@@ -98,8 +109,9 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
           <div className="flex flex-col gap-5">
             {grupos.map((grupo) => (
               <section key={grupo.clave}>
-                <h3 className="px-2.5 pb-1 font-ui text-12 font-medium text-text-3">
-                  {copy.grupos[grupo.clave]}
+                <h3 className="flex items-center gap-1.5 px-2.5 pb-1 font-ui text-12 font-medium text-text-3">
+                  {grupo.clave === 'fijadas' && <Pin size={11} strokeWidth={2.25} aria-hidden />}
+                  {grupo.titulo}
                 </h3>
                 <ul className="flex flex-col">
                   {grupo.items.map((conv) => (
@@ -115,6 +127,33 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
                 </ul>
               </section>
             ))}
+            {archivadas.length > 0 && (
+              <section>
+                <button
+                  type="button"
+                  onClick={() => setVerArchivadas((v) => !v)}
+                  aria-expanded={verArchivadas}
+                  className="flex w-full items-center gap-1 rounded-xs px-2.5 pb-1 font-ui text-12 font-medium text-text-3 outline-none transition-colors hover:text-text-1 focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <ChevronRight size={12} aria-hidden className={cn('transition-transform duration-150', verArchivadas && 'rotate-90')} />
+                  {copy.grupoArchivadas(archivadas.length)}
+                </button>
+                {verArchivadas && (
+                  <ul className="flex flex-col opacity-80">
+                    {archivadas.map((conv) => (
+                      <FilaConversacion
+                        key={conv.id}
+                        conv={conv}
+                        activa={conv.id === activaId}
+                        ahora={ahora}
+                        onAbrir={() => onAbrir(conv.id)}
+                        onMenu={(boton) => abrirMenu(conv, boton)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
           </div>
           </LayoutGroup>
         )}
@@ -130,6 +169,10 @@ export const ContenidoHistorial = memo(function ContenidoHistorial({
         }}
         onEliminar={(conv) => {
           setEliminando(conv);
+          setMenuDe(null);
+        }}
+        onMarcar={(conv, cambios) => {
+          onMarcar(conv.id, cambios);
           setMenuDe(null);
         }}
       />
@@ -244,7 +287,15 @@ function FilaConversacion({
           !activa && 'hover:bg-tinta/[.04]'
         )}
       >
-        <span className={cn('min-w-0 flex-1 truncate font-ui text-14', activa ? 'font-medium text-text-1' : 'text-text-2 group-hover:text-text-1')}>
+        {conv.noLeida && !activa && (
+          <span aria-label={copy.noLeida} title={copy.noLeida} className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+        )}
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate font-ui text-14',
+            activa || conv.noLeida ? 'font-medium text-text-1' : 'text-text-2 group-hover:text-text-1'
+          )}
+        >
           {conv.titulo}
         </span>
         {/* Trabaja en el servidor aunque no la estés viendo. */}
@@ -285,11 +336,13 @@ function MenuFila({
   onCerrar,
   onRenombrar,
   onEliminar,
+  onMarcar,
 }: {
   estado: { conv: Conversacion; x: number; y: number } | null;
   onCerrar: () => void;
   onRenombrar: (conv: Conversacion) => void;
   onEliminar: (conv: Conversacion) => void;
+  onMarcar: (conv: Conversacion, cambios: Partial<Pick<Conversacion, 'fijada' | 'archivada' | 'noLeida'>>) => void;
 }) {
   const reducido = useReducedMotion();
   const menu = useRef<HTMLDivElement>(null);
@@ -306,8 +359,23 @@ function MenuFila({
 
   useEffect(() => {
     if (!estado) return;
+    const conv = estado.conv;
+    // Atajos de una letra con el menú abierto, como en Claude (se ven a la derecha de cada opción).
+    const acciones: Record<string, () => void> = {
+      u: () => onMarcar(conv, { noLeida: conv.noLeida ? undefined : true }),
+      p: () => onMarcar(conv, { fijada: conv.fijada ? undefined : true }),
+      r: () => onRenombrar(conv),
+      a: () => onMarcar(conv, { archivada: conv.archivada ? undefined : true }),
+      d: () => onEliminar(conv),
+    };
     const alTeclado = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar();
+      if (e.key === 'Escape') return onCerrar();
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const accion = acciones[e.key.toLowerCase()];
+      if (accion) {
+        e.preventDefault();
+        accion();
+      }
     };
     window.addEventListener('keydown', alTeclado);
     window.addEventListener('resize', onCerrar);
@@ -317,7 +385,7 @@ function MenuFila({
       window.removeEventListener('resize', onCerrar);
       window.removeEventListener('scroll', onCerrar, true);
     };
-  }, [estado, onCerrar]);
+  }, [estado, onCerrar, onEliminar, onMarcar, onRenombrar]);
 
   if (typeof document === 'undefined') return null;
 
@@ -337,12 +405,35 @@ function MenuFila({
             exit={{ opacity: 0, transition: salidaPanel }}
             transition={reducido ? { duration: dur.fast } : springPanel}
             style={{ top: estado.y + ajuste, left: estado.x, transformOrigin: 'top right' }}
-            className="absolute w-52 -translate-x-full overflow-hidden rounded-menu bg-surface-3 p-1.5 shadow-menu"
+            className="absolute w-60 -translate-x-full overflow-hidden rounded-menu bg-surface-3 p-1.5 shadow-menu"
           >
-            <OpcionMenu icono={Pencil} onClick={() => onRenombrar(estado.conv)}>
+            <OpcionMenu
+              icono={estado.conv.noLeida ? MailOpen : Mail}
+              atajo="U"
+              onClick={() => onMarcar(estado.conv, { noLeida: estado.conv.noLeida ? undefined : true })}
+            >
+              {estado.conv.noLeida ? copy.marcarLeida : copy.marcarNoLeida}
+            </OpcionMenu>
+            <div aria-hidden className="mx-2 my-1 h-px bg-tinta/[.07]" />
+            <OpcionMenu
+              icono={estado.conv.fijada ? PinOff : Pin}
+              atajo="P"
+              onClick={() => onMarcar(estado.conv, { fijada: estado.conv.fijada ? undefined : true })}
+            >
+              {estado.conv.fijada ? copy.desfijar : copy.fijar}
+            </OpcionMenu>
+            <OpcionMenu icono={Pencil} atajo="R" onClick={() => onRenombrar(estado.conv)}>
               {copy.renombrar}
             </OpcionMenu>
-            <OpcionMenu icono={Trash2} peligro onClick={() => onEliminar(estado.conv)}>
+            <div aria-hidden className="mx-2 my-1 h-px bg-tinta/[.07]" />
+            <OpcionMenu
+              icono={estado.conv.archivada ? ArchiveRestore : Archive}
+              atajo="A"
+              onClick={() => onMarcar(estado.conv, { archivada: estado.conv.archivada ? undefined : true })}
+            >
+              {estado.conv.archivada ? copy.desarchivar : copy.archivar}
+            </OpcionMenu>
+            <OpcionMenu icono={Trash2} atajo="D" peligro onClick={() => onEliminar(estado.conv)}>
               {copy.eliminar}
             </OpcionMenu>
           </motion.div>
@@ -356,11 +447,14 @@ function MenuFila({
 function OpcionMenu({
   icono: Icono,
   peligro,
+  atajo,
   onClick,
   children,
 }: {
   icono: typeof Pencil;
   peligro?: boolean;
+  /** Tecla que la ejecuta con el menú abierto. */
+  atajo?: string;
   onClick: () => void;
   children: string;
 }) {
@@ -375,7 +469,12 @@ function OpcionMenu({
       )}
     >
       <Icono size={15} strokeWidth={2} />
-      {children}
+      <span className="flex-1 text-left">{children}</span>
+      {atajo && (
+        <kbd aria-hidden className="font-ui text-12 text-text-3">
+          {atajo}
+        </kbd>
+      )}
     </button>
   );
 }

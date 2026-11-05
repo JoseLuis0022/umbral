@@ -121,6 +121,21 @@ export interface Conversacion {
   errorPendiente?: string;
   /** Ese fallo llegó después de avanzar: se ofrece "Continuar donde se quedó". */
   errorReanudable?: boolean;
+  /** Mensajes escritos mientras trabajaba: se mandan solos, en orden, al terminar. */
+  cola?: MensajeEnCola[];
+  /** Arriba de todo, en "Fijadas". */
+  fijada?: boolean;
+  /** Fuera de la lista principal, en "Archivadas" (plegado). */
+  archivada?: boolean;
+  /** Llegó una respuesta que no se ha visto (o se marcó a mano). */
+  noLeida?: boolean;
+}
+
+export interface MensajeEnCola {
+  id: string;
+  contenido: string;
+  adjuntos?: Adjunto[];
+  creadoEn: string;
 }
 
 export interface Sesion {

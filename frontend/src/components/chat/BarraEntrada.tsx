@@ -62,6 +62,11 @@ type Props = {
   onEnviar: () => void;
   onDetener: () => void;
   transmitiendo: boolean;
+  /**
+   * Mientras trabaja, escribir y enviar PONE EN COLA el mensaje (se manda solo
+   * al terminar), como en Claude. Con el campo vacío, el botón es Detener.
+   */
+  permiteCola?: boolean;
   ajustesModelo?: AjustesModelo;
   ajustesModo?: AjustesModo;
   contexto?: ContextoSesion;
@@ -98,6 +103,7 @@ export function BarraEntrada({
   onEnviar,
   onDetener,
   transmitiendo,
+  permiteCola = false,
   ajustesModelo,
   ajustesModo,
   contexto,
@@ -117,7 +123,10 @@ export function BarraEntrada({
   const [vista, setVista] = useState<ImagenPreparada | null>(null);
   const [alto, setAlto] = useState<number | null>(null);
 
-  const puedeEnviar = (valor.trim().length > 0 || adjuntos.length > 0) && !transmitiendo && preparando === 0;
+  const hayContenido = (valor.trim().length > 0 || adjuntos.length > 0) && preparando === 0;
+  const puedeEnviar = hayContenido && (!transmitiendo || permiteCola);
+  // Con algo escrito mientras trabaja, el botón encola; vacío, detiene.
+  const mostrarDetener = transmitiendo && !puedeEnviar;
 
   // Crecimiento hasta 8 líneas y scroll a partir de ahí, medido contra el
   // line-height computado para que siga siendo cierto si cambia la escala. El
@@ -348,7 +357,8 @@ export function BarraEntrada({
             )}
             <AnilloContexto contexto={contexto} anclaRef={composer} />
             <BotonEnviar
-              transmitiendo={transmitiendo}
+              transmitiendo={mostrarDetener}
+              encolar={transmitiendo && puedeEnviar}
               puedeEnviar={puedeEnviar}
               onEnviar={onEnviar}
               onDetener={onDetener}
@@ -393,11 +403,14 @@ export function BarraEntrada({
  */
 export function BotonEnviar({
   transmitiendo,
+  encolar = false,
   puedeEnviar,
   onEnviar,
   onDetener,
 }: {
   transmitiendo: boolean;
+  /** Enviar ahora pone el mensaje en cola (el agente sigue trabajando). */
+  encolar?: boolean;
   puedeEnviar: boolean;
   onEnviar: () => void;
   onDetener: () => void;
@@ -411,8 +424,8 @@ export function BotonEnviar({
   return (
     <motion.button
       type="button"
-      aria-label={transmitiendo ? copy.detener : copy.enviar}
-      title={transmitiendo ? copy.detener : copy.enviar}
+      aria-label={transmitiendo ? copy.detener : encolar ? copy.encolar : copy.enviar}
+      title={transmitiendo ? copy.detener : encolar ? copy.encolar : copy.enviar}
       onClick={transmitiendo ? onDetener : onEnviar}
       disabled={!activo}
       animate={reducido ? undefined : { scale: puedeEnviar || transmitiendo ? 1 : 0.9 }}

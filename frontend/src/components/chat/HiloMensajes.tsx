@@ -17,6 +17,7 @@ import {
   RespuestaEnVivo,
 } from './BurbujaMensaje';
 import { ArchivosMensaje } from './ArchivosMensaje';
+import { BarraTrabajo } from './BarraTrabajo';
 
 type Props = {
   /** Cambiar de conversación reinicia el scroll; por eso entra como prop y no se deduce. */
@@ -46,6 +47,8 @@ type Props = {
   onDesplazado?: (desplazado: boolean) => void;
   /** Qué pintar cuando no hay mensajes (el aviso de conversación inexistente). */
   vacio: ReactNode;
+  /** Tarea en curso en el servidor: su tarjeta de progreso aparece si se alarga. */
+  trabajo?: { desde?: string; pasos: number } | null;
 };
 
 /**
@@ -80,6 +83,7 @@ export function HiloMensajes({
   onReaccion,
   onDesplazado,
   vacio,
+  trabajo,
 }: Props) {
   const reducido = useReducedMotion();
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } = useStickToBottom({
@@ -198,6 +202,10 @@ export function HiloMensajes({
                   procesoAbierto={procesoAbierto}
                   onAlternarProceso={alternarProceso}
                 />
+              )}
+              {/* Progreso de una tarea larga, donde va a estar la respuesta. */}
+              {trabajo && (
+                <BarraTrabajo activa={!error} desde={trabajo.desde} pasos={trabajo.pasos} />
               )}
               {/* Las tarjetas aparecen en cuanto el agente manda el archivo,
                   aunque todavía no escriba: es lo primero que el usuario pidió. */}

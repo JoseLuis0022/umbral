@@ -8,8 +8,8 @@ import { dur, ease, springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { BarraTrabajo } from '../components/chat/BarraTrabajo';
 import { pasosPrincipales } from '../lib/proceso';
+import { ColaMensajes } from '../components/chat/ColaMensajes';
 import { Button, Drawer, EmptyState, IconButton, useEsCompacto, useToast } from '../components/ui';
 import {
   BarraEntrada,
@@ -81,6 +81,8 @@ export default function Chat() {
     cambiarPerfil,
     streamEnId,
     progresoTrabajos,
+    quitarDeCola,
+    marcar,
     renombrar,
     eliminar,
     reaccionar,
@@ -202,7 +204,8 @@ export default function Chat() {
   );
 
   function alEnviar() {
-    if ((!texto.trim() && !adjuntos.length) || ocupado) return;
+    // Ocupada no bloquea: `enviar` lo pone en la cola y se manda al terminar.
+    if (!texto.trim() && !adjuntos.length) return;
     // `enviar` agrega el mensaje del usuario de forma síncrona y devuelve el id:
     // el mensaje aparece en el hilo en el mismo frame del clic, muy por debajo
     // de los 100 ms, y la espera de la respuesta ya es un estado visible.
@@ -256,6 +259,7 @@ export default function Chat() {
       onNueva={nuevaSesion}
       onRenombrar={alRenombrar}
       onEliminar={alEliminar}
+      onMarcar={marcar}
     />
   );
 
@@ -280,6 +284,7 @@ export default function Chat() {
         onEnviar={alEnviar}
         onDetener={detener}
         transmitiendo={ocupado}
+        permiteCola
         autoFoco
         senalFoco={senalFoco}
         sinAviso={enBlanco}
@@ -369,7 +374,6 @@ export default function Chat() {
           </h1>
 
         </header>
-        <BarraTrabajo visible={trabajandoAqui} desde={conversacionActiva?.trabajoDesde} pasos={pasosAqui} />
 
         {enBlanco ? (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -399,10 +403,17 @@ export default function Chat() {
               onReaccion={alReaccionar}
               onDesplazado={setDesplazado}
               vacio={vacio}
+              trabajo={trabajandoAqui ? { desde: conversacionActiva?.trabajoDesde, pasos: pasosAqui } : null}
             />
 
             <div className="shrink-0 px-4 pb-4 lg:px-6">
               <div className="mx-auto w-full max-w-[720px]">
+                {!noEncontrada && conversacionActiva?.cola?.length ? (
+                  <ColaMensajes
+                    cola={conversacionActiva.cola}
+                    onQuitar={(mensajeId) => quitarDeCola(conversacionActiva.id, mensajeId)}
+                  />
+                ) : null}
                 {noEncontrada ? null : composer}
               </div>
             </div>
@@ -429,6 +440,7 @@ export default function Chat() {
             onNueva={nuevaSesion}
             onRenombrar={alRenombrar}
             onEliminar={alEliminar}
+            onMarcar={marcar}
             conEncabezado={false}
           />
         </div>

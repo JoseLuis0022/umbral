@@ -84,7 +84,8 @@ export function LayoutApp() {
           doble cromo. La única línea aparece cuando el hilo tiene scroll. */}
       <header
         className={cn(
-          'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 lg:px-6',
+          // El fondo y la línea cambian entre el chat y lo demás: con transición, no de golpe.
+          'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 transition-colors duration-200 lg:px-6',
           scrollPropio ? 'border-transparent bg-bg' : 'border-hairline bg-surface-2'
         )}
       >

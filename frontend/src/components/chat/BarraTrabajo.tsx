@@ -5,20 +5,25 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { minutoLegible } from '../../lib/adjuntos';
 import { chat as copy } from '../../copy';
 
+/** Antes de esto una tarea no es "larga": la espera normal del chat basta. */
+export const UMBRAL_TAREA_LARGA_S = 15;
+
 /**
- * Barra de "esta conversación está trabajando", bajo la cabecera del chat.
+ * Progreso de una tarea LARGA, en el lugar donde va a aparecer la respuesta
+ * (como el informe de una investigación a fondo), no en la cabecera.
  *
- * Es INDETERMINADA a propósito: el agente no sabe de antemano cuántos pasos
- * va a dar (decide sobre la marcha), así que un porcentaje sería inventado.
- * Lo honesto es lo que sí se mide: cuánto lleva y cuántos pasos ha dado.
- * También dice lo que más preocupa en una tarea larga: que puedes irte.
+ *  - Solo aparece pasados UMBRAL_TAREA_LARGA_S: una pregunta de 5 segundos no
+ *    necesita que le expliquen que puede cerrar la página.
+ *  - Es INDETERMINADA a propósito: el agente decide sobre la marcha cuántos
+ *    pasos dar, así que un porcentaje sería inventado. Lo honesto es lo que sí
+ *    se mide: cuánto lleva y cuántos pasos ha dado.
  */
 export const BarraTrabajo = memo(function BarraTrabajo({
-  visible,
+  activa,
   desde,
   pasos,
 }: {
-  visible: boolean;
+  activa: boolean;
   /** Inicio del trabajo (ISO). */
   desde?: string;
   pasos: number;
@@ -26,29 +31,38 @@ export const BarraTrabajo = memo(function BarraTrabajo({
   const reducido = useReducedMotion();
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => {
-    if (!visible) return;
+    if (!activa) return;
+    setAhora(Date.now());
     const t = setInterval(() => setAhora(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [visible]);
+  }, [activa]);
 
   const segundos = desde ? Math.max(0, (ahora - new Date(desde).getTime()) / 1000) : 0;
+  const visible = activa && segundos >= UMBRAL_TAREA_LARGA_S;
 
   return (
     <AnimatePresence initial={false}>
       {visible && (
         <motion.div
-          key="barra-trabajo"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0, transition: { duration: dur.fast, ease } }}
+          key="tarea-larga"
+          initial={reducido ? { opacity: 0 } : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, transition: { duration: dur.fast, ease } }}
           transition={reducido ? { duration: dur.fast } : springPanel}
-          className="shrink-0 overflow-hidden"
           role="status"
           aria-live="polite"
+          className="flex flex-col gap-3 rounded-tarjeta bg-surface-1 p-4 shadow-anillo"
         >
-          <div className="relative h-0.5 w-full overflow-hidden bg-accent-soft">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-ui text-13">
+            <span className="font-medium text-text-1">{copy.trabajando}</span>
+            <span className="tabular-nums text-text-2">
+              {minutoLegible(segundos)}
+              {pasos > 0 && <> · {copy.pasos(pasos)}</>}
+            </span>
+          </div>
+          <div className="relative h-1 w-full overflow-hidden rounded-full bg-accent-soft">
             {reducido ? (
-              <div className="absolute inset-0 animate-pulse bg-accent/60" />
+              <div className="absolute inset-0 animate-pulse rounded-full bg-accent/50" />
             ) : (
               <motion.div
                 className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
@@ -58,14 +72,7 @@ export const BarraTrabajo = memo(function BarraTrabajo({
               />
             )}
           </div>
-          <div className="mx-auto flex w-full max-w-[720px] flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 py-2 font-ui text-12 lg:px-6">
-            <span className="font-medium text-text-1">{copy.trabajando}</span>
-            <span className="tabular-nums text-text-2">
-              {minutoLegible(segundos)}
-              {pasos > 0 && <> · {copy.pasos(pasos)}</>}
-            </span>
-            <span className="text-text-3">{copy.trabajandoDetalle}</span>
-          </div>
+          <p className="font-ui text-12 leading-snug text-text-3">{copy.trabajandoDetalle}</p>
         </motion.div>
       )}
     </AnimatePresence>
