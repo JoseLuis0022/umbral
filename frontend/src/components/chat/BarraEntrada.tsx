@@ -345,7 +345,7 @@ export function BarraEntrada({
  * El área táctil se extiende a 44 px con un pseudo-elemento: el círculo se ve
  * de 32, pero el dedo no tiene que acertarle a 32.
  */
-function BotonEnviar({
+export function BotonEnviar({
   transmitiendo,
   puedeEnviar,
   onEnviar,

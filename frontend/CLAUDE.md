@@ -95,7 +95,7 @@ Las imágenes que el markdown referencia con ruta absoluta (`/…`) las reubica 
 ### Dónde vive el estilo
 
 - `src/index.css` — tokens de color, tipografía y sombras. **Todo estilo global va dentro de `@layer base`** o le gana en silencio a las utilidades de Tailwind. Las excepciones (zoom por `data-texto`, densidad de tablas) están fuera a propósito y comentadas.
-- `tailwind.config.js` — escala tipográfica **cerrada** (12/13/14/15/22/28/40 + `display` fluido; no se inventan tamaños intermedios), radios nombrados (`celda`/`control`/`tarjeta`/`modal`/`pastilla`, anidados en ese orden) y elevación en tres capas.
+- `tailwind.config.js` — escala tipográfica **cerrada** (12/13/14/15/22/28/40 + `display` fluido; no se inventan tamaños intermedios) con tres excepciones documentadas: lectura 16/26 y 18/26 y el saludo 32/40 del chat; radios nombrados y anidados (`xs`/`celda`/`control`/`menu`/`burbuja`/`tarjeta`/`composer`/`modal`/`pastilla`); elevación en tres capas más las sombras con anillo (`anillo`, `composer`, `composer-foco`, `menu`: el borde es la primera capa de la sombra, nunca `border` + sombra), y el color `tinta` para tintes con opacidad (`bg-tinta/[.05]`; `bg-text-1/10` no genera nada). La fuente de verdad del rediseño es `../docs/especificacion-diseno.md`.
 - `src/lib/motion.ts` — springs y duraciones desde una fuente única. Nada de transiciones ad-hoc en un componente.
 - `src/components/ui/` — sistema de diseño; se importa desde su `index.ts`. **Si un componente no aparece en `/_dev/sistema-diseno`, no existe en el sistema.**
 

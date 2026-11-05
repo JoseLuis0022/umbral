@@ -1,10 +1,10 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { FlaskConical, ScissorsLineDashed } from 'lucide-react';
-import { Markdown } from '../../Markdown';
-import { EmptyState, Skeleton } from '../../ui';
-import { cn } from '../../../lib/cn';
-import { springSnappy } from '../../../lib/motion';
+import { Markdown, MarkdownEnVivo } from '../../Markdown';
+import { EmptyState } from '../../ui';
+import { BurbujaTrabajando, PensandoUmbral } from '../../chat/IndicadorPensando';
+import { entradaMensaje, entradaMensajeUsuario, entradaReducida, springPress } from '../../../lib/motion';
 import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { CadenaAgentes, ResumenCadena } from './CadenaAgentes';
 import { Metricas } from './Metricas';
@@ -36,7 +36,7 @@ export function HiloPrueba({
   return (
     // `role="log"`: los mensajes se anuncian conforme se añaden, sin robar el
     // foco de quien está escribiendo la siguiente pregunta.
-    <div role="log" aria-live="polite" aria-relevant="additions" className="flex flex-col gap-8">
+    <div role="log" aria-live="polite" aria-relevant="additions" className="mx-auto flex w-full max-w-[680px] flex-col gap-7">
       {mensajes.map((mensaje) =>
         mensaje.rol === 'usuario' ? (
           <PreguntaPrueba key={mensaje.id} mensaje={mensaje} />
@@ -51,7 +51,7 @@ export function HiloPrueba({
           {textoParcial ? (
             <RespuestaViva texto={textoParcial} transmitiendo={estado === 'transmitiendo'} />
           ) : (
-            <EsqueletoRespuesta conCadena={cadenaViva.length > 0} />
+            <EsperaPrueba cadena={cadenaViva} />
           )}
         </div>
       )}
@@ -70,15 +70,10 @@ export function HiloPrueba({
 const PreguntaPrueba = memo(function PreguntaPrueba({ mensaje }: { mensaje: MensajeLab }) {
   const reducido = useReducedMotion();
   return (
-    <motion.article
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springSnappy}
-      className="flex justify-end"
-    >
-      <div className="max-w-[85%] rounded-tarjeta rounded-br-celda border border-hairline bg-surface-1 px-4 py-2.5 shadow-1">
+    <motion.article {...(reducido ? entradaReducida : entradaMensajeUsuario)} className="flex justify-end">
+      <div className="max-w-[80%] rounded-burbuja bg-burbuja px-4 py-2.5">
         {/* Lo que se escribió se conserva tal cual: la pregunta no es markdown. */}
-        <p className="whitespace-pre-wrap break-words font-ui text-15 leading-relaxed text-text-1">
+        <p className="whitespace-pre-wrap break-words font-ui text-15 leading-6 text-text-1">
           {mensaje.contenido}
         </p>
       </div>
@@ -89,12 +84,7 @@ const PreguntaPrueba = memo(function PreguntaPrueba({ mensaje }: { mensaje: Mens
 const RespuestaPrueba = memo(function RespuestaPrueba({ mensaje }: { mensaje: MensajeLab }) {
   const reducido = useReducedMotion();
   return (
-    <motion.article
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springSnappy}
-      className="flex flex-col gap-3"
-    >
+    <motion.article {...(reducido ? entradaReducida : entradaMensaje)} className="flex flex-col gap-3">
       {mensaje.contenido ? (
         <Markdown>{mensaje.contenido}</Markdown>
       ) : (
@@ -138,50 +128,30 @@ const RespuestaViva = memo(function RespuestaViva({
         </span>
       )}
       <div aria-hidden={transmitiendo}>
-        <Markdown>{texto}</Markdown>
+        {/* Por bloques, como en /chat: solo el último se vuelve a analizar. */}
+        <MarkdownEnVivo>{texto}</MarkdownEnVivo>
       </div>
-      {/* Cursor por CSS y no por keyframes de Framer: este componente se
-          re-renderiza una vez por frame mientras llega texto, y un
-          `animate={{ opacity: [1, 0.15, 1] }}` crea un array NUEVO en cada uno
-          de esos renders. Framer lo lee como otro destino y reinicia el
-          parpadeo sesenta veces por segundo, así que el cursor se quedaba
-          clavado sin llegar a parpadear — y recalculando la animación cada
-          frame. En CSS vive en el compositor y sobrevive a los renders. Es el
-          mismo arreglo, y por lo mismo, que en el chat. */}
-      {transmitiendo && (
-        <span
-          aria-hidden
-          className="ml-0.5 inline-block h-[15px] w-[7px] translate-y-[2px] animate-parpadeo rounded-[2px] bg-accent align-baseline"
-        />
-      )}
+      {/* La misma burbujita de "sigue trabajando" que /chat, en CSS: este
+          componente se re-renderiza una vez por frame mientras llega texto. */}
+      {transmitiendo && <BurbujaTrabajando etiqueta={copyLab.escribiendo} className="mt-3" />}
     </div>
   );
 });
 
 /**
- * Espera antes del primer fragmento. Las barras miden 16 px con 6 px de
- * separación — exactamente el interlineado de 22 px del cuerpo — para que al
- * llegar el texto real la altura no cambie y el hilo no brinque.
- *
- * Cuando la cadena de agentes ya está informando quién trabaja, el rótulo
- * "Preparando respuesta…" sobra: sería decir dos veces lo mismo.
+ * Espera antes del primer fragmento: el isotipo vivo de /chat, sin barras de
+ * skeleton. La frase es el paso que corre ahora (aquí con su dato técnico,
+ * porque es una pantalla para medir) o "Preparando respuesta…".
  */
-function EsqueletoRespuesta({ conCadena }: { conCadena: boolean }) {
-  return (
-    <div className="flex flex-col gap-3">
-      {!conCadena && (
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
-          <span className="font-ui text-13 text-text-3">{copyLab.pensando}</span>
-        </div>
-      )}
-      <div className="flex flex-col gap-1.5" aria-hidden>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-[92%]" />
-        <Skeleton className="h-4 w-[68%]" />
-      </div>
-    </div>
-  );
+function EsperaPrueba({ cadena }: { cadena: PasoAgente[] }) {
+  let frase: string = copyLab.pensando;
+  for (let i = cadena.length - 1; i >= 0; i--) {
+    if (cadena[i].estado === 'trabajando') {
+      frase = cadena[i].nombre;
+      break;
+    }
+  }
+  return <PensandoUmbral frase={frase} />;
 }
 
 /**
@@ -202,13 +172,9 @@ export function EstadoVacioLab({ onEjemplo }: { onEjemplo: (pregunta: string) =>
               <motion.button
                 type="button"
                 onClick={() => onEjemplo(pregunta)}
-                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.97 }}
-                transition={springSnappy}
-                className={cn(
-                  'rounded-control border border-hairline bg-surface-1 px-3 py-2 font-ui text-13 text-text-2 shadow-1',
-                  'transition-colors duration-150 hover:border-accent/30 hover:bg-accent-soft hover:text-accent-fg'
-                )}
+                transition={springPress}
+                className="min-h-9 rounded-pastilla bg-surface-1 px-3.5 py-1.5 font-ui text-13 text-text-2 shadow-anillo transition-colors duration-[120ms] hover:bg-tinta/[.04] hover:text-text-1"
               >
                 {pregunta}
               </motion.button>

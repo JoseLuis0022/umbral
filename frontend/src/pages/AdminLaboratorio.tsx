@@ -554,7 +554,7 @@ export default function AdminLaboratorio() {
           {/* ── Izquierda: conversación de prueba ── */}
           <section
             aria-label={copyLab.conversacionTitulo}
-            className="flex min-h-0 flex-col overflow-hidden rounded-tarjeta border border-hairline bg-surface-1 shadow-1"
+            className="flex min-h-0 flex-col overflow-hidden rounded-modal bg-surface-1 shadow-anillo"
           >
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline px-4 py-2 lg:px-5">
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -602,7 +602,10 @@ export default function AdminLaboratorio() {
               )}
             </div>
 
-            <footer className="flex shrink-0 flex-col gap-2 border-t border-hairline px-4 py-3 lg:px-6">
+            {/* Sin hairline encima: el composer ya se separa del hilo con su
+                propia sombra, como en /chat. */}
+            <footer className="flex shrink-0 flex-col gap-2 px-4 pb-4 pt-1 lg:px-6">
+              <div className="mx-auto flex w-full max-w-[720px] flex-col gap-2">
               {/* `role="alert"` en la envoltura y no en el Banner: el error
                   aparece sin que nadie mire el pie de la pantalla, y sin esto un
                   lector de pantalla no lo anunciaría nunca. */}
@@ -636,6 +639,7 @@ export default function AdminLaboratorio() {
                 transmitiendo={activo}
                 senalFoco={senalFoco}
               />
+              </div>
             </footer>
           </section>
 
@@ -644,6 +648,7 @@ export default function AdminLaboratorio() {
             clave={CLAVE_PLEGADO}
             ancho={{ lg: 360, xl: 400 }}
             lado="derecha"
+            className="rounded-modal"
             textoPlegar={copyLab.panelPlegar}
             textoDesplegar={copyLab.panelDesplegar}
             carril={({ desplegar }) => (
@@ -658,7 +663,7 @@ export default function AdminLaboratorio() {
           >
             <aside
               aria-label={copyLab.panelTitulo}
-              className="hidden min-h-0 flex-col overflow-hidden rounded-tarjeta border border-hairline bg-surface-1 shadow-1 lg:flex lg:h-full"
+              className="hidden min-h-0 flex-col overflow-hidden rounded-modal bg-surface-1 shadow-anillo lg:flex lg:h-full"
             >
               {/* `lg:pl-12` reserva la esquina para el botón de plegar, que
                   flota sobre ella. Es el borde INTERIOR de este panel: al estar

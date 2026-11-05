@@ -76,9 +76,10 @@ export default {
     // espaciado entre bloques" es una convención de código, no una restricción
     // técnica; los medios-pasos siguen disponibles para ajustes finos de iconos.
 
-    // Escala tipográfica CERRADA: 7 tamaños, ni uno más. Cuatro para cuerpo e
-    // interfaz (12/13/14/15) y tres para jerarquía (22/28/40, ya con peso 600
-    // horneado). La jerarquía se construye con peso y tamaño, nunca con color.
+    // Escala tipográfica CERRADA. Cuatro tamaños para cuerpo e interfaz
+    // (12/13/14/15) y tres para jerarquía (22/28/40, ya con peso 600
+    // horneado), más las excepciones de lectura y saludo documentadas abajo.
+    // La jerarquía se construye con peso y tamaño, nunca con color.
     //
     fontSize: {
       12: ['12px', { lineHeight: '16px' }],

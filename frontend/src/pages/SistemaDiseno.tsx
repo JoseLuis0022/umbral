@@ -6,6 +6,14 @@ import {
   Skeleton, StatusPill, Tabs, Textarea, useToast, type Column,
 } from '../components/ui';
 import { PageHeader } from '../components/shell/PageHeader';
+import { BurbujaTrabajando, IsotipoPensando, PensandoUmbral, ProcesoAgente } from '../components/chat/IndicadorPensando';
+import type { ItemProceso } from '../types';
+
+const PROCESO_EJEMPLO: ItemProceso[] = [
+  { tipo: 'pensamiento', texto: 'Primero reviso el índice de temas para ubicar la clase, luego leo su resumen.' },
+  { tipo: 'paso', id: 'a', clase: 'herramienta', nombre: 'Read', descripcion: 'Revisando el índice de temas', detalle: null, estado: 'listo', dentroDe: null },
+  { tipo: 'paso', id: 'b', clase: 'herramienta', nombre: 'Grep', descripcion: 'Buscando «mediana» en el material', detalle: null, estado: 'listo', dentroDe: null },
+];
 
 /**
  * Vista previa del sistema de diseño. No es una pantalla de producto: es la
@@ -78,16 +86,24 @@ export function SistemaDiseno() {
 
         <Seccion
           titulo="Tipografía"
-          descripcion="Una sola familia, Google Sans. Siete tamaños, ni uno más — la jerarquía se construye con peso y tamaño, nunca con color ni cambiando de letra."
+          descripcion="Una sola familia, Google Sans. Escala cerrada de interfaz (12–15 y 22/28/40) más dos excepciones documentadas: los tamaños de LECTURA 16/26 y 18/26 (respuesta del agente y documentos, ≈72 caracteres por línea a 680 px) y el saludo 32/40 del chat. La jerarquía se construye con peso y tamaño, nunca con color."
         >
           <Card className="flex flex-col gap-3 p-6">
             <p className="font-ui text-40 text-text-1">Umbral</p>
+            <p className="font-ui text-32 text-text-1">Saludo 32/40 — estado vacío del chat</p>
             <p className="font-ui text-28 text-text-1">Titular de sección</p>
             <p className="font-ui text-22 text-text-1">Título de pantalla</p>
             <p className="font-ui text-15 font-medium text-text-1">
               Encabezado de tarjeta 15 — el escalón más chico de la jerarquía.
             </p>
-            <p className="font-ui text-15 text-text-1">Cuerpo 15 — el tamaño por defecto de formularios y contenido.</p>
+            <div className="max-w-[680px] rounded-tarjeta bg-bg p-5">
+              <p className="font-ui text-18 text-text-1">Lectura h2 18/26</p>
+              <p className="mt-2 font-ui text-16 text-text-1">
+                Lectura 16/26 — el cuerpo de la respuesta del agente. A 680 px de ancho caben unos setenta y dos
+                caracteres por línea: lo bastante para no cortar las ideas y lo bastante corto para no perder el renglón.
+              </p>
+            </div>
+            <p className="font-ui text-15 text-text-1">Cuerpo 15 — el tamaño por defecto de formularios y del mensaje del usuario.</p>
             <p className="font-ui text-14 text-text-1">Cuerpo 14 — interfaz densa y botones.</p>
             <p className="font-ui text-13 text-text-2">Secundario 13 — etiquetas, celdas de tabla, ayudas.</p>
             <p className="font-ui text-12 text-text-3">Metadato 12 — solo texto no esencial.</p>
@@ -96,7 +112,39 @@ export function SistemaDiseno() {
           </Card>
         </Seccion>
 
-        <Seccion titulo="Elevación y radios" descripcion="Tres capas de sombra, cada una con dos sombras superpuestas y teñidas de pizarra. Los radios se anidan: modal › tarjeta › control › celda.">
+        <Seccion titulo="Elevación y radios" descripcion="Tres capas de sombra, cada una con dos sombras superpuestas y teñidas de pizarra, más las sombras con anillo (el borde es la primera capa: borde y sombra se componen sin doblarse). Los radios se anidan: radio interior = radio exterior − relleno.">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              ['rounded-xs', 'xs · 6', 'Código en línea, kbd'],
+              ['rounded-celda', 'celda · 8', 'Filas de menú, acciones'],
+              ['rounded-control', 'control · 10', 'Botones, inputs'],
+              ['rounded-menu', 'menu · 14', 'Menús y popovers'],
+              ['rounded-burbuja', 'burbuja · 20', 'Mensaje del usuario'],
+              ['rounded-tarjeta', 'tarjeta · 20', 'Tarjetas'],
+              ['rounded-composer', 'composer · 24', 'Barra de entrada'],
+              ['rounded-modal', 'modal · 28', 'Modales y hojas'],
+              ['rounded-pastilla', 'pastilla', 'StatusPill y chips'],
+            ].map(([clase, nombre, uso]) => (
+              <div key={clase} className="flex flex-col gap-2">
+                <div className={`h-14 bg-surface-1 shadow-anillo ${clase}`} />
+                <p className="font-ui text-13 font-medium text-text-1">{nombre}</p>
+                <p className="-mt-1.5 font-ui text-12 text-text-3">{uso}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+            <div className="rounded-composer bg-surface-1 p-6 shadow-composer">
+              <p className="font-ui text-14 font-semibold text-text-1">shadow-composer</p>
+              <p className="mt-1 font-ui text-13 text-text-2">Con foco pasa a shadow-composer-foco: se asienta, sin anillo azul.</p>
+            </div>
+            <div className="rounded-menu bg-surface-3 p-6 shadow-menu">
+              <p className="font-ui text-14 font-semibold text-text-1">shadow-menu</p>
+              <p className="mt-1 font-ui text-13 text-text-2">Menús, popovers, &quot;Ir al último&quot;.</p>
+            </div>
+            <div className="rounded-burbuja bg-burbuja px-4 py-2.5">
+              <p className="font-ui text-15 leading-6 text-text-1">Burbuja del usuario: gris pizarra, sin borde ni sombra.</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-tarjeta bg-surface-1 p-6 shadow-1">
               <p className="font-ui text-14 font-semibold text-text-1">Elevación 1</p>
@@ -110,6 +158,43 @@ export function SistemaDiseno() {
               <p className="font-ui text-14 font-semibold text-text-1">Elevación 3</p>
               <p className="mt-1 font-ui text-13 text-text-2">Flotante: modal, cajón, toast.</p>
             </div>
+          </div>
+        </Seccion>
+
+        <Seccion
+          titulo="La espera del agente"
+          descripcion="Sin skeleton: un chat no sabe cuánto medirá la respuesta. El isotipo vivo (28 px) se dibuja una vez y luego un pulso de luz recorre la M —cada nodo crece al paso y en el valle sale una onda—, con la frase de actividad en brillo. Al llegar el primer token se encoge hasta la cabecera del Proceso (16 px, quieto). La burbujita dice que sigue trabajando, también a media respuesta. Con movimiento reducido todo pasa a un latido de opacidad."
+        >
+          <Card className="flex flex-col gap-6 p-6">
+            <div className="flex flex-wrap items-center gap-8">
+              <PensandoUmbral frase="Buscando «mediana» en el material…" />
+              <span className="flex items-center gap-3 text-accent">
+                <IsotipoPensando tamano={28} />
+                <IsotipoPensando tamano={16} animado={false} className="text-text-3" />
+              </span>
+              <BurbujaTrabajando etiqueta="Escribiendo" />
+              <BurbujaTrabajando etiqueta="Trabajando" actividad="Leyendo el resumen de la Clase 12…" />
+            </div>
+            <div className="max-w-[680px]">
+              <ProcesoAgente items={PROCESO_EJEMPLO} modo="terminado" pensoMs={8200} />
+            </div>
+          </Card>
+        </Seccion>
+
+        <Seccion titulo="Motion" descripcion="Un resorte por papel (src/lib/motion.ts). El hover nunca mueve nada: solo cambia el color en 120 ms.">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ['springPress', '700 / 40 / 0.6', 'Respuesta a un dedo: whileTap scale .96–.97.'],
+              ['springMensaje', '320 / 32 / 1', 'Mensajes que entran: y 12→0 y blur 2→0.'],
+              ['springPanel', '420 / 36 / 0.8', 'Menús y popovers desde su ancla; salen en 120 ms.'],
+              ['springLayout', '380 / 38', 'Lo que cambia de sitio o tamaño: composer, Proceso.'],
+            ].map(([nombre, valores, uso]) => (
+              <div key={nombre} className="rounded-tarjeta bg-surface-1 p-5 shadow-anillo">
+                <p className="font-mono text-13 text-text-1">{nombre}</p>
+                <p className="font-ui text-12 tabular-nums text-text-3">{valores}</p>
+                <p className="mt-2 font-ui text-13 text-text-2">{uso}</p>
+              </div>
+            ))}
           </div>
         </Seccion>
 

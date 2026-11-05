@@ -15,7 +15,9 @@ metadata: { "tags": "diseño, apple-feel, motion, framer-motion, tailwind, umbra
 # Reglas de Diseño "Apple-Feel" para Sistemas Web / PWA
 
 Manual de referencia para construir sistemas web que se sientan frescos, fluidos y pulidos.
-La referencia viva de los componentes vive en la ruta `/sistema-diseno` de la app. Dividido en 4 pilares: **Rendimiento**, **Motion**, **Diseño Visual**, y **Estados & Resiliencia**.
+La referencia viva de los componentes vive en la ruta `/_dev/sistema-diseno` de la app.
+**Donde este manual y `docs/especificacion-diseno.md` difieran, manda la especificación**
+(tokens de radio, sombras, escala de lectura, motion del chat). Dividido en 4 pilares: **Rendimiento**, **Motion**, **Diseño Visual**, y **Estados & Resiliencia**.
 
 Este manual aplica a **todas** las pantallas TSX de la maqueta de Umbral.
 Se heredó del sistema de SGO CUSOL, donde se escribió y se probó a lo largo de
@@ -65,7 +67,11 @@ Tips:
 
 No dejes ver "nada", deja ver "algo".
 
-- Skeleton loading (bloques grises con shimmer)
+- Skeleton loading (bloques grises con shimmer) **solo para listas y tablas**:
+  contenido cuya forma se conoce de antemano
+- **La respuesta de un agente NO lleva skeleton**: no se sabe cuánto medirá y
+  las barras prometen una forma falsa. Su espera es `PensandoUmbral` (isotipo
+  vivo + frase de actividad), ver `docs/especificacion-diseno.md` §3
 - Listas placeholder con altura real
 - Imágenes con blur preview (LQIP)
 - **Clave: el layout no brinca.** CLS ≈ 0 se siente premium
@@ -118,6 +124,11 @@ Lo que no se mide, no se mejora.
 ### 2.2 Microinteracciones consistentes
 
 - Hover/pressed states claros en todo elemento interactivo
+- **El hover solo cambia el color (120 ms)**; nada sube `y: -1`. El press
+  comprime con `springPress` (`scale .96–.97`)
+- Un resorte por papel (`src/lib/motion.ts`): `springPress` (dedo),
+  `springMensaje` (lo que entra al hilo), `springPanel` (menús desde su ancla,
+  salida tween de 120 ms), `springLayout` (lo que cambia de sitio o tamaño)
 - Animaciones cortas: **150–250 ms**
 - Misma curva, misma duración en toda la app
 - Sonidos/haptics si aplica
@@ -133,8 +144,16 @@ Las transiciones explican de dónde viene y a dónde va cada cosa:
 
 ### 2.4 Respeta reduced motion
 
-- `prefers-reduced-motion`: reemplaza movimiento con transiciones de opacidad
-- Nunca elimines el feedback, solo el desplazamiento
+- `prefers-reduced-motion` **y** el ajuste de la app (`data-movimiento='reducido'`,
+  leído por `useReducedMotion()`): reemplaza movimiento con transiciones de opacidad
+- Nunca elimines el feedback, solo el desplazamiento: las señales de espera
+  (`animate-brillo`, `animate-espera`, `animate-puntoOla`, skeleton, spinner)
+  pasan a un latido de opacidad; esa excepción vive en `index.css` y en
+  `PreferenciasContext` y hay que mantenerla en los dos sitios
+- Animaciones que viven en un componente que se re-renderiza por frame
+  (el hilo durante el streaming) van en **keyframes CSS**, no en Framer. Si una
+  animación nueva de `tailwind.config.js` "no se mueve", reinicia Vite antes de
+  depurar: el servidor no relee la configuración en caliente
 
 ---
 
@@ -147,8 +166,11 @@ Las transiciones explican de dónde viene y a dónde va cada cosa:
 
 ### 3.2 Tipografía disciplinada
 
-- Máximo 2 familias tipográficas
-- 4–5 tamaños, 2–3 pesos
+- Máximo 2 familias tipográficas (aquí, una: Google Sans + mono)
+- Escala cerrada de interfaz 12/13/14/15 y 22/28/40. **Excepciones
+  documentadas**: lectura 16/26 y 18/26 (respuesta del agente y documentos) y
+  saludo 32/40 del chat. Ancho de lectura `max-w-[680px]` (~72 caracteres)
+- 2–3 pesos
 - Jerarquía por peso y tamaño, no por color
 - `line-height` 1.4–1.6 en cuerpo
 - `font-variant-numeric: tabular-nums` en cifras que cambian
@@ -156,8 +178,15 @@ Las transiciones explican de dónde viene y a dónde va cada cosa:
 ### 3.3 Profundidad y materiales
 
 - Sombras suaves en capas: 2–3 sombras sutiles superpuestas, nunca una sola dura
+- **El borde es la primera capa de la sombra** (`shadow-anillo`,
+  `shadow-composer`, `shadow-menu`): ningún componente combina `border` con una
+  sombra aparte, porque se doblan en las esquinas
+- Tintes con opacidad sobre neutros con `bg-tinta/[.05]` (pizarra-900 en
+  canales): `bg-text-1/10` NO genera nada porque `text-*` apunta a un hex
 - `backdrop-filter: blur()` para superficies flotantes (vidrio esmerilado)
-- Radios de esquina consistentes y **anidados**: radio interior = radio exterior − padding
+- Radios de esquina consistentes y **anidados**: radio interior = radio exterior − padding.
+  Escala: `xs` 6 · `celda` 8 · `control` 10 · `menu` 14 · `burbuja` 20 ·
+  `tarjeta` 20 · `composer` 24 · `modal` 28 · `pastilla`
 
 ### 3.4 Dark mode de verdad
 
@@ -189,8 +218,11 @@ Restricción específica de este proyecto, encima del manual general:
   aparte (#8F2E22), deliberadamente apagado: si peligro y acción primaria
   compartieran color, el mismo rojo significaría "haz clic aquí" y "cuidado con
   esto" en la misma pantalla.
-- **La píldora completa (`rounded-pastilla`) se reserva a `StatusPill`.** Es lo
-  que la hace reconocible como estatus sin leerla.
+- **La píldora completa (`rounded-pastilla`) se reserva a `StatusPill` y a los
+  chips de sugerencia del chat** (y la burbujita "sigue trabajando"). Fuera de
+  eso, un control es `rounded-control`.
+- **Los tintes de hover y de fila activa son neutros** (`bg-tinta/[.05]`), no
+  azules: el azul de marca significa acción.
 
 ### 3.7 Microcopy humano
 
@@ -235,7 +267,7 @@ Ninguna vista está terminada si solo existe el happy path:
 - [ ] Feedback visual inmediato (<100 ms)
 - [ ] UI nunca se bloquea por cómputo/I/O
 - [ ] Scroll fluido (virtualización en listas)
-- [ ] Skeletons + layout estable (CLS ≈ 0)
+- [ ] Skeletons (solo listas/tablas) + layout estable (CLS ≈ 0)
 - [ ] Cache/prefetch de lo común
 - [ ] p95/p99 bajo control
 - [ ] Sin memory leaks ni pausas de GC visibles
@@ -245,15 +277,16 @@ Ninguna vista está terminada si solo existe el happy path:
 - [ ] Springs interrumpibles, no ease lineal
 - [ ] Animaciones 150–250 ms, misma curva en toda la app
 - [ ] View Transitions / continuidad espacial
-- [ ] `prefers-reduced-motion` respetado
+- [ ] `prefers-reduced-motion` y `data-movimiento='reducido'` respetados, con señales de espera visibles
+- [ ] Hover solo de color; press con `springPress`
 
 ### Visual
 - [ ] Escala de espaciado fija (4/8/12/16/24/32/48)
 - [ ] Tipografía: 2 familias, 4-5 tamaños, jerarquía por peso
-- [ ] Sombras en capas + radios anidados
+- [ ] Sombras en capas con el borde como anillo (sin `border` + sombra) + radios anidados
 - [ ] ~~Dark mode con elevación por luminosidad~~ — fuera de alcance (solo tema claro)
 - [ ] Targets 44px + contraste AA + focus visible
-- [ ] Un solo botón rojo por pantalla; relleno bg-accent / tinta text-accent-fg
+- [ ] Un solo botón primario (azul) por pantalla; relleno bg-accent / tinta text-accent-fg
 - [ ] Riesgo con --status-red, nunca con el rojo de marca
 - [ ] Microcopy humano en botones y errores
 

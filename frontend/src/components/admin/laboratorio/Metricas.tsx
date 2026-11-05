@@ -29,7 +29,7 @@ export function Metricas({ metricas, modelo }: { metricas: MetricasRespuesta; mo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: dur.base, ease }}
-      className="flex flex-col gap-2 rounded-tarjeta border border-hairline bg-bg px-4 py-3"
+      className="flex flex-col gap-2 rounded-menu bg-tinta/[.03] px-3.5 py-3"
     >
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
         <Cifra

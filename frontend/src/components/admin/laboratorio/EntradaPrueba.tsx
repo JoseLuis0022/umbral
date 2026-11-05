@@ -1,20 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, Square } from 'lucide-react';
-import { IconButton, Textarea } from '../../ui';
+import { Textarea } from '../../ui';
+import { BotonEnviar } from '../../chat/BarraEntrada';
 import { cn } from '../../../lib/cn';
-import { dur, ease, springSnappy } from '../../../lib/motion';
-import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { copyLab } from './copyLocal';
 
 const MAX_LINEAS = 5;
 
 /**
- * Campo de la conversación de prueba.
+ * Campo de la conversación de prueba: el MISMO composer que /chat (radio de 24
+ * px, borde como anillo de sombra que se asienta con el foco, enviar/detener en
+ * un círculo de 32 px), sin adjuntos ni selector: aquí los parámetros viven en
+ * el panel de la derecha.
  *
  * El control visual es LA BARRA, no el campo: por eso el `Textarea` del sistema
  * entra con su borde y su anillo anulados y el foco lo dibuja el contenedor.
- * Un anillo dentro de otro anillo se ve como un error de maquetación.
  *
  * El botón de enviar y el de detener ocupan el MISMO hueco. Moverlo mientras
  * responde obligaría a volver a buscar con la vista el botón que se necesita
@@ -51,7 +50,6 @@ export function EntradaPrueba({
   senalFoco?: number;
 }) {
   const campo = useRef<HTMLTextAreaElement>(null);
-  const reducido = useReducedMotion();
   const puedeEnviar = valor.trim().length > 0 && !transmitiendo && !bloqueado;
 
   // Crece hasta cinco líneas y a partir de ahí scrollea. Se mide contra el
@@ -93,12 +91,12 @@ export function EntradaPrueba({
     <div className="flex flex-col gap-1.5">
       <div
         className={cn(
-          'flex items-end gap-2 rounded-tarjeta border border-hairline bg-surface-1 p-2 shadow-1',
-          'transition-colors duration-150 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft',
+          'flex items-end gap-2 rounded-composer bg-surface-1 p-2 pl-2.5 shadow-composer',
+          'transition-shadow duration-150 ease-umbral focus-within:shadow-composer-foco',
           // Bloqueado se lee como "apagado", no como "roto": fondo neutro y
-          // borde discontinuo, la misma pista que usa cualquier campo que
-          // espera un requisito previo.
-          bloqueado && 'border-dashed bg-bg shadow-none'
+          // sin elevación, la misma pista que usa cualquier campo que espera
+          // un requisito previo.
+          bloqueado && 'bg-bg shadow-anillo'
         )}
       >
         <Textarea
@@ -111,52 +109,23 @@ export function EntradaPrueba({
           placeholder={bloqueado ? copyLab.placeholderBloqueado : copyLab.placeholderEntrada}
           aria-label={bloqueado ? copyLab.placeholderBloqueado : copyLab.placeholderEntrada}
           className={cn(
-            'min-h-0 resize-none border-transparent bg-transparent px-2 py-2 shadow-none',
+            'min-h-0 resize-none rounded-none border-transparent bg-transparent px-2 py-1.5 text-15 leading-[22px] shadow-none',
             'focus:border-transparent focus:ring-0',
             bloqueado && 'cursor-not-allowed'
           )}
         />
 
-        {/* Sin `mode="popLayout"`. `popLayout` saca al elemento saliente del
-            flujo, y estos dos botones viven en un `flex` junto a un textarea
-            `flex-1`: durante el relevo la barra perdía el ancho del botón y el
-            campo se ensanchaba y volvía en un par de frames. Además `popLayout`
-            no aportaba nada aquí — los dos botones ocupan exactamente el mismo
-            hueco. Es el mismo tratamiento que la barra de /chat. */}
-        <AnimatePresence initial={false}>
-          {transmitiendo ? (
-            <motion.span
-              key="detener"
-              initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
-              transition={reducido ? { duration: dur.fast, ease } : springSnappy}
-            >
-              <IconButton aria-label={copyLab.detener} title={copyLab.detener} onClick={onDetener}>
-                <Square size={15} strokeWidth={2.5} fill="currentColor" />
-              </IconButton>
-            </motion.span>
-          ) : (
-            <motion.span
-              key="enviar"
-              initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
-              transition={reducido ? { duration: dur.fast, ease } : springSnappy}
-            >
-              <IconButton
-                variant="primary"
-                aria-label={copyLab.enviar}
-                title={copyLab.enviar}
-                disabled={!puedeEnviar}
-                onClick={onEnviar}
-                className={cn(!puedeEnviar && 'bg-bg text-text-3 hover:bg-bg hover:text-text-3')}
-              >
-                <ArrowUp size={18} strokeWidth={2.5} />
-              </IconButton>
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {/* Enviar y detener ocupan el MISMO círculo (ver `BotonEnviar`):
+            moverlo mientras responde obligaría a buscar el botón justo cuando
+            hay prisa por cancelar. */}
+        <div className="flex h-9 shrink-0 items-center pr-0.5">
+          <BotonEnviar
+            transmitiendo={transmitiendo}
+            puedeEnviar={puedeEnviar}
+            onEnviar={onEnviar}
+            onDetener={onDetener}
+          />
+        </div>
       </div>
 
       <p className={cn('px-1 font-ui text-12', bloqueado ? 'text-status-amber' : 'text-text-3')}>

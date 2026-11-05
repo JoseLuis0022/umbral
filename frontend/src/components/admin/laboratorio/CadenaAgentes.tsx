@@ -30,11 +30,11 @@ export const CadenaAgentes = memo(function CadenaAgentes({ pasos }: { pasos: Pas
   return (
     <section
       aria-label={copyLab.cadenaTitulo}
-      className="flex flex-col gap-2 rounded-tarjeta border border-hairline bg-bg px-4 py-3"
+      className="flex flex-col gap-2 rounded-menu bg-tinta/[.03] px-3.5 py-3"
     >
       <header className="flex items-center gap-2">
-        <Workflow size={14} strokeWidth={2} className="shrink-0 text-accent-fg" aria-hidden />
-        <h3 className="font-ui text-12 font-semibold uppercase tracking-wide text-text-3">
+        <Workflow size={14} strokeWidth={2} className="shrink-0 text-text-3" aria-hidden />
+        <h3 className="font-ui text-12 font-medium text-text-3">
           {copyLab.cadenaTitulo}
         </h3>
       </header>
@@ -69,7 +69,7 @@ export const CadenaAgentes = memo(function CadenaAgentes({ pasos }: { pasos: Pas
                 {paso.nombre}
               </span>
 
-              <span className="shrink-0 rounded-celda border border-hairline px-1.5 py-px font-ui text-12 text-text-3">
+              <span className="shrink-0 rounded-xs bg-surface-1 px-1.5 py-px font-ui text-12 text-text-3 shadow-anillo">
                 {paso.principal ? copyLab.cadenaPrincipal : copyLab.cadenaDelegado}
               </span>
 
@@ -141,8 +141,8 @@ export const ResumenCadena = memo(function ResumenCadena({ pasos }: { pasos: Pas
         <li
           key={paso.clave}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-celda border px-2 py-0.5 font-ui text-12',
-            paso.principal ? 'border-accent/25 bg-accent-soft text-accent-fg' : 'border-hairline bg-bg text-text-2'
+            'inline-flex items-center gap-1.5 rounded-celda px-2 py-0.5 font-ui text-12 shadow-anillo',
+            paso.principal ? 'bg-surface-1 text-text-1' : 'bg-bg text-text-2'
           )}
         >
           <span className="truncate">{paso.nombre}</span>
