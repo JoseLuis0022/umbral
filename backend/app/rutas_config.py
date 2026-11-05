@@ -37,13 +37,21 @@ def guardar(datos: ConfigCorreoEntrada, _admin: db.Usuario = Depends(requiere_pe
 
 
 @router.post("/prueba")
-async def probar(admin: db.Usuario = Depends(requiere_permiso("usuarios"))) -> dict[str, str]:
-    """Manda un correo de prueba a la cuenta del admin, con el diseño real."""
-    asunto, cuerpo_html, cuerpo_texto = correo.correo_prueba(admin.correo)
+async def probar(_admin: db.Usuario = Depends(requiere_permiso("usuarios"))) -> dict[str, str]:
+    """Manda un correo de prueba, con el diseño real, al PROPIO Gmail configurado.
+
+    No a la cuenta del admin: esa puede ser un correo interno o inventado
+    (admin@umbral.lab) y Gmail devolvería un rebote "Address not found" que
+    parece un fallo de configuración sin serlo.
+    """
+    destino = correo.leer_config().usuario
+    if not destino:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Primero guarda el correo de Gmail y la contraseña de aplicación.")
+    asunto, cuerpo_html, cuerpo_texto = correo.correo_prueba(destino)
     try:
-        await correo.enviar(admin.correo, asunto, cuerpo_html, cuerpo_texto)
+        await correo.enviar(destino, asunto, cuerpo_html, cuerpo_texto)
     except correo.CorreoNoConfigurado:
         raise HTTPException(status.HTTP_409_CONFLICT, "Primero guarda el correo de Gmail y la contraseña de aplicación.") from None
     except correo.FalloEnvio as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from None
-    return {"mensaje": f"Listo: revisa la bandeja de {admin.correo}."}
+    return {"mensaje": f"Listo: revisa la bandeja de {destino}."}

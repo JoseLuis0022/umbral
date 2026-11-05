@@ -97,7 +97,7 @@ export const configCorreo = {
   urlPublicaPista: 'Con ella se arman los enlaces de los correos (en tu laptop: http://localhost:5173).',
   guardar: 'Guardar',
   guardado: 'Configuración guardada',
-  probar: 'Enviarme un correo de prueba',
+  probar: 'Enviar correo de prueba a este Gmail',
   estadoListo: 'Configurado: el registro público está abierto.',
   estadoFalta: 'Sin configurar: el registro público está cerrado.',
   errorCarga: 'No pudimos leer la configuración.',
