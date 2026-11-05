@@ -1,0 +1,44 @@
+# Umbral en producción: `docker compose up -d` y listo.
+#
+#   web      nginx: sirve la app y pasa /api al backend (único puerto expuesto)
+#   backend  FastAPI + Claude Agent SDK (solo accesible desde `web`)
+#
+# Configuración: copia .env.example a .env y llénalo. El material del agente
+# se monta desde AGENTE_DIR (por defecto ./agente).
+
+name: umbral
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AGENTE_CWD: /agente
+      DB_RUTA: /datos/umbral.db
+      CONFIG_CLAUDE: /datos/claude
+    volumes:
+      # Base de datos y sesiones del agente: sobreviven a reinicios y despliegues.
+      - datos:/datos
+      # La carpeta del agente (CLAUDE.md, material, skills). Escribible: el modo
+      # Generador crea apuntes ahí. Debe pertenecer al UID 1000 del servidor.
+      - ${AGENTE_DIR:-./agente}:/agente
+    # Al desplegar, deja terminar las respuestas en curso antes de apagar.
+    stop_grace_period: 45s
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL:-/}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${PUERTO:-8080}:80"
+
+volumes:
+  datos:

@@ -1,0 +1,9 @@
+.venv
+.env
+.env.*
+lab.db*
+.claude-runtime
+.playwright-cli
+__pycache__
+*.pyc
+.pytest_cache

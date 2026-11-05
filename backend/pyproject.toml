@@ -11,4 +11,6 @@ dependencies = [
     "pyjwt>=2.15",
     "argon2-cffi>=25.1",
     "httpx>=0.28",
+    # Cifra la contraseña de aplicación de Gmail guardada en la base (correo.py).
+    "cryptography>=46",
 ]

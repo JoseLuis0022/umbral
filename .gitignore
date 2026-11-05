@@ -2,6 +2,10 @@
 # transcripciones con nombres de compañeros). Son datos, no código: no van al repo.
 /agente-imagenes/
 
+# Producción (Docker Compose): secretos y la carpeta del agente montada.
+/.env
+/agente/
+
 # Backend
 backend/.venv/
 backend/.env
@@ -17,3 +21,6 @@ frontend/.env
 frontend/.env.local
 
 .DS_Store
+
+# Artefactos de pruebas con Playwright
+.playwright-cli/

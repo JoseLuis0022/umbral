@@ -1,121 +1,198 @@
-# Laboratorio de agentes
+<div align="center">
 
-Cómo pasa un agente de Claude Code en una laptop a una app web multiusuario.
-El agente es el de los apuntes de **Procesamiento Digital de Imágenes**
-(profesor, Aurora, otoño 2026).
+<img src="frontend/public/favicon.svg" width="72" height="72" alt="Umbral">
 
+# Umbral
+
+**Lleva un agente de Claude de tu laptop a la web.**
+Chat multiusuario con tareas que sobreviven a cerrar la página, control de gasto en vivo,
+registro con verificación por correo y despliegue con un solo `docker compose up`.
+
+Primer agente: un asistente de estudio de **Procesamiento Digital de Imágenes**.
+
+`FastAPI` · `Claude Agent SDK` · `React 18` · `Vite` · `Tailwind` · `SQLite` · `Docker Compose`
+
+</div>
+
+---
+
+## Por qué existe
+
+Un agente de Claude Code que funciona en tu computadora (un `CLAUDE.md`, unas
+skills y una carpeta de material) está a un paso de ser útil para otros, pero
+ese paso es grande: usuarios, permisos, costos, tareas largas que no pueden
+depender de una pestaña abierta, y un servidor. Umbral es esa capa: toma la
+carpeta del agente tal cual y la sirve como una aplicación web.
+
+<p align="center">
+  <img src="docs/img/login.png" width="720" alt="Pantalla de inicio de Umbral">
+</p>
+
+## Qué hace
+
+**Para quien usa el chat**
+- Respuestas en streaming con el proceso del agente a la vista (qué está leyendo, buscando o generando).
+- **Tareas en segundo plano**: la consulta vive en el servidor; cambiar de pantalla, recargar o cerrar la pestaña no la cancela. Al volver, la respuesta está ahí (y suena un aviso si tardó).
+- **Cola de mensajes**: se puede seguir escribiendo mientras el agente trabaja; lo encolado sale junto al terminar.
+- **Citas de fuentes clicables**: el agente enlaza la clase, la página del PDF o el apunte de donde sale cada dato, con la frase resaltada.
+- Adjuntos de cualquier tipo (imágenes, PDF, texto, video como fotogramas) y archivos del curso que el agente puede mandar.
+- Historial sincronizado entre dispositivos; conversaciones fijadas, archivadas y no leídas.
+
+**Para quien opera la plataforma**
+- **Registro self-service** con verificación por correo (Gmail + contraseña de aplicación, configurable desde la app).
+- **Modo invitado**: cuentas nuevas con un modelo económico y un crédito de prueba por cuenta, más un **tope mensual global** para todos los invitados.
+- **Gasto en vivo**: cada consulta se registra al empezar y su costo se actualiza mientras corre (estimado calibrado contra el costo real que reporta el agente).
+- **Resiliencia**: reintentos visibles (API, agente y red), "Continuar donde se quedó" tras un fallo, y tareas exclusivas que hacen fila en vez de fallar.
+- Panel de administración: tablero de costos, auditoría de cada consulta, explorador del corpus y laboratorio para probar modelos y prompts.
+
+<p align="center">
+  <img src="docs/img/correo-verificacion.png" width="560" alt="Correo de verificación">
+</p>
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    N[Navegador<br/>React + Vite] -->|HTTPS| X[nginx<br/>app + /api]
+    X -->|SSE| A[FastAPI<br/>auth · roles · planes · trabajos]
+    A --> D[(SQLite<br/>cuentas · historial · gasto)]
+    A --> M[Motor<br/>Claude Agent SDK]
+    M --> C[Claude Code]
+    C -->|Read · Grep · Glob| F[/Carpeta del agente<br/>CLAUDE.md · skills · material/]
+    C -->|API| K[Anthropic]
 ```
-Agente Prod/
-├── frontend/          Capa 1 · React + Vite (la interfaz de Umbral)
-├── backend/           Capas 2 y 3 · FastAPI (puerta) + Claude Agent SDK (cerebro)
-└── agente-imagenes/   Capa 4 · copia del agente completo (CLAUDE.md, skills,
-                       apuntes, estado, transcripciones). NO está en el repo.
-```
 
-## Las cuatro capas
-
-| Capa | Dónde | Qué hace |
+| Capa | Dónde | Responsabilidad |
 |---|---|---|
-| 1 · Frontend | `frontend/` | Login, chat y administración (Tablero, Corpus, Auditoría, Laboratorio). Muestra; no decide nada de seguridad. |
-| 2 · Web API | `backend/app/rutas_*.py`, `seguridad.py` | Quién eres (JWT), qué rol tienes, qué modo puedes usar, cuántas consultas te quedan. Elige la configuración del agente. |
-| 3 · Agente | `backend/app/motor.py` | Corre el agentic loop con el Agent SDK y traduce sus mensajes a nuestro protocolo. No sabe qué es un rol. |
-| 4 · Herramientas | `agente-imagenes/` | `Read`, `Grep`, `Glob` sobre la carpeta del agente. |
+| Interfaz | `frontend/` | Chat y administración. Muestra; no decide nada de seguridad. |
+| Puerta | `backend/app/rutas_*.py`, `seguridad.py`, `planes.py` | Quién eres (JWT), qué rol tienes, qué modo puedes usar, cuánto crédito te queda. |
+| Trabajos | `backend/app/trabajos.py` | Cada consulta es una tarea propia; la respuesta HTTP solo la **observa**. |
+| Motor | `backend/app/motor.py` | Corre el agente, traduce sus mensajes al protocolo SSE y estima el costo en vivo. |
+| Agente | carpeta montada en `/agente` | El agente tal cual existe en la laptop. No forma parte de este repositorio. |
 
-Los **modos** del agente son datos, no `if`: ver `backend/app/perfiles.py`.
+Los **modos** del agente son datos, no código (`backend/app/perfiles.py`):
 
-| Perfil | Herramientas | Carga el CLAUDE.md del agente | Quién |
-|---|---|---|---|
-| `consulta` | Read, Grep, Glob | No (prompt propio en `prompts/consulta.md`) | usuario, especialista, admin |
-| `generador` | + Bash, Write, Edit, Skill | Sí, tal cual | especialista, admin |
+| Modo | Herramientas | Quién |
+|---|---|---|
+| Consulta | Read, Grep, Glob (confinadas a la carpeta del agente) | invitado, usuario, especialista, admin |
+| Generador | + Bash, Write, Edit, Skills | especialista, admin |
 
-## Levantar todo (desarrollo)
+## Despliegue con Docker Compose
 
-**Una vez:**
+Requisitos: un servidor Linux con Docker y Docker Compose v2.
 
 ```bash
-# Datos: copia del agente sin videos (desde OneDrive)
-rsync -a --exclude '*.mp4' --exclude .DS_Store \
-  "/ruta/a/tu/agente/" agente-imagenes/
+git clone https://github.com/JoseLuis0022/umbral.git && cd umbral
 
-# Backend
+# 1. Configuración
+cp .env.example .env
+#    ANTHROPIC_API_KEY=…   (console.anthropic.com)
+#    JWT_SECRETO=…         python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# 2. El agente: su carpeta va en ./agente (o en AGENTE_DIR)
+#    y debe pertenecer al UID 1000, que es con el que corre el backend.
+sudo chown -R 1000:1000 agente
+
+# 3. Levantar
+docker compose up -d
+
+# 4. Tu cuenta de administrador
+docker compose exec backend python -m app.cli_usuarios crear \
+  --correo tu@correo.com --nombre "Tu Nombre" --rol admin
+```
+
+Umbral queda en `http://servidor:8080` (cambia el puerto con `PUERTO`). Pon
+HTTPS delante: Cloudflare Tunnel, Caddy o el proxy que ya uses.
+
+Después, desde la app: **Ajustes → Registro público → Configurar correo**
+(Gmail y contraseña de aplicación) para abrir el registro.
+
+| Tarea | Comando |
+|---|---|
+| Actualizar | `git pull && docker compose up -d --build` |
+| Ver registros | `docker compose logs -f backend` |
+| Respaldar datos | `docker compose exec backend python -c "import sqlite3; sqlite3.connect('/datos/umbral.db').backup(sqlite3.connect('/datos/respaldo.db'))"` y copia `respaldo.db` fuera del volumen |
+| Cuentas | `docker compose exec backend python -m app.cli_usuarios listar` |
+
+> **Un solo proceso.** Las tareas en curso viven en la memoria del backend; por
+> eso no se escala con varios workers. Al desplegar, el contenedor espera hasta
+> 45 s a que terminen las respuestas en curso.
+
+### Variables (`.env`)
+
+| Variable | Obligatoria | Para qué |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | sí | La cuenta de Anthropic que paga las consultas. Pon también un tope de gasto en la consola. |
+| `JWT_SECRETO` | sí | Firma de las sesiones (≥ 32 caracteres). |
+| `PUERTO` | no | Puerto publicado (8080). |
+| `AGENTE_DIR` | no | Carpeta del agente en el servidor (`./agente`). |
+| `AGENTES_SIMULTANEOS` | no | Consultas a la vez; las demás esperan turno (3). |
+| `JWT_HORAS` | no | Duración de la sesión (12). |
+| `MOTOR` | no | `sdk` (real) o `prueba` (respuestas fijas, sin gastar). |
+| `VITE_BASE_URL` | no | Subcarpeta del dominio, si la hay (`/`). |
+
+## Desarrollo local
+
+```bash
+# Backend (Python 3.13)
 cd backend
 uv venv --python 3.13 .venv
 uv pip install --python .venv/bin/python -r pyproject.toml
-cp .env.example .env        # llena JWT_SECRETO; ANTHROPIC_API_KEY cuando uses MOTOR=sdk
+cp .env.example .env                     # JWT_SECRETO; ANTHROPIC_API_KEY si MOTOR=sdk
+.venv/bin/python -m app.cli_usuarios crear --correo tu@correo.com --nombre "Tu Nombre" --rol admin
+.venv/bin/uvicorn app.main:app --reload --port 8000
 
-# Tu cuenta de admin (la contraseña se pide sin eco)
-.venv/bin/python -m app.cli_usuarios crear --correo tu@correo.mx --nombre "Tu Nombre" --rol admin
-
-# Frontend
-cd ../frontend && npm ci
+# Frontend (Node ≥ 22)
+cd frontend && npm ci && npm run dev     # http://localhost:5173
 ```
 
-**Cada vez**, en dos terminales:
+`MOTOR=prueba` responde sin llamar a Claude y habla el mismo protocolo: sirve
+para trabajar la interfaz sin gastar. La API documentada está en
+`http://localhost:8000/api/docs`. Antes de dar por terminado un cambio del
+frontend: `npm run typecheck`.
 
-```bash
-cd backend  && .venv/bin/uvicorn app.main:app --reload --port 8000
-cd frontend && npm run dev          # http://localhost:5173
+## Seguridad
+
+- **La identidad sale del token, nunca del cuerpo**; el rol se lee de la base en cada petición.
+- **El modo Consulta no puede leer fuera de la carpeta del agente**: un hook revisa cada llamada a herramienta (rutas absolutas, `../`, patrones de búsqueda).
+- Las cuentas del registro **no entran sin verificar** el correo; los enlaces son de un solo uso y se guardan como hash; límite de cuentas por IP y correos desechables rechazados.
+- La contraseña de aplicación de Gmail se guarda **cifrada** y nunca sale de la API.
+- Cada consulta tiene un tope de gasto que corta el propio agente; los invitados, además, su crédito y el tope mensual global.
+- El backend corre sin root y solo es accesible a través de nginx.
+
+## Estructura
+
+```
+umbral/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              arranque, rutas
+│   │   ├── motor.py             el agente: SDK → protocolo SSE, reintentos, costo en vivo
+│   │   ├── trabajos.py          consultas como tareas que sobreviven a la conexión
+│   │   ├── rutas_*.py           auth, chat, conversaciones, admin, configuración
+│   │   ├── perfiles.py          modos del agente y roles (datos, no código)
+│   │   ├── planes.py            crédito del invitado y tope mensual
+│   │   ├── precios.py           estimado de costo que se calibra solo
+│   │   ├── correo.py            Gmail + plantillas HTML
+│   │   ├── guardias.py          qué rutas puede tocar el agente
+│   │   └── prompts/             system prompt del modo Consulta
+│   └── Dockerfile
+├── frontend/
+│   ├── src/                     React: pantallas, contexto del chat, servicios
+│   ├── nginx.conf               app + /api (SSE sin búfer)
+│   └── Dockerfile
+├── docker-compose.yml
+└── .env.example
 ```
 
-Documentación interactiva de la API: http://localhost:8000/api/docs
+## Hoja de ruta
 
-## Motores
+- Sesión en cookie `httpOnly` en lugar de `localStorage`.
+- Límite de intentos en el inicio de sesión y recuperación de contraseña.
+- Sandbox del sistema operativo para el modo Generador (Bash).
+- Búsqueda semántica (embeddings) como herramienta del agente, comparada contra la búsqueda agéntica con un banco de evaluaciones.
+- Observabilidad con OpenTelemetry.
 
-`MOTOR` en `backend/.env`:
+---
 
-- `prueba` — respuestas fijas que hablan el mismo protocolo. **No gasta tokens.**
-- `sdk` — el agente real. Necesita `ANTHROPIC_API_KEY`. Cada consulta tiene un
-  tope duro en dólares (`presupuesto_usd` del perfil). **Pon también un tope de
-  gasto en la consola de Anthropic.**
-
-## Cuentas para tus amigos
-
-```bash
-cd backend
-.venv/bin/python -m app.cli_usuarios crear --correo amigo@correo.mx --nombre "Amigo" --rol usuario --generar
-.venv/bin/python -m app.cli_usuarios listar
-.venv/bin/python -m app.cli_usuarios rol --correo amigo@correo.mx --rol especialista
-```
-
-`--generar` imprime una contraseña aleatoria una sola vez.
-
-## El "oro molido"
-
-Cada consulta queda en `backend/lab.db`, tabla `consultas`: quién preguntó, qué,
-**la respuesta que vio** (columna `respuesta`; solo el texto, sin el
-razonamiento), con qué perfil y modelo, costo en USD, vueltas, tokens (incluida
-la caché), herramientas usadas y cómo terminó (`completa`, `cancelada`,
-`error`). La columna `respuesta` se agrega sola a una base existente al
-arrancar el backend; las consultas anteriores quedan sin respuesta.
-
-Para leerlo no hace falta SQL: **Auditoría** (`/admin/conversaciones`) lista
-todas las consultas con su respuesta y sus métricas, y **Tablero**
-(`/admin/tablero`) resume costo por día, por persona y por modelo.
-
-```bash
-sqlite3 backend/lab.db "SELECT creado_en, perfil, costo_usd, vueltas, estado, pregunta FROM consultas ORDER BY id DESC LIMIT 10;"
-```
-
-## Administración (`/api/admin`)
-
-`backend/app/rutas_admin.py`. Todo exige el permiso **`auditoria`**, que hoy
-solo tiene el rol `admin` (`perfiles.py`). Sin token: 401; con otra cuenta: 403.
-Solo lectura.
-
-| Endpoint | Qué devuelve |
-|---|---|
-| `GET /api/admin/consultas` | Consultas, la más reciente primero. Filtros: `usuario` (id), `perfil`, `estado`, `q` (texto en pregunta o respuesta), `desde`/`hasta` (ISO 8601). Paginación: `limite` (≤ 100) y `antesDe` (id; la respuesta trae `siguiente`). Cada fila: usuario {id, nombre, correo, rol}, conversación, perfil, modelo, pregunta, extracto de la respuesta, costo, vueltas, duración, tokens, herramientas, estado y error. |
-| `GET /api/admin/consultas/{id}` | Lo mismo con la respuesta completa. |
-| `GET /api/admin/resumen?dias=30` | Totales (histórico y del periodo), por estado, por persona, por modelo y por día (UTC, con ceros en los días sin consultas). |
-| `GET /api/admin/corpus` | Los archivos de `agente-imagenes/` en colecciones: resúmenes de clases y prácticas (`estado/inventario`), mapa y calendario (`estado/*.md`), resúmenes de diapositivas, apuntes, transcripciones, diapositivas del profesor y prácticas (marcada `sensible`). Por archivo: ruta relativa, nombre, tipo, tamaño y fecha. |
-| `GET /api/admin/corpus/archivo?ruta=…` | md/txt/html como JSON (tope 3 MB → 413); PDF como `application/pdf`. Solo sirve rutas que aparecen en el listado; rechaza rutas absolutas, `..`, `\` y NUL (400), y comprueba que la ruta real (symlinks incluidos) quede dentro de la carpeta del agente (404). |
-
-## Lo que falta (etapa 2)
-
-- Sandbox real del sistema operativo (contenedor endurecido) y red aislada.
-- Una carpeta curada para el perfil `consulta`, sin las entregas de prácticas.
-  Hoy se bloquean con una regla de permisos y un hook, pero un `Grep` sin ruta
-  recorre toda la carpeta.
-- Token en cookie httpOnly en lugar de `localStorage`.
-- Observabilidad con OpenTelemetry → Langfuse.
-- Docker Compose para el VPS.
+<sub>Hecho por José Luis Macedo Escamilla.</sub>
