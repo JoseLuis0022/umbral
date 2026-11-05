@@ -6,9 +6,10 @@ interno universitario) y conserva su sistema de diseño y sus pantallas; el chat
 el acceso ahora hablan con un backend real (`../backend`: FastAPI + Claude Agent
 SDK).
 
-**Qué es real hoy:** el inicio de sesión con roles y el chat con el agente. El
-resto de pantallas (guías, corpus, auditoría, tablero, boletines) sigue
-simulado en el frontend. La sección
+**Qué es real hoy:** el inicio de sesión con roles, el chat con el agente y
+las pantallas de administración (Auditoría, Tablero y Corpus), que leen
+`/api/admin/*`. Lo único simulado que queda es la lista de conversaciones del
+panel del chat. La sección
 [Qué es real y qué está simulado](#qué-es-real-y-qué-está-simulado) es lo
 primero que conviene leer.
 
@@ -95,7 +96,7 @@ servidor que instalar. Solo dos cosas hay que acertar.
 Si cuelga de la raíz del dominio (`https://ejemplo.mx/`), no hay nada que hacer.
 Si vive dentro de una subcarpeta (`https://tu-dominio.com/Umbral/`), hay que
 decírselo al compilar, porque cambia de sitio TODO: el `<script>` del index, el
-CSS, las fuentes, las capturas de las guías.
+CSS, las fuentes y lo que haya en `public/`.
 
 ```bash
 npm run build:umbral          # equivale a VITE_BASE_URL=/Umbral/ npm run build
@@ -109,7 +110,7 @@ npm run build:umbral          # equivale a VITE_BASE_URL=/Umbral/ npm run build
 | Prefijo de las **rutas** | `basename` del `BrowserRouter` en `App.tsx`, leído de `import.meta.env.BASE_URL` | El enrutador compara contra `/chat` cuando la dirección real es `/Umbral/chat`: **toda la app cae en el 404**. |
 
 Se declara una sola vez para que no puedan desincronizarse. Las imágenes que el
-markdown referencia como `/guias/…` las reubica `resolverRutaPublica` en
+markdown referencia con ruta absoluta (`/…`) las reubica `resolverRutaPublica` en
 `src/components/Markdown.tsx`, porque el empaquetador no puede reescribir una
 ruta que vive dentro de una cadena de texto.
 
@@ -118,7 +119,7 @@ volver a compilar.
 
 ### 2. El rewrite de una sola página
 
-`/al-dia` y `/admin/corpus` no son archivos: son rutas que resuelve el
+`/ajustes` y `/admin/corpus` no son archivos: son rutas que resuelve el
 navegador. Sin rewrite, entrar directo o recargar en cualquier pantalla que no
 sea la de entrada devuelve un 404 del servidor.
 
@@ -137,22 +138,26 @@ separas en dominios distintos, el backend necesitaría CORS.
 
 ## Qué es real y qué está simulado
 
-**Real:** el inicio de sesión (`auth.service.ts`) y el chat
-(`chat.service.ts`). Los dos hablan con el backend por `src/services/api.ts`,
-que guarda el token y cierra la sesión en pantalla si el backend responde 401.
+**Real:** todo lo que pasa por `src/services/api.ts` (el ÚNICO archivo que
+hace `fetch`; pone el token y cierra la sesión en pantalla si el backend
+responde 401):
 
-**Simulado:** conversaciones guardadas, corpus, documentos, guías, auditoría y
-métricas del tablero. Los servicios simulados comparten tres reglas
-(`src/services/simulacion.ts`):
+| Servicio | Endpoints | Pantallas |
+|---|---|---|
+| `auth.service.ts` | `POST /api/auth/login`, `GET /api/auth/yo` | Login, sesión |
+| `chat.service.ts` | `POST /api/chat` (SSE) | Chat, Laboratorio |
+| `auditoria.service.ts` | `GET /api/admin/consultas`, `/consultas/{id}`, `/resumen` | Auditoría, Tablero |
+| `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=…` | Corpus |
+| `modelos.service.ts` | `GET /api/modelos` | Laboratorio |
 
-- **Latencia artificial de 200–600 ms**, a propósito. Sin ella los estados de
-  carga nunca se ven y se acaban construyendo pantallas que no los contemplan.
-- **Persistencia en `localStorage`** bajo el prefijo `umbral:`. Lo que
-  cambias sobrevive al refresh. *Ajustes → Restablecer datos de demostración*
-  borra todas esas claves y devuelve la app a su semilla.
-- **La pantalla nunca toca `localStorage`**: siempre va por el servicio, que
-  devuelve promesas. El día que haya backend se cambia el servicio, no la
-  pantalla.
+Los de `/api/admin/*` exigen el permiso `auditoria` (rol `admin`); a otra cuenta
+el backend le responde 403.
+
+**Simulado:** solo la **lista de conversaciones** del panel del chat
+(`ChatContext` + `data/conversaciones.ts`), en `localStorage` bajo el prefijo
+`umbral:`. El backend reanuda la sesión del agente por `conversacionId`, pero
+la lista que se ve en el panel vive en el navegador. *Ajustes → Restablecer
+datos de demostración* borra esas claves.
 
 Matices que conviene conocer:
 
@@ -160,20 +165,17 @@ Matices que conviene conocer:
   la sesión en `localStorage` es solo para pintar sin esperar; al abrir la app se
   valida contra `GET /api/auth/yo`. El front **muestra u oculta** según el rol,
   pero quien **niega** es el backend.
-- **Conversaciones**: el historial persiste pero **caduca a las 12 horas**. Las
-  semillas calculan sus fechas hacia atrás desde "ahora" en cada arranque para
-  que siempre haya casos de los cuatro grupos (Hoy / Ayer / Últimos 7 días /
-  Anteriores) y de los dos modos (activa y solo lectura).
-- **Guías**: no se guarda el catálogo, solo **parches** (`guias-ediciones`,
-  `guias-nuevas`, `guias-borradas`, `guias-votos`). Así, al corregir una
-  redacción en `data/guias.ts`, quien ya usó la app ve el arreglo en vez de
-  quedarse congelado en la versión vieja.
-- **Corpus**: la subida y el indexado son una simulación con progreso real de
-  barra, y **uno de cada seis archivos falla a propósito** para que el estado de
-  error sea alcanzable.
-- **Auditoría y tablero** leen la **misma** semilla que el chat
-  (`data/conversaciones.ts`). No hay una tabla de métricas aparte: un tablero
-  que no cuadra con su propio detalle no se vuelve a abrir.
+- **Conversaciones**: el historial persiste pero **caduca a las 12 horas**.
+- **Auditoría** muestra cada consulta guardada en la tabla `consultas`:
+  pregunta, respuesta (lo que vio la persona, sin razonamiento), modelo, costo,
+  tokens con caché, vueltas, herramientas y estado. Las consultas anteriores a
+  que existiera la columna `respuesta` solo tienen la pregunta.
+- **Corpus** es de solo lectura: lista los archivos reales de la carpeta del
+  agente y los abre (Markdown, texto, HTML en un iframe con `sandbox=""` y PDF
+  con react-pdf). Los archivos se mantienen desde la carpeta del agente, no
+  desde la web.
+- **La pantalla nunca hace `fetch` ni toca `localStorage` directamente**:
+  siempre va por un servicio que devuelve promesas.
 
 > Escotilla de desarrollo: con `VITE_CHAT_SIMULADO=1`, escribir **"forzar
 > error"** en el chat provoca el estado de error de la pantalla sin desconectar
@@ -187,9 +189,7 @@ Matices que conviene conocer:
 |---|---|
 | `/login` | Acceso con correo y contraseña, verificados por el backend. |
 | `/chat`, `/chat/:conversacionId` | El asistente. Una sola pantalla sirve las dos rutas; el panel de historial vive aquí (no en el shell) y en móvil se vuelve cajón. Las sesiones pasan a solo lectura cinco horas después del último mensaje. |
-| `/al-dia` | Galería de guías, filtrable por categoría y ordenable por útiles o recientes. |
-| `/al-dia/:guiaId` | Detalle de una guía: requisitos, pasos, "si algo falla" y un botón que abre el chat con la pregunta ya escrita. |
-| `/ajustes` | Densidad, tamaño de tipografía y *Restablecer datos de demostración*. |
+| `/ajustes` | Densidad, tipografía, contraste, movimiento y accesibilidad; qué se guarda y quién lo ve. Los valores guardados se validan al leerlos: uno ajeno cae al de fábrica. |
 | `/perfil` | Datos de la cuenta, su rol y los modos del agente que puede usar. Solo lectura. |
 | `/_dev/sistema-diseno` | Referencia viva del sistema de diseño. Fuera del shell y **sin sesión**: es documentación del equipo, no una pantalla de producto. |
 
@@ -198,11 +198,10 @@ silencio: ve una explicación de por qué no puede entrar):
 
 | Ruta | Qué es |
 |---|---|
-| `/admin/tablero` | Tablero directivo: uso, horas y pesos ahorrados, riesgo por área, y el detalle conversación por conversación con exportación a CSV. |
-| `/admin/corpus` | Bases de conocimiento: system prompt por corpus, subida de `.md`/`.pdf` (hasta 10 MB) con indexado simulado y visor de documento. |
-| `/admin/conversaciones` | Auditoría: todas las conversaciones de la comunidad, con filtros por persona, fecha y texto, y el resumen ejecutivo de cada una. Solo lectura. |
-| `/admin/al-dia` | Boletines: aquí se redacta, publica, edita y restaura lo que la comunidad lee en *Al día*. |
-| `/admin/laboratorio` | Modo desarrollador del agente: conversación de prueba con streaming real, modelo de Claude, nivel de pensamiento y system prompt, más el recorrido de herramientas y el **costo y los tokens medidos** de cada respuesta. El hilo no se guarda ni entra a la auditoría. La temperatura y la base de conocimiento se ignoran en el backend. |
+| `/admin/tablero` | Tablero: consultas, costo en USD (periodo e histórico), costo por consulta, consultas sin terminar, costo por día, por persona (clic → sus consultas en Auditoría) y por modelo. Periodos de 7, 30 y 90 días. Lee `GET /api/admin/resumen`. |
+| `/admin/corpus` | Los archivos reales de la carpeta del agente en siete colecciones (resúmenes de clases y prácticas, mapa y calendario, resúmenes de diapositivas, apuntes, transcripciones, diapositivas del profesor y prácticas — esta última marcada como sensible), con visor por tipo y descarga. Solo lectura. |
+| `/admin/conversaciones` | Auditoría: cada pregunta que alguien le hizo al agente, con su respuesta en Markdown, quién la hizo y lo que costó. Filtros por persona, texto (pregunta o respuesta), estado y fechas; paginación con "Cargar más". `?usuario=<id>` llega ya filtrada. Solo lectura. |
+| `/admin/laboratorio` | Modo desarrollador del agente: conversación de prueba con streaming real, modelo de Claude, nivel de pensamiento y system prompt, más el recorrido de herramientas y el **costo y los tokens medidos** de cada respuesta. La temperatura se ignora en el backend; no hay base de conocimiento que elegir (el agente busca en toda su carpeta). Sus consultas sí quedan en el registro del backend y, por tanto, en Auditoría. |
 
 `/` redirige a `/chat`.
 
@@ -219,26 +218,20 @@ elegir tu rol, los roles no protegerían nada.
 |---|---|
 | `usuario` (Estudiante) | Preguntar en el chat (perfil `consulta`). 40 consultas al día. |
 | `especialista` | Además, el perfil `generador` (procesar clases y generar apuntes). |
-| `admin` | Todo, incluidas las pantallas de administración y los parámetros del Laboratorio. |
-
-`src/data/usuarios.ts` sigue existiendo solo como semilla de las pantallas
-simuladas (auditoría y tablero).
+| `admin` | Todo, incluidas las pantallas de administración (permiso `auditoria`) y los parámetros del Laboratorio (permiso `parametros`). |
 
 ---
 
 ## Estructura
 
 ```
-public/guias/          Capturas de las guías. Se referencian por ruta absoluta:
-                       el markdown es una cadena, no JSX.
 src/
   copy/                Todas las cadenas visibles, en un solo lugar.
   types/               Modelo de datos y protocolo del chat. Fuente única de tipos.
-  data/                Semillas y contenido: usuarios, conversaciones, corpus,
-                       guías y respuestas del simulador.
-  services/            Frontera con los datos. `api.ts` habla con el backend
-                       (lo usan `auth.service.ts` y `chat.service.ts`);
-                       `simulacion.ts` da latencia y persistencia al resto.
+  data/                Semilla de la lista de conversaciones y respuestas del
+                       simulador del chat.
+  services/            Frontera con los datos. `api.ts` es el único que hace
+                       `fetch`; `simulacion.ts` da persistencia en localStorage.
   context/             Sesión (Auth), historial de chat (Chat) y preferencias
                        de interfaz (Preferencias).
   hooks/               `useStreamingChat` (streaming del chat de la comunidad)
@@ -249,7 +242,10 @@ src/
                        global a propósito.
   components/ui/       Componentes del sistema de diseño. Importar desde aquí.
   components/shell/    Cabecera: menú de usuario, navegación de administración.
-  components/{chat,guias,ajustes,admin}/   Piezas por dominio.
+  components/{chat,ajustes,admin}/   Piezas por dominio.
+  components/LimiteError.tsx   Límite de error: una pantalla que falla al
+                       pintarse muestra un mensaje con "Reintentar" en vez de
+                       dejar la app en blanco.
   pages/               Una pantalla por ruta.
   index.css            Tokens de color, tipografía y sombras. Cambiar aquí
                        repinta la app entera.
@@ -307,25 +303,16 @@ Son deliberadas y conviene respetarlas.
 
 Es una maqueta y hay cosas pendientes. Las que importan:
 
-- **`DataTable` no tiene ordenamiento nativo.** `Column.header` es un `string` y
-  el componente no expone ningún gancho de orden, así que `TablaImpacto` (en el
-  tablero) resuelve el clic **por delegación sobre el `<th>`, usando su
-  posición**, contra un arreglo `CAMPOS` paralelo a las columnas: si se
-  reordenan las columnas hay que reordenar ese arreglo. Por lo mismo,
-  `aria-sort` se escribe sobre el DOM ya renderizado. Es un parche a la espera
-  de que `DataTable` acepte encabezados ordenables.
+- **`DataTable` no tiene ordenamiento nativo.** Las tablas del Tablero llegan
+  ya ordenadas por costo desde el backend.
 - **Parte del copy sigue en objetos `TEXTO` locales** dentro de las pantallas y
   de varios componentes, en vez de estar en `src/copy/index.ts`. Están marcados
   en el código con el comentario *"Cadenas que no existen todavía en src/copy"*.
   Es deuda deliberada, no un olvido: centralizarlas es trabajo pendiente.
-- **`tablero.service.ts` no entrega `ahorroCosto`** por fila, aunque el análisis
-  de la conversación sí lo tiene (la auditoría lo pinta). `TablaImpacto` lo lee
-  de forma opcional para que la columna encienda sola en cuanto se agregue esa
-  línea al servicio; mientras tanto muestra la cifra exacta y un "sin nivel"
-  honesto en lugar de un nivel inventado.
-- **Los PDF de la semilla no traen archivo** — no hay binarios en el
-  repositorio—, así que el visor de PDF muestra su estado de error. Es un estado
-  legítimo de la demostración, no una pantalla rota.
+- **El HTML de los apuntes se ve sin sus imágenes** en Corpus: el iframe no
+  tiene mismo origen (`sandbox=""`) y las imágenes relativas no se resuelven.
+  Es el precio de no ejecutar nada del archivo.
+- **Los días del Tablero son días UTC**, como los guarda el servidor.
 - **El token vive en `localStorage`.** Es lo simple para el laboratorio; si un
   día hubiera un XSS, un script podría leerlo. La versión endurecida es una
   cookie httpOnly.
@@ -336,8 +323,6 @@ Es una maqueta y hay cosas pendientes. Las que importan:
   `useStreamingChat`, porque ese hook no expone `parametros`, el detalle técnico
   de cada actividad ni el consumo, que son justo lo que la pantalla necesita.
   Un cambio en el protocolo se aplica en los dos sitios.
-- **La base de conocimiento y la temperatura del Laboratorio no hacen nada:**
-  hay un solo corpus (la carpeta del agente) y el Agent SDK no expone
-  temperatura. La selección de corpus sigue siendo obligatoria en pantalla.
+- **La temperatura del Laboratorio no hace nada:** el Agent SDK no la expone.
 - **No hay pruebas automatizadas ni linter configurado.** La única verificación
   del repositorio es `npm run typecheck`.

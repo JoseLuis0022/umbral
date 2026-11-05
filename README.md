@@ -16,7 +16,7 @@ Agente Prod/
 
 | Capa | Dónde | Qué hace |
 |---|---|---|
-| 1 · Frontend | `frontend/` | Login, chat, Laboratorio. Muestra; no decide nada de seguridad. |
+| 1 · Frontend | `frontend/` | Login, chat y administración (Tablero, Corpus, Auditoría, Laboratorio). Muestra; no decide nada de seguridad. |
 | 2 · Web API | `backend/app/rutas_*.py`, `seguridad.py` | Quién eres (JWT), qué rol tienes, qué modo puedes usar, cuántas consultas te quedan. Elige la configuración del agente. |
 | 3 · Agente | `backend/app/motor.py` | Corre el agentic loop con el Agent SDK y traduce sus mensajes a nuestro protocolo. No sabe qué es un rol. |
 | 4 · Herramientas | `agente-imagenes/` | `Read`, `Grep`, `Glob` sobre la carpeta del agente. |
@@ -82,12 +82,33 @@ cd backend
 ## El "oro molido"
 
 Cada consulta queda en `backend/lab.db`, tabla `consultas`: quién preguntó, qué,
-con qué perfil, costo en USD, vueltas, tokens (incluida la caché), herramientas
-usadas y cómo terminó (`completa`, `cancelada`, `error`).
+**la respuesta que vio** (columna `respuesta`; solo el texto, sin el
+razonamiento), con qué perfil y modelo, costo en USD, vueltas, tokens (incluida
+la caché), herramientas usadas y cómo terminó (`completa`, `cancelada`,
+`error`). La columna `respuesta` se agrega sola a una base existente al
+arrancar el backend; las consultas anteriores quedan sin respuesta.
+
+Para leerlo no hace falta SQL: **Auditoría** (`/admin/conversaciones`) lista
+todas las consultas con su respuesta y sus métricas, y **Tablero**
+(`/admin/tablero`) resume costo por día, por persona y por modelo.
 
 ```bash
 sqlite3 backend/lab.db "SELECT creado_en, perfil, costo_usd, vueltas, estado, pregunta FROM consultas ORDER BY id DESC LIMIT 10;"
 ```
+
+## Administración (`/api/admin`)
+
+`backend/app/rutas_admin.py`. Todo exige el permiso **`auditoria`**, que hoy
+solo tiene el rol `admin` (`perfiles.py`). Sin token: 401; con otra cuenta: 403.
+Solo lectura.
+
+| Endpoint | Qué devuelve |
+|---|---|
+| `GET /api/admin/consultas` | Consultas, la más reciente primero. Filtros: `usuario` (id), `perfil`, `estado`, `q` (texto en pregunta o respuesta), `desde`/`hasta` (ISO 8601). Paginación: `limite` (≤ 100) y `antesDe` (id; la respuesta trae `siguiente`). Cada fila: usuario {id, nombre, correo, rol}, conversación, perfil, modelo, pregunta, extracto de la respuesta, costo, vueltas, duración, tokens, herramientas, estado y error. |
+| `GET /api/admin/consultas/{id}` | Lo mismo con la respuesta completa. |
+| `GET /api/admin/resumen?dias=30` | Totales (histórico y del periodo), por estado, por persona, por modelo y por día (UTC, con ceros en los días sin consultas). |
+| `GET /api/admin/corpus` | Los archivos de `agente-imagenes/` en colecciones: resúmenes de clases y prácticas (`estado/inventario`), mapa y calendario (`estado/*.md`), resúmenes de diapositivas, apuntes, transcripciones, diapositivas del profesor y prácticas (marcada `sensible`). Por archivo: ruta relativa, nombre, tipo, tamaño y fecha. |
+| `GET /api/admin/corpus/archivo?ruta=…` | md/txt/html como JSON (tope 3 MB → 413); PDF como `application/pdf`. Solo sirve rutas que aparecen en el listado; rechaza rutas absolutas, `..`, `\` y NUL (400), y comprueba que la ruta real (symlinks incluidos) quede dentro de la carpeta del agente (404). |
 
 ## Lo que falta (etapa 2)
 

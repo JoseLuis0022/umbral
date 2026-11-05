@@ -26,15 +26,27 @@ Este front es la capa 1 del laboratorio de agentes; el backend vive en `../backe
 
 ### Una sola frontera: `src/services/`
 
-**Lo real del proyecto es el login (`auth.service.ts`) y el chat (`chat.service.ts`).** Los dos hablan con el backend por `api.ts`, que es el ÚNICO archivo que hace `fetch`: pone el token, usa la URL base `/api` (Vite la reenvía al puerto 8000) y avisa a `AuthContext` cuando el backend responde 401. Todo lo demás (corpus, guías, auditoría, tablero, lista de conversaciones) está simulado en el frontend sobre `simulacion.ts`, que aporta latencia artificial de 200–600 ms, persistencia en `localStorage` bajo el prefijo `umbral:` y generación de ids.
+**Casi todo es real.** `api.ts` es el ÚNICO archivo que hace `fetch`: pone el token, usa la URL base `/api` (Vite la reenvía al puerto 8000, o a `VITE_API_PROXY`) y avisa a `AuthContext` cuando el backend responde 401. Sobre él:
+
+| Servicio | Backend | Pantallas |
+|---|---|---|
+| `auth.service.ts` | `/api/auth/*` | Login, sesión |
+| `chat.service.ts` | `POST /api/chat` (SSE) | Chat, Laboratorio |
+| `auditoria.service.ts` | `GET /api/admin/consultas`, `/consultas/{id}`, `/resumen` | Auditoría (`/admin/conversaciones`), Tablero |
+| `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=` | Corpus |
+| `modelos.service.ts` | `GET /api/modelos` | Laboratorio |
+
+`/api/admin/*` exige el permiso **`auditoria`** (solo el rol `admin`). Los binarios del corpus (PDF) se piden con `pedir()` y se pasan como Blob: un `src`/`href` directo no lleva el header Authorization.
+
+Lo único simulado es la **lista de conversaciones** del panel del chat (`ChatContext` + `data/conversaciones.ts`), persistida con `simulacion.ts` en `localStorage` bajo el prefijo `umbral:`.
 
 **El rol lo decide el backend.** El front solo muestra u oculta según `useAuth()`; no existe forma de elegir o cambiar de rol desde el navegador, y no hay que reintroducirla. La identidad nunca viaja en el cuerpo de una petición: sale del token.
 
-La regla que sostiene el diseño: **ninguna pantalla toca `localStorage` ni datos semilla directamente**. Siempre va por un servicio que devuelve promesas, para que el día que exista backend se cambie el servicio y no la pantalla. Al añadir una capacidad, el servicio es el primer archivo, no el último.
+La regla que sostiene el diseño: **ninguna pantalla hace `fetch` ni toca `localStorage` o datos semilla directamente**. Siempre va por un servicio que devuelve promesas. Al añadir una capacidad, el servicio es el primer archivo, no el último.
 
-Dos estilos de export conviven en `services/`: objeto namespace (`authService`, `adminService`, `guidesService`, `tableroService`) y funciones sueltas (`corpus.service.ts`). Sigue el estilo del archivo que toques.
+Dos estilos de export conviven en `services/`: objeto namespace (`authService`, `auditoriaService`) y funciones sueltas (`corpus.service.ts`). Sigue el estilo del archivo que toques.
 
-La latencia artificial no es un descuido: sin ella los estados de carga nunca se ven y se construyen pantallas que no los contemplan.
+Corpus es **solo lectura** a propósito: los archivos los mantiene el agente en su carpeta. No reintroduzcas subir/borrar desde la web.
 
 ### El chat: tres capas y una precedencia
 
@@ -61,9 +73,13 @@ Chat.tsx / AdminLaboratorio.tsx
 En `App.tsx`, de fuera hacia dentro: `PreferenciasProvider` → `AuthProvider` → `ToastProvider` → `ChatProvider`.
 
 - `PreferenciasProvider` va primero porque escribe atributos `data-*` en `<html>` (densidad, tamaño de texto, contraste, movimiento) y deben estar puestos antes del primer pintado.
-- `ChatProvider` cuelga por encima de las rutas —no dentro de `/chat`— para que el historial no se recargue al ir a una guía y volver. El historial persiste pero **caduca a las 12 h**, y las semillas de `data/conversaciones.ts` recalculan sus fechas hacia atrás desde "ahora" en cada arranque para que la demostración siempre tenga los cuatro grupos temporales y los dos modos.
+- `ChatProvider` cuelga por encima de las rutas —no dentro de `/chat`— para que el historial no se recargue al ir a otra pantalla y volver. El historial persiste pero **caduca a las 12 h**, y las semillas de `data/conversaciones.ts` recalculan sus fechas hacia atrás desde "ahora" en cada arranque para que la demostración siempre tenga los cuatro grupos temporales y los dos modos.
 
 `RutaProtegida` guarda sesión y rol; con `soloAdmin`, un usuario sin permiso **ve una explicación**, no una redirección muda.
+
+`LimiteError` (`components/LimiteError.tsx`, de clase) envuelve las rutas en `App.tsx` y, en `LayoutApp`, el contenido de cada pantalla con `key` = ruta: un error de render deja la cabecera viva y muestra "Reintentar" / "Recargar la página". En el chat se usa `claveReinicio` en vez de `key` para no desmontarlo al pasar de `/chat` a `/chat/:id`.
+
+`PreferenciasContext` valida lo que lee de `localStorage` (`useLocalStorage` acepta un validador): un valor fuera de la lista cae al de fábrica.
 
 ### El doble prefijo del despliegue
 
@@ -74,7 +90,7 @@ En `App.tsx`, de fuera hacia dentro: `PreferenciasProvider` → `AuthProvider` �
 | Archivos | `base` en `vite.config.ts` | página en blanco |
 | Rutas | `basename` del `BrowserRouter`, leído de `import.meta.env.BASE_URL` | toda la app cae en el 404 |
 
-Las imágenes que el markdown referencia como `/guias/…` las reubica `resolverRutaPublica` en `src/components/Markdown.tsx`, porque el empaquetador no puede reescribir una ruta que vive dentro de una cadena de texto. Cambiar de carpeta obliga a recompilar; no es configuración de servidor.
+Las imágenes que el markdown referencia con ruta absoluta (`/…`) las reubica `resolverRutaPublica` en `src/components/Markdown.tsx`, porque el empaquetador no puede reescribir una ruta que vive dentro de una cadena de texto. Cambiar de carpeta obliga a recompilar; no es configuración de servidor.
 
 ### Dónde vive el estilo
 
@@ -93,9 +109,9 @@ El azul de marca `#2F5FE4` (`bg-accent`, y `text-accent-fg` #1D41A3 como tinta, 
 
 ## Trampas conocidas
 
-- **`DataTable` no soporta ordenamiento nativo.** `TablaImpacto` (tablero) resuelve el clic por delegación sobre el `<th>` **usando su posición**, contra un arreglo `CAMPOS` paralelo a las columnas, y escribe `aria-sort` sobre el DOM ya renderizado. Si reordenas columnas, reordena `CAMPOS`.
-- **`tablero.service.ts` no entrega `ahorroCosto`** por fila aunque el análisis lo tenga; `TablaImpacto` lo lee de forma opcional y la columna encenderá sola cuando se agregue.
-- **Los PDF de la semilla no traen archivo** (no hay binarios en el repo): el visor muestra su estado de error a propósito.
+- **`DataTable` no soporta ordenamiento nativo.** El backend entrega las filas ya ordenadas.
+- **El HTML de los apuntes va en `<iframe sandbox="" srcdoc>`**: sin scripts ni mismo origen (se quitan antes los `<script>` y `on*` para no ensuciar la consola). No le agregues `allow-scripts` ni `allow-same-origin`: juntos anulan el sandbox.
+- **`/api/admin/corpus/archivo` sirve por lista blanca**: solo rutas que aparecen en `GET /api/admin/corpus`. Las rutas son relativas a la carpeta del agente y en NFC.
 - **Todo lo `VITE_*` se hornea en el bundle** al compilar: nunca pongas un secreto en una variable `VITE_`.
 - **`chat.service.ts` se reescribió para quitar un carácter NUL** que tenía el original (un centinela `\0` del parser de n8n). Si una herramienta se niega a editar un archivo "con bytes nulos", búscalo con `tr -dc '\000' < archivo | wc -c`.
-- La base de conocimiento y la temperatura del Laboratorio **se ignoran en el backend**; los controles siguen en pantalla.
+- La temperatura del Laboratorio **se ignora en el backend** (el Agent SDK no la expone). Ya no hay base de conocimiento que elegir: el agente busca en toda su carpeta.
