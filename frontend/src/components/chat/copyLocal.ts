@@ -43,9 +43,12 @@ export const copyLocal = {
 
   // Modelo y esfuerzo
   modeloEtiqueta: 'Modelo',
-  modeloPredeterminado: 'Modelo predeterminado',
+  /** "Lo que tenga configurado el perfil", para el modelo y para el esfuerzo. */
+  automatico: 'Automático',
+  modeloYEsfuerzo: (modelo: string, esfuerzo: string) => `Modelo: ${modelo}. Esfuerzo: ${esfuerzo}`,
+  masModelos: 'Más modelos',
+  volver: 'Volver',
   esfuerzoEtiqueta: 'Esfuerzo',
-  esfuerzoPredeterminado: 'Esfuerzo predeterminado',
   esfuerzoBajo: 'Bajo',
   esfuerzoMedio: 'Medio',
   esfuerzoAlto: 'Alto',

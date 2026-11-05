@@ -351,15 +351,7 @@ export default function Chat() {
                 onImagenes={setImagenes}
                 contexto={conversacionActiva?.contexto}
                 ajustesModelo={
-                  puedeAjustarModelo
-                    ? {
-                        modelos,
-                        modelo: ajusteModelo.modelo,
-                        onModelo: (modelo) => cambiarAjusteModelo({ modelo }),
-                        esfuerzo: ajusteModelo.esfuerzo,
-                        onEsfuerzo: (esfuerzo) => cambiarAjusteModelo({ esfuerzo }),
-                      }
-                    : undefined
+                  puedeAjustarModelo ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo } : undefined
                 }
                 onEnviar={alEnviar}
                 onDetener={detener}

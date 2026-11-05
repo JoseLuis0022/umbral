@@ -13,7 +13,7 @@ export { AnimatedNumber } from './AnimatedNumber';
 export { SegmentedControl } from './SegmentedControl';
 export { Tabs } from './Tabs';
 export { Backdrop } from './Backdrop';
-export { PanelAnclado, Z_MENU_ANCLADO } from './menuAnclado';
+export { PanelAnclado, Z_MENU_ANCLADO, useEsCompacto } from './menuAnclado';
 export { SelectorLista } from './SelectorLista';
 export type { OpcionLista, EstadoOpcion } from './SelectorLista';
 export { SelectorRangoFechas, resumenRango } from './SelectorRangoFechas';

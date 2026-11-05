@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import type { CategoriaContexto, ContextoSesion } from '../../types';
 import { cn } from '../../lib/cn';
+import { dur, ease, springPanel } from '../../lib/motion';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { PanelAnclado } from '../ui';
 import { copyLocal } from './copyLocal';
 
@@ -11,6 +14,9 @@ import { copyLocal } from './copyLocal';
  *
  * El dato llega con el evento `fin` de cada respuesta, así que refleja el
  * contexto DESPUÉS de la última respuesta: es lo que viajará en la siguiente.
+ *
+ * Sin dato NO se dibuja. Un anillo vacío y deshabilitado en la barra se leía
+ * como un botón de radio sin marcar; aparece con la primera respuesta.
  */
 
 /** Claude Code nombra las categorías en inglés; aquí se dicen en español. */
@@ -46,6 +52,7 @@ const libre = (c: CategoriaContexto) => c.nombre === 'Free space';
 export function AnilloContexto({ contexto, className }: { contexto?: ContextoSesion; className?: string }) {
   const [abierto, setAbierto] = useState(false);
   const disparador = useRef<HTMLButtonElement>(null);
+  const reducido = useReducedMotion();
 
   // Se calcula aquí y no con `porcentaje`: el agente lo redondea a entero, y
   // con ventanas de 1M tokens casi todo saldría "0 %".
@@ -58,18 +65,23 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
 
   const visibles = contexto?.categorias.filter((c) => !c.diferida && c.tokens > 0) ?? [];
 
+  if (!contexto) return null;
+
   return (
     <>
-      <button
+      <motion.button
         ref={disparador}
         type="button"
         onClick={() => setAbierto((a) => !a)}
-        disabled={!contexto}
         aria-label={etiqueta}
         title={etiqueta}
         aria-expanded={abierto}
+        initial={reducido ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={reducido ? { duration: dur.fast, ease } : springPanel}
         className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-accent-soft disabled:cursor-default disabled:hover:bg-transparent',
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-[120ms] hover:bg-tinta/[.05]',
+          abierto && 'bg-tinta/[.05]',
           className
         )}
       >
@@ -86,11 +98,11 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
             strokeDasharray={circunferencia}
             // Un mínimo visible: con 0.5 % el arco no se vería y el anillo
             // parecería vacío aunque la sesión ya tenga algo.
-            strokeDashoffset={circunferencia * (1 - Math.max(contexto ? 2 : 0, Math.min(pct, 100)) / 100)}
+            strokeDashoffset={circunferencia * (1 - Math.max(2, Math.min(pct, 100)) / 100)}
             className="transition-[stroke-dashoffset] duration-500 ease-umbral"
           />
         </svg>
-      </button>
+      </motion.button>
 
       {contexto && (
         <PanelAnclado
@@ -120,7 +132,7 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
               {contexto.umbralCompactacion && (
                 <span
                   title={copyLocal.contextoUmbral}
-                  className="absolute inset-y-0 w-px bg-text-1/40"
+                  className="absolute inset-y-0 w-px bg-tinta/40"
                   style={{ left: `${(contexto.umbralCompactacion / contexto.maximo) * 100}%` }}
                 />
               )}
@@ -143,7 +155,7 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
             </ul>
 
             {contexto.umbralCompactacion && (
-              <p className="border-t border-hairline pt-2.5 font-ui text-12 leading-snug text-text-3">
+              <p className="border-t border-tinta/[.07] pt-2.5 font-ui text-12 leading-snug text-text-3">
                 {copyLocal.contextoCompactacion(COMPACTO.format(Math.max(0, contexto.umbralCompactacion - contexto.usados)))}
               </p>
             )}

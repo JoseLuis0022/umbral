@@ -150,6 +150,12 @@ export default {
         // Burbuja del usuario: un gris pizarra sin borde ni sombra, para que se
         // lea como mensaje y no como tarjeta.
         burbuja: 'var(--burbuja-usuario)',
+        // Tinta de pizarra-900 en canales, para TINTES con opacidad
+        // (`bg-tinta/[.05]` en hover de filas, `bg-tinta/10` en el enviar
+        // apagado). Los tokens `text-*` apuntan a `var(--…)` en hex y Tailwind
+        // no puede aplicarles un modificador de opacidad: `bg-text-1/10` no
+        // genera NADA, en silencio.
+        tinta: 'rgb(22 28 39 / <alpha-value>)',
         semantic: {
           riesgo: { DEFAULT: '#8F2E22', 50: '#FBF0EE', 100: '#F5DDD9', 700: '#6E2119' },
           exito: { DEFAULT: '#1E7A4F', 50: '#EBF6F0', 100: '#D3EBE0', 700: '#155C3B' },

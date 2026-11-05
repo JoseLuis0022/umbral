@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/cn';
-import { dur, ease, spring, springSoft } from '../../lib/motion';
+import { dur, ease, salidaPanel, springPanel, springSoft } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { IconButton } from './Button';
 import { Backdrop } from './Backdrop';
@@ -262,11 +262,12 @@ export function PanelAnclado({
       }
     : {
         // Emerge DESDE el control: nace pegado a él (y negativa cuando baja) y
-        // crece desde el borde por el que sale.
-        initial: { opacity: 0, scale: 0.96, y: haciaArriba ? 6 : -6 },
+        // crece desde el borde por el que sale. Se va con un tween de 120 ms:
+        // nadie mira lo que se cierra.
+        initial: { opacity: 0, scale: 0.97, y: haciaArriba ? 4 : -4 },
         animate: { opacity: 1, scale: 1, y: 0 },
-        exit: { opacity: 0, scale: 0.96, y: haciaArriba ? 4 : -4 },
-        transition: spring,
+        exit: { opacity: 0, scale: 0.97, y: haciaArriba ? 4 : -4, transition: salidaPanel },
+        transition: springPanel,
       };
 
   const animacionHoja = reducido
@@ -295,9 +296,9 @@ export function PanelAnclado({
               role="dialog"
               aria-modal="true"
               aria-label={tituloHoja}
-              className="relative z-10 w-full rounded-t-modal border-t border-hairline bg-surface-3 pb-[env(safe-area-inset-bottom)] shadow-3"
+              className="relative z-10 w-full rounded-t-modal bg-surface-3 pb-[env(safe-area-inset-bottom)] shadow-menu"
             >
-              <header className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+              <header className="flex items-center justify-between gap-3 px-4 pb-1 pt-3">
                 <h2 className="font-ui text-14 font-semibold text-text-1">{tituloHoja}</h2>
                 <IconButton aria-label="Cerrar" onClick={cerrar}>
                   <X size={16} />
@@ -321,9 +322,11 @@ export function PanelAnclado({
               // El origen va en el borde por el que sale, para que se lea como
               // que el menú brota del control y no como una caja que aparece en
               // medio.
-              style={{ transformOrigin: haciaArriba ? 'bottom center' : 'top center' }}
+              style={{ transformOrigin: `${haciaArriba ? 'bottom' : 'top'} ${ancho === 'disparador' ? 'center' : 'right'}` }}
               className={cn(
-                'overflow-hidden rounded-control border border-hairline bg-surface-3 shadow-3',
+                // Menú del sistema: radio `menu` (14 px = fila de 8 px + 6 px
+                // de relleno) y el borde como primera capa de la sombra.
+                'overflow-hidden rounded-menu bg-surface-3 shadow-menu',
                 className
               )}
             >

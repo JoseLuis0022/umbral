@@ -246,7 +246,7 @@ export function BurbujaTrabajando({
         {[0, 0.15, 0.3].map((retraso) => (
           <span
             key={retraso}
-            className="h-[5px] w-[5px] animate-puntoOla rounded-full bg-accent"
+            className="h-1.5 w-1.5 animate-puntoOla rounded-full bg-accent"
             style={{ animationDelay: `${retraso}s` }}
           />
         ))}
@@ -356,7 +356,7 @@ export const ProcesoAgente = memo(function ProcesoAgente({
           disabled={!hayItems}
           aria-expanded={hayItems ? abierto : undefined}
           aria-label={hayItems ? `${titulo}. ${copyLocal.procesoVer}` : titulo}
-          className="group -ml-1 flex max-w-full items-center gap-1 rounded-celda py-0.5 pl-1 pr-2 text-left transition-colors duration-[120ms] enabled:hover:bg-text-1/[.04]"
+          className="group -ml-1 flex max-w-full items-center gap-1 rounded-celda py-0.5 pl-1 pr-2 text-left transition-colors duration-[120ms] enabled:hover:bg-tinta/[.04]"
         >
           <PensandoUmbral frase={titulo} layoutId={layoutId} />
           {hayItems && <Chevron abierto={abierto} />}
@@ -367,7 +367,7 @@ export const ProcesoAgente = memo(function ProcesoAgente({
           onClick={alternar}
           aria-expanded={abierto}
           aria-label={`${titulo}. ${copyLocal.procesoVer}`}
-          className="group -ml-2 flex h-8 max-w-full items-center gap-2 rounded-celda px-2 text-left text-text-3 transition-colors duration-[120ms] hover:bg-text-1/[.05] hover:text-text-2"
+          className="group -ml-2 flex h-8 max-w-full items-center gap-2 rounded-celda px-2 text-left text-text-3 transition-colors duration-[120ms] hover:bg-tinta/[.05] hover:text-text-2"
         >
           <motion.span layoutId={layoutId} transition={springLayout} className="flex shrink-0">
             <IsotipoPensando tamano={16} animado={false} />
@@ -459,7 +459,7 @@ function ItemLinea({ item, ultimo, animarEntrada }: { item: ItemProceso; ultimo:
       className={cn('relative flex min-h-7 gap-2.5 pl-4', anidado && 'ml-4', !ultimo && 'pb-1.5')}
     >
       {/* Línea hacia el siguiente nodo. */}
-      {!ultimo && <span aria-hidden className="absolute bottom-0 left-[2.5px] top-[18px] w-px bg-text-1/10" />}
+      {!ultimo && <span aria-hidden className="absolute bottom-0 left-[2.5px] top-[18px] w-px bg-tinta/10" />}
       <NodoLinea item={item} />
 
       {item.tipo === 'pensamiento' ? (

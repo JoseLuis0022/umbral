@@ -359,7 +359,7 @@ export function SelectorLista<T>({
           aria-label={etiquetaId ? undefined : etiqueta}
           aria-activedescendant={activa >= 0 ? idOpcion(activa) : undefined}
           onKeyDown={alTeclaAbierto}
-          className="max-h-[60vh] overflow-y-auto overscroll-contain py-1 focus:outline-none sm:max-h-[320px]"
+          className="max-h-[60vh] overflow-y-auto overscroll-contain p-1.5 focus:outline-none sm:max-h-[320px]"
         >
           {opciones.map((opcion, indice) => {
             const seleccionada = opcion.valor === valor;
@@ -379,8 +379,8 @@ export function SelectorLista<T>({
                 onPointerMove={() => setActiva((previa) => (previa === indice ? previa : indice))}
                 onClick={() => elegir(opcion.valor)}
                 className={cn(
-                  'flex cursor-pointer items-start gap-2 px-3 py-2.5 transition-colors duration-150',
-                  resaltada && 'bg-accent-soft'
+                  'flex cursor-pointer items-start gap-2 rounded-celda px-2.5 py-2 transition-colors duration-[120ms]',
+                  resaltada && 'bg-tinta/[.05]'
                 )}
               >
                 <div className="min-w-0 flex-1">
