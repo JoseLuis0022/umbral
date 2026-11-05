@@ -455,7 +455,10 @@ function ItemLinea({ item, ultimo, animarEntrada }: { item: ItemProceso; ultimo:
       initial={animarEntrada ? (reducido ? { opacity: 0 } : { opacity: 0, y: 4 }) : false}
       animate={{ opacity: 1, y: 0 }}
       transition={reducido ? { duration: dur.fast, ease } : springLayout}
-      className={cn('relative flex min-h-7 gap-2.5 pl-4', anidado && 'ml-4', !ultimo && 'pb-1.5')}
+      // `shrink-0`: la lista es una columna flex con alto máximo. Sin él, al
+      // llenarse, cada paso se encogía hasta su `min-h-7` en vez de hacer
+      // scroll, y el texto de un paso se dibujaba encima del siguiente.
+      className={cn('relative flex min-h-7 shrink-0 gap-2.5 pl-4', anidado && 'ml-4', !ultimo && 'pb-1.5')}
     >
       {/* Línea hacia el siguiente nodo. */}
       {!ultimo && <span aria-hidden className="absolute bottom-0 left-[2.5px] top-[18px] w-px bg-tinta/10" />}
