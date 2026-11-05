@@ -33,7 +33,7 @@ Este front es la capa 1 del laboratorio de agentes; el backend vive en `../backe
 | `auth.service.ts` | `/api/auth/*` | Login, sesión |
 | `chat.service.ts` | `POST /api/chat` (SSE) | Chat, Laboratorio |
 | `auditoria.service.ts` | `GET /api/admin/consultas`, `/consultas/{id}`, `/resumen` | Auditoría (`/admin/conversaciones`), Tablero |
-| `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=` | Corpus |
+| `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=` · `GET /api/archivos?ruta=` (origen `chat`) | Corpus · tarjetas de archivo del chat |
 | `modelos.service.ts` | `GET /api/modelos` | Laboratorio |
 
 `/api/admin/*` exige el permiso **`auditoria`** (solo el rol `admin`). Los binarios del corpus (PDF) se piden con `pedir()` y se pasan como Blob: un `src`/`href` directo no lleva el header Authorization.
@@ -61,7 +61,7 @@ Chat.tsx / AdminLaboratorio.tsx
              Los dos emiten los MISMOS eventos y pasan por la misma función `aplicar`.
 ```
 
-- El protocolo son cinco eventos SSE: `inicio`, `texto`, `actividad`, `fin`, `error`. Están tipados en `src/types/index.ts` y deben coincidir con `backend/app/protocolo.py`: **si cambias un lado, cambia el otro.**
+- El protocolo son siete eventos SSE: `inicio`, `pensamiento`, `texto`, `actividad`, `archivo`, `fin`, `error`. Están tipados en `src/types/index.ts` y deben coincidir con `backend/app/protocolo.py`: **si cambias un lado, cambia el otro.**
 - `enviarMensaje()` **nunca lanza**: siempre resuelve un `ResultadoEnvio` (`completo | cancelado | error`), con `resumen` (costo y tokens medidos) cuando llegó el `fin`.
 - El historial **no** se manda: el backend reanuda la sesión del agente por `conversacionId`.
 - El chat de estudiantes **nunca muestra rutas ni nombres de herramientas**: `lib/actividad.ts` los traduce ("Leyendo el resumen de la Clase 12…"). El Laboratorio sí muestra el dato técnico, porque es una pantalla para medir.
@@ -114,4 +114,5 @@ El azul de marca `#2F5FE4` (`bg-accent`, y `text-accent-fg` #1D41A3 como tinta, 
 - **`/api/admin/corpus/archivo` sirve por lista blanca**: solo rutas que aparecen en `GET /api/admin/corpus`. Las rutas son relativas a la carpeta del agente y en NFC.
 - **Todo lo `VITE_*` se hornea en el bundle** al compilar: nunca pongas un secreto en una variable `VITE_`.
 - **`chat.service.ts` se reescribió para quitar un carácter NUL** que tenía el original (un centinela `\0` del parser de n8n). Si una herramienta se niega a editar un archivo "con bytes nulos", búscalo con `tr -dc '\000' < archivo | wc -c`.
+- **El agente manda archivos con su herramienta `compartir_archivo`** (`backend/app/archivos.py`, servidor MCP en proceso). Solo salen las colecciones `compartible` de `backend/app/corpus.py` (apuntes, diapositivas, transcripciones); el evento `archivo` trae la ruta y la tarjeta (`components/chat/ArchivosMensaje.tsx`) la pide a `GET /api/archivos`, que vuelve a validar. El visor es el mismo `VisorArchivo` de Corpus con `origen="chat"`.
 - La temperatura del Laboratorio **se ignora en el backend** (el Agent SDK no la expone). Ya no hay base de conocimiento que elegir: el agente busca en toda su carpeta.

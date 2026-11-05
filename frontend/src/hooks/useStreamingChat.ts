@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ItemProceso } from '../types';
+import type { ArchivoCompartido, ItemProceso } from '../types';
 import { enviarMensaje, type OpcionesEnvio, type ResultadoEnvio } from '../services/chat.service';
 import { describirActividad } from '../lib/actividad';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -62,6 +62,8 @@ export function useStreamingChat() {
   const [estado, setEstado] = useState<EstadoStream>('inactivo');
   const [error, setError] = useState<string | null>(null);
   const [actividad, setActividad] = useState<string | null>(null);
+  // Archivos que mandó el agente: se pintan en cuanto llegan, no al final.
+  const [archivos, setArchivos] = useState<ArchivoCompartido[]>([]);
   const reducido = useReducedMotion();
 
   const control = useRef<AbortController | null>(null);
@@ -178,6 +180,7 @@ export function useStreamingChat() {
       reiniciarBuffers();
       setTextoParcial('');
       setProceso([]);
+      setArchivos([]);
       setError(null);
       setActividad(null);
       setEstado('esperando');
@@ -212,6 +215,10 @@ export function useStreamingChat() {
             );
           }
           volcarProceso();
+        },
+        alArchivo: (archivo) => {
+          if (!vigente()) return;
+          setArchivos((previos) => [...previos, archivo]);
         },
         alPensamiento: (fragmento) => {
           if (!vigente()) return;
@@ -268,6 +275,7 @@ export function useStreamingChat() {
     reiniciarBuffers();
     setTextoParcial('');
     setProceso([]);
+    setArchivos([]);
     setError(null);
     setActividad(null);
     setEstado('inactivo');
@@ -276,6 +284,7 @@ export function useStreamingChat() {
   return {
     textoParcial,
     proceso,
+    archivos,
     estado,
     error,
     actividad,

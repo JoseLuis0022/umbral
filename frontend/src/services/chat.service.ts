@@ -14,7 +14,7 @@
  * QUÉ SE RECIBE — SSE (`text/event-stream`), cinco eventos tipados en
  * `types/index.ts` y emitidos por `backend/app/protocolo.py`:
  *
- *     inicio · pensamiento · texto · actividad · fin · error
+ *     inicio · pensamiento · texto · actividad · archivo · fin · error
  *
  *   `pensamiento` solo llega si la cuenta tiene permiso "parametros".
  *
@@ -34,6 +34,7 @@
 
 import type {
   ActividadAgente,
+  ArchivoCompartido,
   CodigoErrorChat,
   Esfuerzo,
   EventoError,
@@ -127,6 +128,8 @@ export interface OpcionesEnvio {
   alPensamiento?: (fragmento: string, acumulado: string) => void;
   /** Una herramienta o un subagente empezó o terminó. */
   alActividad?: (actividad: ActividadAgente) => void;
+  /** El agente mandó un archivo del curso. */
+  alArchivo?: (archivo: ArchivoCompartido) => void;
   /** Costo y tokens reales de la consulta. Llega al final, también tras un error del agente. */
   alFin?: (resumen: ResumenConsulta) => void;
   /** Evento de cierre. Se dispara igual si terminó solo o si lo detuvieron. */
@@ -142,6 +145,8 @@ export interface ResultadoEnvio {
   resumen?: ResumenConsulta;
   /** Razonamiento recibido ('' si el backend no lo mandó). */
   pensamiento: string;
+  /** Archivos que mandó el agente, en orden de llegada. */
+  archivos: ArchivoCompartido[];
 }
 
 type EventoProtocolo =
@@ -149,10 +154,11 @@ type EventoProtocolo =
   | { tipo: 'pensamiento'; datos: { delta: string } }
   | { tipo: 'texto'; datos: { delta: string } }
   | { tipo: 'actividad'; datos: ActividadAgente }
+  | { tipo: 'archivo'; datos: ArchivoCompartido }
   | { tipo: 'fin'; datos: ResumenConsulta }
   | { tipo: 'error'; datos: EventoError };
 
-const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>(['inicio', 'pensamiento', 'texto', 'actividad', 'fin', 'error']);
+const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>(['inicio', 'pensamiento', 'texto', 'actividad', 'archivo', 'fin', 'error']);
 
 function errorAborto() {
   return new DOMException('Transmisión cancelada', 'AbortError');
@@ -168,7 +174,7 @@ function ultimaPregunta(mensajes: MensajeEnvio[]): string {
 
 /** Punto de entrada único. NUNCA lanza. */
 export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoEnvio> {
-  if (opciones.senal?.aborted) return { estado: 'cancelado', texto: '', pensamiento: '' };
+  if (opciones.senal?.aborted) return { estado: 'cancelado', texto: '', pensamiento: '', archivos: [] };
 
   const control = new AbortController();
   const propagarAborto = () => control.abort();
@@ -176,6 +182,7 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
 
   let acumulado = '';
   let pensamiento = '';
+  const archivos: ArchivoCompartido[] = [];
   let resumen: ResumenConsulta | undefined;
   let errorDelAgente: ErrorChat | undefined;
   let porTiempo = false;
@@ -208,6 +215,10 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
       case 'actividad':
         opciones.alActividad?.(evento.datos);
         return;
+      case 'archivo':
+        archivos.push(evento.datos);
+        opciones.alArchivo?.(evento.datos);
+        return;
       case 'fin':
         resumen = evento.datos;
         opciones.alFin?.(evento.datos);
@@ -235,25 +246,25 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
 
     if (errorDelAgente) {
       opciones.alError?.(errorDelAgente);
-      return { estado: 'error', texto: acumulado, error: errorDelAgente, resumen, pensamiento };
+      return { estado: 'error', texto: acumulado, error: errorDelAgente, resumen, pensamiento, archivos };
     }
     opciones.alCerrar?.(acumulado, 'completo');
-    return { estado: 'completo', texto: acumulado, resumen, pensamiento };
+    return { estado: 'completo', texto: acumulado, resumen, pensamiento, archivos };
   } catch (e) {
     if (esAborto(e)) {
       if (porTiempo) {
         const error = new ErrorChat('timeout', copyChat.errorTimeout);
         opciones.alError?.(error);
-        return { estado: 'error', texto: acumulado, error, resumen, pensamiento };
+        return { estado: 'error', texto: acumulado, error, resumen, pensamiento, archivos };
       }
       // Detener no es un error: lo que alcanzó a escribir se conserva.
       opciones.alCerrar?.(acumulado, 'cancelado');
-      return { estado: 'cancelado', texto: acumulado, resumen, pensamiento };
+      return { estado: 'cancelado', texto: acumulado, resumen, pensamiento, archivos };
     }
 
     const error = e instanceof ErrorChat ? e : new ErrorChat('red', copyChat.errorEnvio);
     opciones.alError?.(error);
-    return { estado: 'error', texto: acumulado, error, resumen, pensamiento };
+    return { estado: 'error', texto: acumulado, error, resumen, pensamiento, archivos };
   } finally {
     clearTimeout(reloj);
     opciones.senal?.removeEventListener('abort', propagarAborto);

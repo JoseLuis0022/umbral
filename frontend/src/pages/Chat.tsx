@@ -67,6 +67,7 @@ export default function Chat() {
     estadoStream,
     textoParcial,
     proceso,
+    archivosEnVivo,
     actividad,
     pensoMs,
     errorStream,
@@ -382,6 +383,7 @@ export default function Chat() {
               transmitiendo={streamAqui && estadoStream === 'transmitiendo'}
               textoParcial={streamAqui ? textoParcial : ''}
               proceso={streamAqui ? proceso : []}
+              archivosEnVivo={streamAqui ? archivosEnVivo : []}
               pensoMs={streamAqui ? pensoMs : null}
               error={streamAqui && estadoStream === 'error' ? errorStream : null}
               soloLectura={soloLectura}

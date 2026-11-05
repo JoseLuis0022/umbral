@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } fro
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStickToBottom } from 'use-stick-to-bottom';
 import { ArrowDown, RotateCcw } from 'lucide-react';
-import type { ItemProceso, Mensaje } from '../../types';
+import type { ArchivoCompartido, ItemProceso, Mensaje } from '../../types';
 import { cn } from '../../lib/cn';
 import { dur, ease, salidaPanel, springPanel, springPress } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -16,6 +16,7 @@ import {
   RespuestaAsistente,
   RespuestaEnVivo,
 } from './BurbujaMensaje';
+import { ArchivosMensaje } from './ArchivosMensaje';
 
 type Props = {
   /** Cambiar de conversación reinicia el scroll; por eso entra como prop y no se deduce. */
@@ -30,6 +31,8 @@ type Props = {
   textoParcial: string;
   /** Proceso en vivo del agente (razonamiento y pasos). */
   proceso?: ItemProceso[];
+  /** Archivos que el agente ya mandó en la respuesta en curso. */
+  archivosEnVivo?: ArchivoCompartido[];
   /** Lo que tardó el primer token ("Pensó 8 s"). */
   pensoMs?: number | null;
   error: string | null;
@@ -67,6 +70,7 @@ export function HiloMensajes({
   transmitiendo,
   textoParcial,
   proceso = [],
+  archivosEnVivo = [],
   pensoMs,
   error,
   soloLectura,
@@ -195,6 +199,9 @@ export function HiloMensajes({
                   onAlternarProceso={alternarProceso}
                 />
               )}
+              {/* Las tarjetas aparecen en cuanto el agente manda el archivo,
+                  aunque todavía no escriba: es lo primero que el usuario pidió. */}
+              {hayVivo && archivosEnVivo.length > 0 && <ArchivosMensaje archivos={archivosEnVivo} className="-mt-3" />}
 
               {/* El error no borra lo que ya se leyó: el fragmento parcial se
                   queda arriba y el aviso se suma debajo con el reintento.

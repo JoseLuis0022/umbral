@@ -14,6 +14,7 @@ import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
 import { FichaAdjunto, MiniaturaImagen } from './BarraEntrada';
 import { BurbujaTrabajando, ProcesoAgente } from './IndicadorPensando';
+import { ArchivosMensaje } from './ArchivosMensaje';
 
 /**
  * Piezas del hilo: burbuja del usuario, respuesta del asistente, respuesta en
@@ -120,7 +121,8 @@ export const RespuestaAsistente = memo(function RespuestaAsistente({
   return (
     <motion.article {...(reducido ? entradaReducida : entradaMensaje)} className="group flex flex-col gap-1">
       {mensaje.proceso && <ProcesoAgente items={mensaje.proceso} modo="terminado" pensoMs={mensaje.pensoMs} />}
-      <Markdown>{mensaje.contenido}</Markdown>
+      {mensaje.contenido && <Markdown>{mensaje.contenido}</Markdown>}
+      {mensaje.archivos && <ArchivosMensaje archivos={mensaje.archivos} className="mt-3" />}
 
       <div
         className={cn(

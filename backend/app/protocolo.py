@@ -9,6 +9,9 @@ tipados igual en `frontend/src/types/index.ts`:
     texto        {delta}                                 ← muchas veces
     actividad    {id, clase, nombre, descripcion, detalle, fase, ok, dentroDe}
                   descripcion: para todos, sin rutas · detalle: solo con permiso (o null)
+    archivo      {ruta, nombre, formato, tamanoBytes, coleccion}
+                  material que el agente mandó (compartir_archivo); se descarga
+                  con GET /api/archivos?ruta=…, que vuelve a validar la ruta
     fin          {costoUsd, vueltas, duracionMs, tokens, modelo, contexto}
     error        {codigo, mensaje}
 
@@ -27,7 +30,7 @@ SSE): mantienen viva la conexión mientras el modelo piensa.
 import json
 from typing import Any, Literal
 
-TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "fin", "error"]
+TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "archivo", "fin", "error"]
 
 # Códigos de error estables: el front decide el mensaje y el tono por código.
 CodigoError = Literal[

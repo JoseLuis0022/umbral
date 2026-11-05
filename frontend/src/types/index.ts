@@ -50,6 +50,22 @@ export interface Mensaje {
    * ("Pensó 8 s"). Es dato de interfaz: no viaja al backend.
    */
   pensoMs?: number;
+  /** Material del curso que el agente mandó con `compartir_archivo`. */
+  archivos?: ArchivoCompartido[];
+}
+
+/**
+ * Evento `archivo` del protocolo: un archivo del curso que el agente le mandó
+ * al usuario. Se abre o descarga con `GET /api/archivos?ruta=…`, que vuelve a
+ * validar la ruta en el servidor (la tarjeta no da acceso a nada por sí sola).
+ */
+export interface ArchivoCompartido {
+  ruta: string;
+  nombre: string;
+  formato: 'md' | 'txt' | 'html' | 'pdf' | 'otro';
+  tamanoBytes: number;
+  /** "Apuntes", "Diapositivas del profesor", "Transcripciones". */
+  coleccion: string;
 }
 
 export type NivelAnalisis = 'bajo' | 'medio' | 'alto';

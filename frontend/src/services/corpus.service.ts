@@ -38,7 +38,17 @@ export interface ContenidoArchivo {
   contenido: string;
 }
 
-const RUTA_ARCHIVO = (ruta: string) => `/admin/corpus/archivo?ruta=${encodeURIComponent(ruta)}`;
+/**
+ * De dónde se lee un archivo:
+ *  - `corpus`: `/admin/corpus/archivo`, cualquier colección (permiso `auditoria`).
+ *  - `chat`:   `/archivos`, solo el material que el agente puede mandar
+ *              (apuntes, diapositivas, transcripciones), para cualquier sesión.
+ * Las dos respuestas tienen la misma forma: PDF crudo o JSON con el texto.
+ */
+export type OrigenArchivo = 'corpus' | 'chat';
+
+const RUTA_ARCHIVO = (ruta: string, origen: OrigenArchivo = 'corpus') =>
+  `${origen === 'chat' ? '/archivos' : '/admin/corpus/archivo'}?ruta=${encodeURIComponent(ruta)}`;
 
 export async function listarColecciones(): Promise<ColeccionCorpus[]> {
   const datos = await pedirJson<{ colecciones: ColeccionCorpus[] }>(
@@ -50,8 +60,8 @@ export async function listarColecciones(): Promise<ColeccionCorpus[]> {
 }
 
 /** Contenido de un archivo de texto (md, txt, html). */
-export async function leerTexto(ruta: string, senal?: AbortSignal): Promise<ContenidoArchivo> {
-  return pedirJson<ContenidoArchivo>(RUTA_ARCHIVO(ruta), { signal: senal }, 'No pudimos abrir este archivo.');
+export async function leerTexto(ruta: string, senal?: AbortSignal, origen: OrigenArchivo = 'corpus'): Promise<ContenidoArchivo> {
+  return pedirJson<ContenidoArchivo>(RUTA_ARCHIVO(ruta, origen), { signal: senal }, 'No pudimos abrir este archivo.');
 }
 
 /**
@@ -59,8 +69,8 @@ export async function leerTexto(ruta: string, senal?: AbortSignal): Promise<Cont
  * o un `src` porque el endpoint exige el header Authorization, que el navegador
  * no manda por su cuenta.
  */
-export async function descargarBlob(ruta: string, senal?: AbortSignal): Promise<Blob> {
-  const respuesta = await pedir(RUTA_ARCHIVO(ruta), { signal: senal });
+export async function descargarBlob(ruta: string, senal?: AbortSignal, origen: OrigenArchivo = 'corpus'): Promise<Blob> {
+  const respuesta = await pedir(RUTA_ARCHIVO(ruta, origen), { signal: senal });
   if (!respuesta.ok) {
     throw new ErrorApi(respuesta.status, await mensajeDeError(respuesta, 'No pudimos descargar el archivo.'));
   }
@@ -68,15 +78,18 @@ export async function descargarBlob(ruta: string, senal?: AbortSignal): Promise<
 }
 
 /** Guarda en disco cualquier archivo del corpus. Texto incluido. */
-export async function guardarEnDisco(archivo: ArchivoCorpus): Promise<void> {
+export async function guardarEnDisco(
+  archivo: Pick<ArchivoCorpus, 'ruta' | 'nombre' | 'tipo'>,
+  origen: OrigenArchivo = 'corpus'
+): Promise<void> {
   let blob: Blob;
   if (archivo.tipo === 'pdf') {
-    blob = await descargarBlob(archivo.ruta);
+    blob = await descargarBlob(archivo.ruta, undefined, origen);
   } else if (archivo.tipo === 'otro') {
     // El backend no previsualiza ni entrega binarios que no sean PDF.
     throw new ErrorApi(415, 'Este tipo de archivo no se puede descargar desde aquí.');
   } else {
-    const { contenido } = await leerTexto(archivo.ruta);
+    const { contenido } = await leerTexto(archivo.ruta, undefined, origen);
     blob = new Blob([contenido], { type: archivo.tipo === 'html' ? 'text/html' : 'text/plain' });
   }
   const url = URL.createObjectURL(blob);

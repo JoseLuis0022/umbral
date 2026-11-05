@@ -10,23 +10,18 @@ Todo aquí exige el permiso "auditoria" (rol `admin`, ver perfiles.py):
 
 Solo lectura: nada de este módulo escribe en la base ni en la carpeta del agente.
 
-El corpus se sirve por LISTA BLANCA. Un archivo solo se entrega si aparece en
-el listado de colecciones; además, la ruta resuelta (symlinks incluidos) tiene
-que quedar dentro de `agente_cwd`. Así `../`, una ruta absoluta o un enlace que
-apunte fuera se rechazan aunque el archivo exista.
+El corpus se sirve por LISTA BLANCA: las colecciones y las comprobaciones de
+ruta viven en corpus.py, compartidas con la descarga del chat (archivos.py).
 """
 
-import unicodedata
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
+from . import corpus as material
 from . import db
-from .config import ajustes
 from .esquemas import (
     ArchivoCorpus,
     ColeccionCorpus,
@@ -169,171 +164,13 @@ def resumen(dias: int = Query(default=30, ge=1, le=365)) -> ResumenAuditoria:
 
 # ── Corpus ──────────────────────────────────────────────────────────────────
 
-# Tope para devolver un archivo de texto entero en JSON.
-MAX_BYTES_TEXTO = 3 * 1024 * 1024
-
-_TIPOS = {".md": "md", ".txt": "txt", ".html": "html", ".htm": "html", ".pdf": "pdf"}
-
-
-@dataclass(frozen=True)
-class Coleccion:
-    id: str
-    nombre: str
-    descripcion: str
-    # Carpeta (relativa, en NFC) y si se incluyen subcarpetas.
-    carpeta: str
-    extensiones: tuple[str, ...] | None  # None = cualquiera
-    recursiva: bool = False
-    sensible: bool = False
-
-
-# El orden importa: un archivo pertenece a la PRIMERA colección que lo acepta
-# (estado/inventario/*.md no debe caer también en estado/*.md).
-COLECCIONES: tuple[Coleccion, ...] = (
-    Coleccion(
-        "inventario",
-        "Resúmenes de clases y prácticas",
-        "Lo que el agente sabe de cada clase y cada práctica. Es lo primero que consulta.",
-        "estado/inventario",
-        (".md",),
-    ),
-    Coleccion(
-        "mapa",
-        "Mapa y calendario",
-        "Índice de temas, calendario de la materia y bitácora de cambios.",
-        "estado",
-        (".md",),
-    ),
-    Coleccion(
-        "diapositivas-resumen",
-        "Resúmenes de diapositivas",
-        "Resumen por página de cada presentación del profesor.",
-        "estado/diapositivas",
-        (".md",),
-    ),
-    Coleccion(
-        "apuntes",
-        "Apuntes",
-        "Los apuntes por tema y para cada examen, en HTML (y su PDF cuando existe).",
-        "Apuntes",
-        (".html", ".pdf"),
-    ),
-    Coleccion(
-        "transcripciones",
-        "Transcripciones",
-        "Lo que se dijo en cada clase grabada.",
-        "Clases/Transcripciones",
-        (".txt",),
-    ),
-    Coleccion(
-        "diapositivas",
-        "Diapositivas del profesor",
-        "Las presentaciones originales en PDF.",
-        "Clases",
-        (".pdf",),
-        recursiva=True,
-    ),
-    Coleccion(
-        "practicas",
-        "Prácticas",
-        "Entregas calificadas del equipo. El perfil de consulta no puede leerlas.",
-        "Prácticas",
-        None,
-        recursiva=True,
-        sensible=True,
-    ),
-)
-
-
-def _nfc(texto: str) -> str:
-    # macOS guarda los nombres en NFD ("Prácticas" con el acento separado); el
-    # navegador manda NFC. Se compara siempre normalizado.
-    return unicodedata.normalize("NFC", texto)
-
-
-def _base() -> Path:
-    return ajustes.agente_cwd.resolve()
-
-
-def _coleccion_de(relativa: str) -> Coleccion | None:
-    carpeta, _, nombre = relativa.rpartition("/")
-    extension = Path(nombre).suffix.lower()
-    for c in COLECCIONES:
-        dentro = carpeta == c.carpeta or (c.recursiva and carpeta.startswith(c.carpeta + "/"))
-        if dentro and (c.extensiones is None or extension in c.extensiones):
-            return c
-    return None
-
-
-def _carpeta_real(base: Path, carpeta: str) -> Path | None:
-    """Encuentra `carpeta` bajo `base` comparando cada tramo en NFC.
-
-    En macOS (APFS) da igual cómo venga normalizado el nombre; en Linux no, y
-    una copia hecha desde una Mac conserva los nombres en NFD.
-    """
-    actual = base
-    for tramo in carpeta.split("/"):
-        directo = actual / tramo
-        if directo.is_dir():
-            actual = directo
-            continue
-        try:
-            actual = next(h for h in actual.iterdir() if h.is_dir() and _nfc(h.name) == tramo)
-        except (StopIteration, OSError):
-            return None
-    return actual
-
-
-def _indice() -> dict[str, tuple[Coleccion, Path]]:
-    """{ruta relativa NFC: (colección, ruta real)} de todo lo que se puede servir."""
-    base = _base()
-    indice: dict[str, tuple[Coleccion, Path]] = {}
-    if not base.is_dir():
-        return indice
-    for c in COLECCIONES:
-        raiz = _carpeta_real(base, c.carpeta)
-        if raiz is None:
-            continue
-        candidatos = raiz.rglob("*") if c.recursiva else raiz.iterdir()
-        for ruta in candidatos:
-            if ruta.name.startswith(".") or not ruta.is_file():
-                continue
-            # Un enlace que apunte fuera de la carpeta ni siquiera se lista.
-            if not ruta.resolve().is_relative_to(base):
-                continue
-            try:
-                relativa = _nfc(ruta.relative_to(base).as_posix())
-            except ValueError:
-                continue
-            if relativa in indice:
-                continue
-            if _coleccion_de(relativa) is c:
-                indice[relativa] = (c, ruta)
-    return indice
-
-
-def _tipo(nombre: str) -> str:
-    return _TIPOS.get(Path(nombre).suffix.lower(), "otro")
-
-
-def _archivo(relativa: str, ruta: Path) -> ArchivoCorpus:
-    info = ruta.stat()
-    return ArchivoCorpus(
-        ruta=relativa,
-        nombre=_nfc(ruta.name),
-        tipo=_tipo(ruta.name),  # type: ignore[arg-type]
-        tamano_bytes=info.st_size,
-        modificado=datetime.fromtimestamp(info.st_mtime, timezone.utc).isoformat(),
-    )
-
-
 @router.get("/corpus", response_model=Corpus)
 def corpus() -> Corpus:
-    if not _base().is_dir():
+    if not material.base().is_dir():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No encontramos la carpeta del agente en el servidor.")
-    por_coleccion: dict[str, list[ArchivoCorpus]] = {c.id: [] for c in COLECCIONES}
-    for relativa, (c, ruta) in _indice().items():
-        por_coleccion[c.id].append(_archivo(relativa, ruta))
+    por_coleccion: dict[str, list[ArchivoCorpus]] = {c.id: [] for c in material.COLECCIONES}
+    for relativa, (c, ruta) in material.indice().items():
+        por_coleccion[c.id].append(material.archivo(relativa, ruta))
     return Corpus(
         colecciones=[
             ColeccionCorpus(
@@ -343,47 +180,25 @@ def corpus() -> Corpus:
                 sensible=c.sensible,
                 archivos=sorted(por_coleccion[c.id], key=lambda a: a.ruta.casefold()),
             )
-            for c in COLECCIONES
+            for c in material.COLECCIONES
         ]
     )
 
 
-def _resolver(ruta: str) -> tuple[str, Path]:
-    """Valida la ruta pedida y devuelve (relativa NFC, ruta real dentro de la base)."""
-    if not ruta or "\x00" in ruta or "\\" in ruta:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ruta inválida.")
-    pedida = Path(ruta)
-    if pedida.is_absolute() or ".." in pedida.parts:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ruta inválida.")
-
-    base = _base()
-    relativa = _nfc(pedida.as_posix())
-    entrada = _indice().get(relativa)
-    if entrada is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ese archivo no está en el corpus.")
-
-    # Segunda barrera: aunque esté en la lista, la ruta REAL (siguiendo
-    # symlinks) tiene que quedar dentro de la carpeta del agente.
-    real = entrada[1].resolve()
-    if not real.is_relative_to(base) or not real.is_file():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ese archivo no está en el corpus.")
-    return relativa, real
-
-
 @router.get("/corpus/archivo", response_model=ContenidoArchivo)
 def archivo(ruta: str = Query(min_length=1, max_length=500)):  # noqa: ANN201 — JSON o PDF
-    relativa, real = _resolver(ruta)
-    tipo = _tipo(real.name)
+    relativa, real = material.resolver(ruta)
+    tipo = material.tipo(real.name)
     if tipo == "pdf":
-        return FileResponse(real, media_type="application/pdf", filename=_nfc(real.name), content_disposition_type="inline")
+        return FileResponse(real, media_type="application/pdf", filename=material.nfc(real.name), content_disposition_type="inline")
     if tipo == "otro":
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Este tipo de archivo no se puede previsualizar.")
     tamano = real.stat().st_size
-    if tamano > MAX_BYTES_TEXTO:
+    if tamano > material.MAX_BYTES_TEXTO:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "El archivo es demasiado grande para mostrarlo.")
     return ContenidoArchivo(
         ruta=relativa,
-        nombre=_nfc(real.name),
+        nombre=material.nfc(real.name),
         tipo=tipo,  # type: ignore[arg-type]
         tamano_bytes=tamano,
         contenido=real.read_bytes().decode("utf-8", errors="replace"),

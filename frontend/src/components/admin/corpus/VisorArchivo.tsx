@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronLeft, Download, FileQuestion, FileText } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 import { formatoFechaLarga, tamanoLegible } from '../../../lib/fechas';
@@ -10,6 +10,7 @@ import {
   guardarEnDisco,
   leerTexto,
   type ArchivoCorpus,
+  type OrigenArchivo,
 } from '../../../services/corpus.service';
 
 const VisorPdf = lazy(() => import('./VisorPdf'));
@@ -49,10 +50,19 @@ type Carga =
 export function VisorArchivo({
   archivo,
   onVolver,
+  origen = 'corpus',
+  subtitulo,
+  accion,
   className,
 }: {
   archivo: ArchivoCorpus | null;
-  onVolver: () => void;
+  /** Botón "volver" de móvil (Corpus). Sin él, no se dibuja. */
+  onVolver?: () => void;
+  origen?: OrigenArchivo;
+  /** Reemplaza la línea "tamaño · modificado" (el chat no conoce la fecha). */
+  subtitulo?: string;
+  /** Algo más en la cabecera, a la derecha de Descargar (el chat pone Cerrar). */
+  accion?: ReactNode;
   className?: string;
 }) {
   const { push } = useToast();
@@ -70,8 +80,8 @@ export function VisorArchivo({
     setCarga({ estado: 'cargando' });
     const promesa =
       archivo.tipo === 'pdf'
-        ? descargarBlob(archivo.ruta, control.signal).then((blob): Carga => ({ estado: 'pdf', blob }))
-        : leerTexto(archivo.ruta, control.signal).then((r): Carga => ({ estado: 'texto', contenido: r.contenido }));
+        ? descargarBlob(archivo.ruta, control.signal, origen).then((blob): Carga => ({ estado: 'pdf', blob }))
+        : leerTexto(archivo.ruta, control.signal, origen).then((r): Carga => ({ estado: 'texto', contenido: r.contenido }));
     promesa
       .then((resultado) => {
         if (!control.signal.aborted) setCarga(resultado);
@@ -82,19 +92,19 @@ export function VisorArchivo({
     // Cambiar de archivo cancela la descarga anterior: un PDF de 8 MB que
     // llega tarde no debe pisar al archivo que ya se está leyendo.
     return () => control.abort();
-  }, [archivo, intento]);
+  }, [archivo, intento, origen]);
 
   const descargar = useCallback(async () => {
     if (!archivo) return;
     setDescargando(true);
     try {
-      await guardarEnDisco(archivo);
+      await guardarEnDisco(archivo, origen);
     } catch {
       push({ message: copy.descargaFallo, tone: 'error' });
     } finally {
       setDescargando(false);
     }
-  }, [archivo, push]);
+  }, [archivo, push, origen]);
 
   const alFallarPdf = useCallback(() => setCarga({ estado: 'error' }), []);
   const htmlLimpio = useMemo(
@@ -114,16 +124,18 @@ export function VisorArchivo({
           archivo, el visor entero saltaría hacia abajo. */}
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline px-4 py-3 lg:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <Button variant="ghost" size="sm" onClick={onVolver} className="shrink-0 px-2 lg:hidden" aria-label={copy.volver}>
-            <ChevronLeft size={16} aria-hidden />
-          </Button>
+          {onVolver && (
+            <Button variant="ghost" size="sm" onClick={onVolver} className="shrink-0 px-2 lg:hidden" aria-label={copy.volver}>
+              <ChevronLeft size={16} aria-hidden />
+            </Button>
+          )}
           {archivo ? (
             <div className="min-w-0">
               <p className="truncate font-ui text-14 font-medium text-text-1" title={archivo.ruta}>
                 {archivo.nombre}
               </p>
               <p className="mt-0.5 truncate font-ui text-12 tabular-nums text-text-3">
-                {tamanoLegible(archivo.tamanoBytes)} · {copy.modificado(formatoFechaLarga(archivo.modificado))}
+                {subtitulo ?? `${tamanoLegible(archivo.tamanoBytes)} · ${copy.modificado(formatoFechaLarga(archivo.modificado))}`}
               </p>
             </div>
           ) : (
@@ -136,6 +148,7 @@ export function VisorArchivo({
             {copy.descargar}
           </Button>
         )}
+        {accion}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">

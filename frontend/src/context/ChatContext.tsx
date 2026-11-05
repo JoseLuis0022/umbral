@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Adjunto, Conversacion, ItemProceso, Mensaje, ModeloDisponible } from '../types';
+import type { Adjunto, ArchivoCompartido, Conversacion, ItemProceso, Mensaje, ModeloDisponible } from '../types';
 import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
 import { listarModelos } from '../services/modelos.service';
@@ -84,6 +84,8 @@ type ChatCtx = {
   textoParcial: string;
   /** Proceso en vivo del agente: razonamiento y pasos, en orden. */
   proceso: ItemProceso[];
+  /** Archivos que el agente ya mandó en la respuesta en curso. */
+  archivosEnVivo: ArchivoCompartido[];
 
   /** `true` si la cuenta puede elegir modelo y esfuerzo (permiso "parametros"). */
   puedeAjustarModelo: boolean;
@@ -251,7 +253,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         actualizar((previo) => previo.map((c) => (c.id === conversacionId ? { ...c, contexto } : c)));
       }
 
-      if (resultado.texto.trim()) {
+      // Un archivo mandado sin texto también es respuesta: no se pierde la tarjeta.
+      if (resultado.texto.trim() || resultado.archivos.length) {
         const creadoEn = new Date().toISOString();
         const respuesta: Mensaje = {
           id: idNuevo('m'),
@@ -261,6 +264,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           reaccion: null,
           proceso: resultado.proceso.length ? resultado.proceso : undefined,
           pensoMs: pensoRef.current ?? undefined,
+          archivos: resultado.archivos.length ? resultado.archivos : undefined,
         };
         actualizar((previo) =>
           previo.map((c) =>
@@ -404,6 +408,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       estadoStream: stream.estado,
       textoParcial: stream.textoParcial,
       proceso: stream.proceso,
+      archivosEnVivo: stream.archivos,
       puedeAjustarModelo,
       modelos,
       ajusteModelo,
@@ -426,6 +431,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       stream.estado,
       stream.textoParcial,
       stream.proceso,
+      stream.archivos,
       puedeAjustarModelo,
       modelos,
       ajusteModelo,

@@ -171,6 +171,9 @@ async def _transmitir(
                 break
             if isinstance(ev, dict) and ev.get("tipo") == "texto":
                 partes_respuesta.append(str(ev.get("delta") or ""))
+            elif isinstance(ev, dict) and ev.get("tipo") == "archivo":
+                # En Auditoría se ve qué material se mandó, junto a la respuesta.
+                partes_respuesta.append(f"\n\n📎 {ev.get('nombre')} ({ev.get('ruta')})")
             yield a_sse(ev)  # type: ignore[arg-type]
         terminada = True
     finally:

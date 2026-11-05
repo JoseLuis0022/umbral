@@ -10,6 +10,7 @@ Qué emite el SDK y en qué se convierte:
     StreamEvent text_delta       → texto {delta}         ← token por token
     AssistantMessage ToolUse     → actividad {fase: inicio}
     UserMessage ToolResult       → actividad {fase: fin, ok}
+                                   (+ archivo {…} si fue compartir_archivo y salió bien)
     ResultMessage                → (guarda costo, vueltas, tokens)
     get_context_usage()          → fin {…, contexto}     (+ error si falló)
 
@@ -46,6 +47,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
+from . import archivos, corpus
 from .config import ajustes
 from .esquemas import ImagenAdjunta
 from .guardias import hook_rutas_bloqueadas, reglas_bloqueo
@@ -142,7 +144,10 @@ def construir_opciones(
         # `tools` define qué herramientas EXISTEN; `allowed_tools` las aprueba
         # sin preguntar; `dontAsk` niega todo lo demás (no hay humano que conteste).
         tools=list(perfil.herramientas),
-        allowed_tools=list(perfil.herramientas),
+        # La herramienta propia (archivos.py) no es integrada: vive en un
+        # servidor MCP dentro de este proceso y se aprueba aparte.
+        mcp_servers={archivos.SERVIDOR_MCP: archivos.servidor_mcp(perfil.rutas_bloqueadas)},
+        allowed_tools=[*perfil.herramientas, archivos.HERRAMIENTA],
         disallowed_tools=reglas_bloqueo(perfil.rutas_bloqueadas),
         permission_mode="dontAsk",
         setting_sources=["project"] if perfil.cargar_proyecto else [],
@@ -198,6 +203,10 @@ def describir(herramienta: str, entrada: dict[str, Any], cwd: Path, nombre: str)
         return "Ejecutando un paso de procesamiento"
     if herramienta == "Skill":
         return "Siguiendo un procedimiento del agente"
+    if herramienta == archivos.HERRAMIENTA:
+        # Solo el nombre del archivo: es lo que el usuario va a recibir.
+        nombre_archivo = Path(str(entrada.get("ruta", ""))).name
+        return f"Preparando «{nombre_archivo}» para mandártelo" if nombre_archivo else "Preparando un archivo para mandártelo"
 
     ruta = resumir(herramienta, entrada, cwd)
     if ruta.endswith("indice-temas.md"):
@@ -242,6 +251,8 @@ def resumir(nombre: str, entrada: dict[str, Any], cwd: Path) -> str:
         return str(entrada.get("skill") or entrada.get("command") or "")
     if nombre in HERRAMIENTAS_SUBAGENTE:
         return str(entrada.get("description", ""))
+    if nombre == archivos.HERRAMIENTA:
+        return str(entrada.get("ruta", ""))
     return ""
 
 
@@ -322,6 +333,8 @@ async def _consultar_sdk(
         # Con permiso, se ve en el Proceso como razonamiento; sin permiso, no sale.
         return [evento("pensamiento", delta=texto.strip() + "\n")] if ajuste.ver_interno and texto.strip() else []
     abiertas: dict[str, dict[str, Any]] = {}
+    # tool_use_id → ruta pedida a compartir_archivo, para emitir `archivo` al terminar.
+    por_compartir: dict[str, str] = {}
 
     try:
         async with ClaudeSDKClient(options=opciones) as cliente:
@@ -392,6 +405,8 @@ async def _consultar_sdk(
                                 "dentroDe": m.parent_tool_use_id,
                             }
                             abiertas[bloque.id] = info
+                            if bloque.name == archivos.HERRAMIENTA:
+                                por_compartir[bloque.id] = str(bloque.input.get("ruta", ""))
                             registro.herramientas.append(bloque.name)
                             if m.parent_tool_use_id is None:
                                 separar = True
@@ -404,6 +419,14 @@ async def _consultar_sdk(
                             if isinstance(bloque, ToolResultBlock) and bloque.tool_use_id in abiertas:
                                 info = abiertas.pop(bloque.tool_use_id)
                                 yield evento("actividad", fase="fin", ok=not bloque.is_error, **info)
+                                ruta = por_compartir.pop(bloque.tool_use_id, None)
+                                if ruta is not None and not bloque.is_error:
+                                    # Se valida OTRA vez aquí: el evento sale de lo
+                                    # que dice el código, no de lo que dijo el modelo.
+                                    try:
+                                        yield evento("archivo", **archivos.ficha(*archivos.resolver_compartible(ruta, perfil.rutas_bloqueadas)))
+                                    except archivos.NoCompartible:
+                                        log.warning("compartir_archivo dijo que sí, pero la ruta no pasa: %s", ruta)
                     continue
 
                 if isinstance(m, ResultMessage):
@@ -509,6 +532,14 @@ async def _consultar_prueba(
     for pieza in re.findall(r"\S+\s*", texto):
         await asyncio.sleep(random.uniform(0.015, 0.04))
         yield evento("texto", delta=pieza)
+
+    # Si la pregunta pide un archivo, se manda el primer apunte compartible:
+    # así la tarjeta se prueba sin gastar tokens.
+    if re.search(r"m[aá]nd|p[aá]s[aá]me|archivo|pdf", mensaje, re.IGNORECASE):
+        for relativa, (coleccion, _) in sorted(corpus.indice().items()):
+            if coleccion.compartible:
+                yield evento("archivo", **archivos.ficha(*archivos.resolver_compartible(relativa)))
+                break
 
     registro.costo_usd = 0.0
     registro.vueltas = len(pasos) + 1

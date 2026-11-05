@@ -94,6 +94,14 @@ export const copyLocal = {
   hiloEtiqueta: 'Conversación con el asistente',
   sugerenciaEtiqueta: 'Usar esta pregunta',
 
+  // Archivos que manda el agente
+  archivosEtiqueta: 'Archivos que te mandó el asistente',
+  abrirArchivo: (nombre: string) => `Abrir ${nombre}`,
+  descargarArchivo: (nombre: string) => `Descargar ${nombre}`,
+  descargaFallo: 'No pudimos descargar el archivo. Intenta de nuevo.',
+  cerrarVisor: 'Cerrar',
+  formatoArchivo: { pdf: 'PDF', html: 'Apunte web', txt: 'Texto', md: 'Texto', otro: 'Archivo' } as Record<string, string>,
+
   // Nueva sesión desde una conversación cerrada
   contextoNuevaSesion: (titulo: string) => `Retomo el tema de "${titulo}": `,
 } as const;
