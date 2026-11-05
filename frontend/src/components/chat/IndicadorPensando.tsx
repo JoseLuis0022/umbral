@@ -12,17 +12,17 @@ import { copyLocal } from './copyLocal';
  *
  * Un chat no sabe cuánto medirá la respuesta, así que la espera NO promete una
  * forma (nada de barras de skeleton): dice que el agente está trabajando y QUÉ
- * está haciendo. La señal es el isotipo de Umbral vivo —la M de tres nodos— más
+ * está haciendo. La señal es el isotipo de Umbral vivo —el escalón de tres nodos— más
  * una frase con brillo, en una fila de 28 px.
  *
  * Todo lo que late aquí es CSS (keyframes en tailwind.config.js). Estas piezas
  * viven dentro del hilo, que se re-renderiza una vez por frame mientras llega
  * texto, y una animación de JS se reiniciaría en cada render. Framer Motion
- * solo hace lo que ocurre UNA vez: el dibujo inicial de la M y la entrada.
+ * solo hace lo que ocurre UNA vez: el dibujo inicial del escalón y la entrada.
  */
 
-/** Rejilla de 24: picos en (5,6) y (19,6), valle en (12,16). Es el mismo dibujo que `IsotipoUmbral`. */
-const TRAZO = 'M5 19.5V6l7 10L19 6v13.5';
+/** Rejilla de 24: extremos en (4,17) y (20,7), umbral en (12,12). Es el mismo dibujo que `IsotipoUmbral`. */
+const TRAZO = 'M3 17h9V7h9';
 
 /*
  * Cuándo pasa el pulso por cada nodo, en segundos desde el arranque del ciclo.
@@ -31,12 +31,14 @@ const TRAZO = 'M5 19.5V6l7 10L19 6v13.5';
  * 1,6 s). `nodoPaso` tiene su pico al 10 % de 1,8 s = 0,18 s, así que cada
  * retraso es "momento del paso − 0,18".
  */
+// Trazo de 28 unidades: el extremo bajo cae al 4 %, el umbral al 50 % y el
+// extremo alto al 96 %; con la misma velocidad de pulso eso da estos retrasos.
 const NODOS = [
-  { cx: 5, cy: 6, r: 2.1, retraso: 0.287 },
-  { cx: 12, cy: 16, r: 2.5, retraso: 0.62 },
-  { cx: 19, cy: 6, r: 2.1, retraso: 0.953 },
+  { cx: 4, cy: 17, r: 2.1, retraso: 0 },
+  { cx: 12, cy: 12, r: 2.5, retraso: 0.62 },
+  { cx: 20, cy: 7, r: 2.1, retraso: 1.27 },
 ];
-/** El pulso llega al valle a los 0,8 s: ahí sale la onda. */
+/** El pulso llega al umbral a los 0,8 s: ahí sale la onda. */
 const RETRASO_ONDA = 0.8;
 /** El dibujo inicial dura 600 ms; el recorrido empieza al terminar. */
 const DURACION_DIBUJO = 0.6;
@@ -95,11 +97,11 @@ export function IsotipoPensando({
         />
       )}
 
-      {/* Onda del valle: el anillo crece de r 2,5 a 7 y se apaga. */}
+      {/* Onda del umbral: el anillo crece de r 2,5 a 7 y se apaga. */}
       {vivo && (
         <circle
           cx={12}
-          cy={16}
+          cy={12}
           r={2.5}
           fill="none"
           stroke="currentColor"

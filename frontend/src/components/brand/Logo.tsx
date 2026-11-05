@@ -2,12 +2,14 @@ import { cn } from '../../lib/cn';
 import { marca } from '../../copy';
 
 /**
- * Isotipo del producto: una "M" dibujada como un grafo de tres nodos.
+ * Isotipo de Umbral: la FUNCIÓN UMBRAL (el escalón de la binarización) dibujada
+ * como un grafo de tres nodos.
  *
- * Los picos y el valle de la M son los nodos; las líneas, los pasos entre
- * ellos. Es el agentic loop en una imagen: el agente va de un paso a otro
- * (leer el índice → ir al resumen → responder). El nodo del valle lleva un halo:
- * es el "paso activo".
+ * Una línea baja, el salto en el umbral y una línea alta: lo que pasa de un
+ * lado del umbral al otro. Es un concepto central de la materia (Otsu,
+ * binarización) y la idea del producto: cruzar el umbral hacia entender algo.
+ * Los extremos y el punto del salto son los nodos; el del umbral lleva un halo:
+ * es el "paso activo" (y el que late en la animación de "pensando").
  *
  * No es un archivo de imagen a propósito: la placa sale de `--accent` y
  * `--accent-strong`, y el trazo es `currentColor`, así que un cambio de
@@ -16,7 +18,7 @@ import { marca } from '../../copy';
  * escritos: el navegador lo pinta fuera de la app, y a 16 px el halo es ruido.
  *
  * Probado a 16, 28, 36, 56 y 112 px: el halo es lo primero que se pierde en
- * tamaños chicos, y por diseño puede perderse sin que la M deje de leerse.
+ * tamaños chicos, y por diseño puede perderse sin que el escalón deje de leerse.
  */
 const TAMANOS = {
   sm: 'h-7 w-7 rounded-celda', // cabecera
@@ -24,22 +26,22 @@ const TAMANOS = {
   lg: 'h-14 w-14 rounded-control', // login
 } as const;
 
-/** El dibujo, sin placa. Rejilla de 24: picos en (5,6) y (19,6), valle en (12,16). */
+/** El dibujo, sin placa. Rejilla de 24: extremos en (4,17) y (20,7), umbral en (12,12). */
 export function IsotipoUmbral({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
       <path
-        d="M5 19.5V6l7 10L19 6v13.5"
+        d="M3 17h9V7h9"
         fill="none"
         stroke="currentColor"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="16" r="4.6" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.38} />
-      <circle cx="5" cy="6" r="2.1" fill="currentColor" />
-      <circle cx="19" cy="6" r="2.1" fill="currentColor" />
-      <circle cx="12" cy="16" r="2.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="4.6" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.38} />
+      <circle cx="4" cy="17" r="2.1" fill="currentColor" />
+      <circle cx="20" cy="7" r="2.1" fill="currentColor" />
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" />
     </svg>
   );
 }
