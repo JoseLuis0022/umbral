@@ -25,8 +25,12 @@ export interface ColeccionCorpus {
   id: string;
   nombre: string;
   descripcion: string;
+  /** Carpeta de la colección (relativa a la del agente). */
+  carpeta: string;
   /** Entregas calificadas: el perfil de consulta no puede leerlas. */
   sensible: boolean;
+  /** El agente puede mandar estos archivos por el chat. */
+  compartible: boolean;
   archivos: ArchivoCorpus[];
 }
 

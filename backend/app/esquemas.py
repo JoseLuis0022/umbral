@@ -228,7 +228,12 @@ class ColeccionCorpus(Modelo):
     id: str
     nombre: str
     descripcion: str
+    # Carpeta de la colección, relativa a la del agente: el front agrupa los
+    # archivos por las subcarpetas que cuelgan de aquí.
+    carpeta: str
     sensible: bool = False
+    # El agente puede mandar sus archivos por el chat (compartir_archivo).
+    compartible: bool = False
     archivos: list[ArchivoCorpus]
 
 

@@ -242,6 +242,19 @@ export const corpus = {
   pdfCargando: 'Abriendo el PDF…',
   contenido: 'Contenido del archivo',
   volver: 'Volver a la lista',
+  // Portada de carpetas
+  carpetas: 'Carpetas',
+  raiz: 'En la carpeta principal',
+  volverCarpetas: 'Volver a las carpetas',
+  grupoMaterial: 'Material del curso',
+  grupoMaterialDetalle: 'Lo que los alumnos pueden pedir: el agente se los manda por el chat.',
+  grupoMemoria: 'Memoria del agente',
+  grupoMemoriaDetalle: 'Lo que el agente lee primero para orientarse. Los alumnos no lo reciben.',
+  grupoPrivado: 'Privado',
+  grupoPrivadoDetalle: 'Entregas del equipo. El modo de consulta no puede leerlas ni mandarlas.',
+  actualizado: (fecha: string) => `actualizado ${fecha}`,
+  buscarTodo: 'Buscar en todas las carpetas…',
+  resultados: (n: number) => `${n} ${n === 1 ? 'resultado' : 'resultados'}`,
 };
 
 export const ajustes = {

@@ -177,7 +177,9 @@ def corpus() -> Corpus:
                 id=c.id,
                 nombre=c.nombre,
                 descripcion=c.descripcion,
+                carpeta=c.carpeta,
                 sensible=c.sensible,
+                compartible=c.compartible,
                 archivos=sorted(por_coleccion[c.id], key=lambda a: a.ruta.casefold()),
             )
             for c in material.COLECCIONES
