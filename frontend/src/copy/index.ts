@@ -71,7 +71,7 @@ export const invitado = {
     'En modo invitado solo podemos usar modelos económicos (Claude Haiku) y tienes un crédito de prueba. Si quieres más preguntas o mejorar el plan, escríbeme y te doy acceso.',
   agotado: 'Ya usaste tu crédito de prueba.',
   credito: (gastado: string, limite: string) => `Usaste US$${gastado} de US$${limite}`,
-  pastilla: (resto: string) => `Modo invitado · quedan US$${resto}`,
+  pastilla: (resto: string) => `Modo invitado · Claude Haiku · quedan US$${resto}`,
   escribirme: 'Escribirme',
   copiarCorreo: 'Copiar correo',
   correoCopiado: 'Correo copiado',

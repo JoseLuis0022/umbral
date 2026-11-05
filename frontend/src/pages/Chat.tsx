@@ -293,6 +293,12 @@ export default function Chat() {
         senalFoco={senalFoco}
         sinAviso={enBlanco}
       />
+      {/* Dentro del composer: así se ve igual en la sesión nueva y en el hilo. */}
+      {plan && (
+        <div className="mt-1 flex justify-center">
+          <PastillaInvitado plan={plan} onAbrir={abrirAvisoPlan} />
+        </div>
+      )}
     </motion.div>
   );
 
@@ -419,11 +425,6 @@ export default function Chat() {
                   />
                 ) : null}
                 {noEncontrada ? null : composer}
-                {plan && !noEncontrada && (
-                  <div className="mt-1 flex justify-center">
-                    <PastillaInvitado plan={plan} onAbrir={abrirAvisoPlan} />
-                  </div>
-                )}
               </div>
             </div>
           </>

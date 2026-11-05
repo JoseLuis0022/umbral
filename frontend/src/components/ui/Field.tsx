@@ -1,4 +1,4 @@
-import { forwardRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { cloneElement, forwardRef, isValidElement, useId, useState, type InputHTMLAttributes, type ReactElement, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/cn';
@@ -25,15 +25,32 @@ export function Field({
   className?: string;
   children?: ReactNode;
 }) {
+  /*
+   * La etiqueta se ASOCIA al control: `htmlFor` + el mismo `id` en el hijo, y
+   * el mensaje de ayuda o error por `aria-describedby`. Sin esto, un lector de
+   * pantalla anunciaba un campo sin nombre y hacer clic en la etiqueta no
+   * enfocaba nada. Si el hijo ya trae su `id`, se respeta.
+   */
+  const base = useId();
+  const hijo = isValidElement(children) ? (children as ReactElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>) : null;
+  const idControl = hijo?.props.id ?? `${base}-control`;
+  const idMensaje = `${base}-mensaje`;
+  const control = hijo
+    ? cloneElement(hijo, {
+        id: idControl,
+        'aria-describedby': error || hint ? idMensaje : hijo.props['aria-describedby'],
+        'aria-invalid': error ? true : hijo.props['aria-invalid'],
+      })
+    : children;
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       {label && (
-        <label className="font-ui text-13 font-medium text-text-2">
+        <label htmlFor={hijo ? idControl : undefined} className="font-ui text-13 font-medium text-text-2">
           {label}
           {required && <span className="ml-1 text-status-red">*</span>}
         </label>
       )}
-      {children}
+      {control}
 
       {/*
         El renglón del mensaje está RESERVADO (min-h de una línea) y solo se
@@ -48,7 +65,7 @@ export function Field({
         hijos por clave: sin ellas el relevo error → ayuda no disparaba la
         salida de forma fiable.
       */}
-      <div className="min-h-[16px]">
+      <div id={idMensaje} className="min-h-[16px]">
         <AnimatePresence mode="wait" initial={false}>
           {error ? (
             <motion.p
