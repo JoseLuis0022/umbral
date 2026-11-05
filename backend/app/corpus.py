@@ -99,15 +99,6 @@ COLECCIONES: tuple[Coleccion, ...] = (
         recursiva=True,
         compartible=True,
     ),
-    Coleccion(
-        "practicas",
-        "Prácticas",
-        "Entregas calificadas del equipo. El perfil de consulta no puede leerlas.",
-        "Prácticas",
-        None,
-        recursiva=True,
-        sensible=True,
-    ),
 )
 
 

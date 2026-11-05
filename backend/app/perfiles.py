@@ -53,7 +53,8 @@ PERFILES: dict[str, Perfil] = {
         cargar_proyecto=False,
         max_vueltas=12,
         presupuesto_usd=0.75,
-        # Entregas calificadas del equipo: no se comparten con la clase.
+        # La carpeta ya no está en el corpus publicado (tenía nombres del equipo);
+        # el bloqueo se queda por si alguien la vuelve a copiar.
         rutas_bloqueadas=("Prácticas",),
         # Sonnet: en las pruebas costó ~3× menos que Opus por pregunta
         # ($0.035 contra $0.11) con respuestas de buena calidad para consulta.
