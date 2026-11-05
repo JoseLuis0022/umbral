@@ -28,14 +28,16 @@ export const copyLocal = {
   conversacionEliminada: 'Conversación eliminada',
 
   // Adjuntos
-  adjuntoPesado: (nombre: string) => `${nombre} pesa más de 25 MB. Adjunta una versión más ligera.`,
-  adjuntoTipo: (nombre: string) => `${nombre} no es una imagen. Por ahora el agente solo lee imágenes JPG, PNG, WebP o GIF.`,
-  adjuntoIlegible: (nombre: string) => `No pudimos leer ${nombre}. Prueba con otra imagen o con una captura de pantalla.`,
-  adjuntoLimite: 'Puedes adjuntar hasta 5 imágenes por mensaje.',
-  adjuntarImagen: 'Adjuntar imágenes',
-  adjuntarImagenAyuda: 'Adjuntar imágenes (también puedes pegarlas con ⌘V o arrastrarlas)',
-  preparandoImagen: 'Preparando la imagen…',
-  soltarImagenes: 'Suelta las imágenes para adjuntarlas',
+  adjuntoPesado: (nombre: string) =>
+    `${nombre} no cabe: un mensaje admite unos 22 MB de adjuntos en total (el tope de la API de Claude). Mándalo en otro mensaje o en una versión más ligera.`,
+  adjuntoIlegible: (nombre: string) => `No pudimos leer ${nombre}. Prueba de nuevo o con otro formato.`,
+  adjuntoLimite: 'Puedes adjuntar hasta 10 archivos por mensaje.',
+  videoDetalle: (n: number) => `Video · el modelo verá ${n} fotogramas`,
+  formatoAdjunto: { pdf: 'PDF', texto: 'Texto', video: 'Video', imagen: 'Imagen' } as Record<string, string>,
+  adjuntarImagen: 'Adjuntar archivos',
+  adjuntarImagenAyuda: 'Adjuntar archivos: imágenes, PDF, texto, código o video (también con ⌘V o arrastrándolos)',
+  preparandoImagen: 'Preparando el archivo…',
+  soltarImagenes: 'Suelta los archivos para adjuntarlos',
   verImagen: (nombre: string) => `Ver ${nombre}`,
   imagenNoDisponible: 'La imagen completa ya no está en esta sesión; se muestra la miniatura.',
 

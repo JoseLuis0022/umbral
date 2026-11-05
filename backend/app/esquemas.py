@@ -97,17 +97,48 @@ class ImagenAdjunta(Modelo):
         return valor
 
 
+# La API de Anthropic acepta peticiones de hasta 32 MB. Todo lo adjunto (en
+# base64 o texto) se acota por debajo, con margen para el resto del cuerpo.
+MAX_BYTES_ADJUNTOS = 30 * 1024 * 1024
+# La API admite hasta 100 imágenes por petición; un video llega como fotogramas.
+MAX_IMAGENES = 100
+MAX_DOCUMENTOS = 10
+
+
+class DocumentoAdjunto(Modelo):
+    """Un PDF (base64) o un texto (html ya convertido, md, csv, código…)."""
+
+    nombre: str = Field(max_length=200)
+    formato: Literal["pdf", "texto"]
+    datos: str = Field(min_length=1, max_length=MAX_BYTES_ADJUNTOS)
+
+    @model_validator(mode="after")
+    def pdf_en_base64(self) -> "DocumentoAdjunto":
+        if self.formato == "pdf":
+            try:
+                crudo = base64.b64decode(self.datos, validate=True)
+            except binascii.Error:
+                raise ValueError("El PDF no es base64 válido.") from None
+            if not crudo.startswith(b"%PDF"):
+                raise ValueError("El archivo no es un PDF.")
+        return self
+
+
 class PeticionChat(Modelo):
     conversacion_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_.:\-]+$")
     mensaje: str = Field(default="", max_length=8_000)
-    imagenes: list[ImagenAdjunta] = Field(default_factory=list, max_length=5)
+    imagenes: list[ImagenAdjunta] = Field(default_factory=list, max_length=MAX_IMAGENES)
+    documentos: list[DocumentoAdjunto] = Field(default_factory=list, max_length=MAX_DOCUMENTOS)
     perfil: str = "consulta"
     parametros: ParametrosChat | None = None
 
     @model_validator(mode="after")
     def con_contenido(self) -> "PeticionChat":
-        if not self.mensaje.strip() and not self.imagenes:
-            raise ValueError("Escribe un mensaje o adjunta una imagen.")
+        if not self.mensaje.strip() and not self.imagenes and not self.documentos:
+            raise ValueError("Escribe un mensaje o adjunta un archivo.")
+        total = sum(len(i.datos) for i in self.imagenes) + sum(len(d.datos) for d in self.documentos)
+        if total > MAX_BYTES_ADJUNTOS:
+            raise ValueError("Los adjuntos superan lo que admite una petición a la API (~22 MB).")
         return self
 
 

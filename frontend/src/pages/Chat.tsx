@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessagesSquare, PanelLeft, PanelLeftClose, Plus } from 'lucide-react';
-import type { ImagenPreparada } from '../lib/imagenes';
+import type { AdjuntoPreparado } from '../lib/adjuntos';
 import { cn } from '../lib/cn';
 import { dur, ease, springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -82,7 +82,7 @@ export default function Chat() {
   } = useChat();
 
   const [texto, setTexto] = useState('');
-  const [imagenes, setImagenes] = useState<ImagenPreparada[]>([]);
+  const [adjuntos, setAdjuntos] = useState<AdjuntoPreparado[]>([]);
   // Contador, no booleano: devolver el foco al campo dos veces seguidas (dos
   // chips, dos "nueva sesión") tiene que volver a disparar el efecto.
   const [senalFoco, setSenalFoco] = useState(0);
@@ -157,7 +157,7 @@ export default function Chat() {
       const id = enviar(sugerencia, []);
       if (!id) return;
       setTexto('');
-      setImagenes([]);
+      setAdjuntos([]);
       if (id !== conversacionId) navigate(`/chat/${id}`, { replace: true });
     },
     [ocupado, enviar, conversacionId, navigate]
@@ -166,7 +166,7 @@ export default function Chat() {
   const nuevaSesion = useCallback(() => {
     setCajonAbierto(false);
     setTexto('');
-    setImagenes([]);
+    setAdjuntos([]);
     seleccionar(null);
     // Solo se navega si de verdad se venía de una conversación: repetir
     // /chat sobre /chat llenaría el historial del navegador de entradas
@@ -187,14 +187,14 @@ export default function Chat() {
   );
 
   function alEnviar() {
-    if ((!texto.trim() && !imagenes.length) || ocupado) return;
+    if ((!texto.trim() && !adjuntos.length) || ocupado) return;
     // `enviar` agrega el mensaje del usuario de forma síncrona y devuelve el id:
     // el mensaje aparece en el hilo en el mismo frame del clic, muy por debajo
     // de los 100 ms, y la espera de la respuesta ya es un estado visible.
-    const id = enviar(texto, imagenes);
+    const id = enviar(texto, adjuntos);
     if (!id) return;
     setTexto('');
-    setImagenes([]);
+    setAdjuntos([]);
     // `replace`: la sesión recién creada no merece una entrada propia en el
     // historial del navegador — "atrás" debe salir del chat, no volver a /chat.
     if (id !== conversacionId) navigate(`/chat/${id}`, { replace: true });
@@ -249,8 +249,8 @@ export default function Chat() {
       <BarraEntrada
         valor={texto}
         onCambio={setTexto}
-        imagenes={imagenes}
-        onImagenes={setImagenes}
+        adjuntos={adjuntos}
+        onAdjuntos={setAdjuntos}
         contexto={conversacionActiva?.contexto}
         ajustesModelo={
           puedeAjustarModelo

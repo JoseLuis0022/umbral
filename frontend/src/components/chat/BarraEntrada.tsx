@@ -1,21 +1,21 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUp, ImagePlus, Loader2, X } from 'lucide-react';
+import { ArrowUp, FileCode2, FileText, Film, Loader2, Paperclip, Play, X, type LucideIcon } from 'lucide-react';
 import type { Adjunto, ContextoSesion, ModeloDisponible } from '../../types';
 import type { AjusteModelo } from '../../lib/ajusteModelo';
 import { cn } from '../../lib/cn';
 import { springSnappy, springLayout, springPress, dur, ease } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { tamanoLegible } from '../../lib/fechas';
+import type { ImagenPreparada } from '../../lib/imagenes';
 import {
-  MAX_BYTES_ORIGINAL,
-  MAX_IMAGENES,
-  TIPOS_IMAGEN,
-  esImagenAceptada,
-  imagenesDe,
-  prepararImagen,
-  type ImagenPreparada,
-} from '../../lib/imagenes';
+  ArchivoNoSoportado,
+  MAX_ADJUNTOS,
+  TOPE_TOTAL_BYTES,
+  archivosDe,
+  prepararArchivo,
+  type AdjuntoPreparado,
+} from '../../lib/adjuntos';
 import { IconButton, Textarea, useToast } from '../ui';
 import { VisorImagen } from '../VisorImagen';
 import { chat as copy } from '../../copy';
@@ -48,8 +48,8 @@ export type AjustesModelo = {
 type Props = {
   valor: string;
   onCambio: (valor: string) => void;
-  imagenes: ImagenPreparada[];
-  onImagenes: (imagenes: ImagenPreparada[]) => void;
+  adjuntos: AdjuntoPreparado[];
+  onAdjuntos: (adjuntos: AdjuntoPreparado[]) => void;
   onEnviar: () => void;
   onDetener: () => void;
   transmitiendo: boolean;
@@ -71,9 +71,10 @@ type Props = {
  * Barra de entrada del chat (el "composer").
  *
  * Campo que crece arriba y una fila de herramientas de 36 px abajo: adjuntar ·
- * modelo y esfuerzo · contexto · enviar. Las imágenes entran por el botón,
- * pegándolas (⌘V) o arrastrándolas, y se REDUCEN aquí mismo antes de viajar
- * (ver lib/imagenes.ts).
+ * modelo y esfuerzo · contexto · enviar. CUALQUIER archivo entra por el botón,
+ * pegándolo (⌘V) o arrastrándolo; lib/adjuntos.ts lo convierte en lo que el
+ * modelo sabe leer (imagen, PDF, texto, fotogramas de un video) o dice por qué
+ * no se puede.
  *
  * El borde es la primera capa de la sombra (`shadow-composer`): con foco la
  * barra se ASIENTA (`shadow-composer-foco`), sin anillo azul de 3 px. El anillo
@@ -82,8 +83,8 @@ type Props = {
 export function BarraEntrada({
   valor,
   onCambio,
-  imagenes,
-  onImagenes,
+  adjuntos,
+  onAdjuntos,
   onEnviar,
   onDetener,
   transmitiendo,
@@ -105,7 +106,7 @@ export function BarraEntrada({
   const [vista, setVista] = useState<ImagenPreparada | null>(null);
   const [alto, setAlto] = useState<number | null>(null);
 
-  const puedeEnviar = (valor.trim().length > 0 || imagenes.length > 0) && !transmitiendo && preparando === 0;
+  const puedeEnviar = (valor.trim().length > 0 || adjuntos.length > 0) && !transmitiendo && preparando === 0;
 
   // Crecimiento hasta 8 líneas y scroll a partir de ahí, medido contra el
   // line-height computado para que siga siendo cierto si cambia la escala. El
@@ -145,33 +146,34 @@ export function BarraEntrada({
 
   async function agregar(lista: File[]) {
     if (!lista.length) return;
-    const aceptadas: File[] = [];
-    for (const archivo of lista) {
-      if (!esImagenAceptada(archivo)) {
-        push({ message: copyLocal.adjuntoTipo(archivo.name), tone: 'error' });
-      } else if (archivo.size > MAX_BYTES_ORIGINAL) {
-        push({ message: copyLocal.adjuntoPesado(archivo.name), tone: 'error' });
-      } else if (imagenes.length + aceptadas.length >= MAX_IMAGENES) {
-        push({ message: copyLocal.adjuntoLimite, tone: 'error' });
-        break;
-      } else {
-        aceptadas.push(archivo);
-      }
-    }
+    const libres = MAX_ADJUNTOS - adjuntos.length;
+    if (lista.length > libres) push({ message: copyLocal.adjuntoLimite, tone: 'error' });
+    const aceptadas = lista.slice(0, Math.max(0, libres));
     if (!aceptadas.length) return;
 
     setPreparando((n) => n + aceptadas.length);
-    const listas: ImagenPreparada[] = [];
+    const listas: AdjuntoPreparado[] = [];
+    // Lo que pesa lo que YA viaja (reducido): es lo que cuenta contra el tope de la API.
+    let total = adjuntos.reduce((s, a) => s + a.tamanoBytes, 0);
     for (const archivo of aceptadas) {
       try {
-        listas.push(await prepararImagen(archivo));
-      } catch {
-        push({ message: copyLocal.adjuntoIlegible(archivo.name), tone: 'error' });
+        const listo = await prepararArchivo(archivo);
+        if (total + listo.tamanoBytes > TOPE_TOTAL_BYTES) {
+          push({ message: copyLocal.adjuntoPesado(archivo.name), tone: 'error' });
+          continue;
+        }
+        total += listo.tamanoBytes;
+        listas.push(listo);
+      } catch (e) {
+        push({
+          message: e instanceof ArchivoNoSoportado ? e.message : copyLocal.adjuntoIlegible(archivo.name),
+          tone: 'error',
+        });
       } finally {
         setPreparando((n) => n - 1);
       }
     }
-    if (listas.length) onImagenes([...imagenes, ...listas]);
+    if (listas.length) onAdjuntos([...adjuntos, ...listas]);
   }
 
   function alElegir(e: ChangeEvent<HTMLInputElement>) {
@@ -181,11 +183,11 @@ export function BarraEntrada({
   }
 
   function alPegar(e: ClipboardEvent<HTMLTextAreaElement>) {
-    const lista = imagenesDe(e.clipboardData);
+    const lista = archivosDe(e.clipboardData);
     if (!lista.length) return;
     // Si además venía texto (copiar de una página web), el texto se pega
-    // normal y las imágenes se adjuntan; si solo eran imágenes, que no se
-    // cuele el nombre del archivo como texto.
+    // normal y los archivos se adjuntan; si solo eran archivos, que no se
+    // cuele su nombre como texto.
     if (!e.clipboardData.getData('text/plain')) e.preventDefault();
     void agregar(lista);
   }
@@ -225,7 +227,7 @@ export function BarraEntrada({
         )}
       >
         <AnimatePresence initial={false}>
-          {(imagenes.length > 0 || preparando > 0) && (
+          {(adjuntos.length > 0 || preparando > 0) && (
             <motion.div
               initial={reducido ? { opacity: 0 } : { opacity: 0, height: 0 }}
               animate={reducido ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
@@ -234,17 +236,35 @@ export function BarraEntrada({
               className="overflow-hidden"
             >
               <ul className="flex flex-wrap gap-2 px-3.5 pt-3.5">
-                {imagenes.map((img) => (
-                  <li key={img.id}>
-                    <MiniaturaImagen
-                      src={img.miniatura}
-                      nombre={img.nombre}
-                      detalle={tamanoLegible(img.tamanoBytes)}
-                      onAbrir={() => setVista(img)}
-                      onQuitar={() => onImagenes(imagenes.filter((x) => x.id !== img.id))}
-                    />
-                  </li>
-                ))}
+                {adjuntos.map((a) => {
+                  const quitar = () => onAdjuntos(adjuntos.filter((x) => x.id !== a.id));
+                  return (
+                    <li key={a.id}>
+                      {a.clase === 'imagen' ? (
+                        <MiniaturaImagen
+                          src={a.miniatura}
+                          nombre={a.nombre}
+                          detalle={tamanoLegible(a.tamanoBytes)}
+                          onAbrir={() => setVista(a)}
+                          onQuitar={quitar}
+                        />
+                      ) : a.clase === 'video' ? (
+                        <MiniaturaImagen
+                          src={a.miniatura}
+                          nombre={a.nombre}
+                          detalle={copyLocal.videoDetalle(a.fotogramas.length)}
+                          insignia
+                          onQuitar={quitar}
+                        />
+                      ) : (
+                        <FichaAdjunto
+                          adjunto={{ id: a.id, nombre: a.nombre, tipo: '', tamanoBytes: a.tamanoBytes, formato: a.formato }}
+                          onQuitar={quitar}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
                 {Array.from({ length: preparando }, (_, i) => (
                   <li
                     key={`preparando-${i}`}
@@ -284,17 +304,16 @@ export function BarraEntrada({
             type="file"
             multiple
             className="hidden"
-            accept={TIPOS_IMAGEN.join(',')}
             onChange={alElegir}
           />
           <IconButton
             aria-label={copyLocal.adjuntarImagen}
             title={copyLocal.adjuntarImagenAyuda}
             onClick={() => archivos.current?.click()}
-            disabled={imagenes.length + preparando >= MAX_IMAGENES}
+            disabled={adjuntos.length + preparando >= MAX_ADJUNTOS}
             className="h-9 w-9 rounded-full text-text-2 hover:bg-tinta/[.05] hover:text-text-1"
           >
-            <ImagePlus size={18} />
+            <Paperclip size={18} />
           </IconButton>
 
           <div className="ml-auto flex min-w-0 items-center gap-0.5">
@@ -414,6 +433,7 @@ export function MiniaturaImagen({
   src,
   nombre,
   detalle,
+  insignia = false,
   onAbrir,
   onQuitar,
   className,
@@ -421,6 +441,8 @@ export function MiniaturaImagen({
   src?: string;
   nombre: string;
   detalle?: string;
+  /** Marca de video (▶) encima de la miniatura. */
+  insignia?: boolean;
   onAbrir?: () => void;
   onQuitar?: () => void;
   className?: string;
@@ -440,11 +462,19 @@ export function MiniaturaImagen({
         disabled={!onAbrir || !src}
         title={detalle ? `${nombre} · ${detalle}` : nombre}
         aria-label={copyLocal.verImagen(nombre)}
-        className="block h-full w-full overflow-hidden rounded-control bg-bg shadow-anillo transition-shadow duration-150 enabled:hover:shadow-2"
+        className="relative block h-full w-full overflow-hidden rounded-control bg-bg shadow-anillo transition-shadow duration-150 enabled:hover:shadow-2"
       >
         {src ? (
           <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
-        ) : (
+        ) : null}
+        {insignia && (
+          <span className="absolute inset-0 flex items-center justify-center" aria-hidden>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+              <Play size={11} fill="currentColor" strokeWidth={0} className="translate-x-px" />
+            </span>
+          </span>
+        )}
+        {!src && (
           <span className="flex h-full w-full items-center justify-center px-1 text-center font-ui text-12 text-text-3">
             {nombre}
           </span>
@@ -464,22 +494,46 @@ export function MiniaturaImagen({
   );
 }
 
-/** Ficha de un adjunto que no es imagen o que ya no tiene miniatura. */
+const ICONO_FORMATO: Record<string, LucideIcon> = { pdf: FileText, texto: FileCode2, video: Film };
+
+/**
+ * Ficha de un adjunto que no es imagen: un documento (PDF o texto), o una
+ * imagen/video que ya no tiene miniatura. Mide lo mismo que la miniatura
+ * (64 px) para que la fila de adjuntos no tenga dos alturas.
+ */
 export function FichaAdjunto({ adjunto, onQuitar }: { adjunto: Adjunto; onQuitar?: () => void }) {
+  const Icono = ICONO_FORMATO[adjunto.formato ?? ''] ?? FileText;
+  const etiqueta = copyLocal.formatoAdjunto[adjunto.formato ?? 'imagen'] ?? copyLocal.formatoAdjunto.texto;
   return (
-    <span className="inline-flex max-w-[220px] items-center gap-1.5 rounded-celda bg-bg py-1 pl-2.5 pr-1 shadow-anillo">
-      <span className="truncate font-ui text-12 text-text-1">{adjunto.nombre}</span>
-      <span className="shrink-0 font-ui text-12 tabular-nums text-text-3">{tamanoLegible(adjunto.tamanoBytes)}</span>
+    <motion.span
+      layout
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, transition: { duration: dur.fast, ease } }}
+      transition={springSnappy}
+      className="group relative flex h-16 w-[208px] items-center gap-2.5 rounded-control bg-surface-1 p-2 shadow-anillo"
+      title={`${adjunto.nombre} · ${tamanoLegible(adjunto.tamanoBytes)}`}
+    >
+      {/* Radios anidados: ficha 10 con 8 de aire → icono 6 (xs). */}
+      <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-accent-soft text-accent-fg">
+        <Icono size={18} strokeWidth={1.75} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-ui text-13 font-medium text-text-1">{adjunto.nombre}</span>
+        <span className="block truncate font-ui text-12 tabular-nums text-text-3">
+          {etiqueta} · {tamanoLegible(adjunto.tamanoBytes)}
+        </span>
+      </span>
       {onQuitar && (
         <button
           type="button"
           aria-label={copyLocal.quitarAdjunto(adjunto.nombre)}
           onClick={onQuitar}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-celda text-text-3 transition-colors duration-150 hover:bg-status-red-soft hover:text-status-red"
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-surface-1 text-text-2 shadow-menu transition-colors duration-150 hover:bg-status-red-soft hover:text-status-red"
         >
-          <X size={13} strokeWidth={2.5} />
+          <X size={11} strokeWidth={2.75} />
         </button>
       )}
-    </span>
+    </motion.span>
   );
 }

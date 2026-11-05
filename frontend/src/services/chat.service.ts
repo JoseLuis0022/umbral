@@ -110,6 +110,13 @@ export interface ImagenEnvio {
   datos: string;
 }
 
+/** Un documento listo para viajar (ver lib/adjuntos.ts): PDF en base64 o texto plano. */
+export interface DocumentoEnvio {
+  nombre: string;
+  formato: 'pdf' | 'texto';
+  datos: string;
+}
+
 export interface OpcionesEnvio {
   /** Se manda solo el ÚLTIMO mensaje del usuario; el historial vive en el servidor. */
   mensajes: MensajeEnvio[];
@@ -119,6 +126,7 @@ export interface OpcionesEnvio {
   /** Solo informativo; lo que viaja al agente son `imagenes`. */
   adjuntos?: AdjuntoEnvio[];
   imagenes?: ImagenEnvio[];
+  documentos?: DocumentoEnvio[];
   /** Cancelación (botón Detener). */
   senal?: AbortSignal;
   parametros?: ParametrosModelo;
@@ -292,6 +300,7 @@ async function* eventosDelServidor(
       conversacionId: opciones.conversacionId,
       mensaje: ultimaPregunta(opciones.mensajes),
       imagenes: opciones.imagenes?.length ? opciones.imagenes : undefined,
+      documentos: opciones.documentos?.length ? opciones.documentos : undefined,
       perfil: opciones.perfil ?? 'consulta',
       parametros: opciones.parametros,
     },

@@ -13,7 +13,7 @@ import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
 import { listarModelos } from '../services/modelos.service';
 import type { ParametrosModelo } from '../services/chat.service';
-import { imagenesEnMemoria, type ImagenPreparada } from '../lib/imagenes';
+import { adjuntoEnMemoria, paraEnviar, type AdjuntoPreparado } from '../lib/adjuntos';
 import { AJUSTE_INICIAL, PREDETERMINADO, type AjusteModelo } from '../lib/ajusteModelo';
 import { useStreamingChat, type EstadoStream } from '../hooks/useStreamingChat';
 import { useAuth } from './AuthContext';
@@ -72,7 +72,7 @@ type ChatCtx = {
   seleccionar: (id: string | null) => void;
 
   /** Devuelve el id de la conversación (nueva o existente) de inmediato. */
-  enviar: (texto: string, imagenes?: ImagenPreparada[]) => string | null;
+  enviar: (texto: string, adjuntos?: AdjuntoPreparado[]) => string | null;
   detener: () => void;
   /** Borra la última respuesta y vuelve a pedirla. */
   regenerar: () => void;
@@ -215,13 +215,15 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     async (conversacionId: string, historial: Mensaje[]) => {
       setStreamEnId(conversacionId);
 
-      // Las imágenes completas viven en memoria (lib/imagenes.ts). Si la sesión
-      // se recargó, ya no están: el mensaje se reenvía sin ellas.
+      // Los archivos completos viven en memoria (lib/adjuntos.ts). Si la sesión
+      // se recargó, ya no están: el mensaje se reenvía sin ellos.
       const adjuntos = historial[historial.length - 1]?.adjuntos ?? [];
-      const imagenes = adjuntos.flatMap((a) => {
-        const img = imagenesEnMemoria.get(a.id);
-        return img ? [{ nombre: img.nombre, tipo: img.tipo, datos: img.datos }] : [];
-      });
+      const { imagenes, documentos } = paraEnviar(
+        adjuntos.flatMap((a) => {
+          const completo = adjuntoEnMemoria(a.id);
+          return completo ? [completo] : [];
+        })
+      );
 
       const { modelo, esfuerzo } = ajusteRef.current;
       const parametros: ParametrosModelo | undefined =
@@ -242,6 +244,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
         adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
         imagenes,
+        documentos,
         parametros,
       });
 
@@ -290,17 +293,18 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
   );
 
   const enviar = useCallback(
-    (texto: string, imagenes: ImagenPreparada[] = []): string | null => {
+    (texto: string, preparados: AdjuntoPreparado[] = []): string | null => {
       const contenido = texto.trim();
-      if ((!contenido && !imagenes.length) || !usuario || stream.activo) return null;
-      // En el mensaje se guarda la FICHA de cada imagen (con su miniatura); los
-      // datos completos se quedan en memoria, por id.
-      const adjuntos: Adjunto[] = imagenes.map((img) => ({
-        id: img.id,
-        nombre: img.nombre,
-        tipo: img.tipo,
-        tamanoBytes: img.tamanoBytes,
-        miniatura: img.miniatura,
+      if ((!contenido && !preparados.length) || !usuario || stream.activo) return null;
+      // En el mensaje se guarda la FICHA de cada archivo (con su miniatura si
+      // es imagen o video); los datos completos se quedan en memoria, por id.
+      const adjuntos: Adjunto[] = preparados.map((a) => ({
+        id: a.id,
+        nombre: a.nombre,
+        tipo: a.clase === 'imagen' ? a.tipo : a.clase === 'video' ? 'video' : a.formato,
+        tamanoBytes: a.tamanoBytes,
+        miniatura: a.clase === 'documento' ? undefined : a.miniatura,
+        formato: a.clase === 'documento' ? a.formato : a.clase,
       }));
 
       const creadoEn = new Date().toISOString();
@@ -320,7 +324,7 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
         const nueva: Conversacion = {
           id,
           usuarioId: usuario.id,
-          titulo: tituloDesde(contenido || imagenes[0]?.nombre || 'Imagen'),
+          titulo: tituloDesde(contenido || preparados[0]?.nombre || 'Archivo'),
           mensajes: [mensaje],
           creadoEn,
           ultimoMensajeEn: creadoEn,

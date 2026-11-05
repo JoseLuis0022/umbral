@@ -9,7 +9,7 @@ export type EstadoStream = 'inactivo' | 'esperando' | 'transmitiendo' | 'error';
 /** Lo que necesita una petición; los callbacks los pone el hook. */
 export type PeticionStream = Pick<
   OpcionesEnvio,
-  'mensajes' | 'conversacionId' | 'perfil' | 'adjuntos' | 'imagenes' | 'parametros'
+  'mensajes' | 'conversacionId' | 'perfil' | 'adjuntos' | 'imagenes' | 'documentos' | 'parametros'
 >;
 
 /*

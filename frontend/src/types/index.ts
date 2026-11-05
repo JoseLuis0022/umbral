@@ -36,6 +36,8 @@ export interface Adjunto {
    * memoria (`lib/imagenes.ts`) y se pierde al recargar.
    */
   miniatura?: string;
+  /** Cómo se le mandó al modelo. Sin dato = imagen (mensajes anteriores). */
+  formato?: 'imagen' | 'pdf' | 'texto' | 'video';
 }
 
 export interface Mensaje {

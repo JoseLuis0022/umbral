@@ -62,7 +62,13 @@ export const BurbujaUsuario = memo(function BurbujaUsuario({ mensaje }: { mensaj
                   src={a.miniatura}
                   nombre={a.nombre}
                   className="h-20 w-20"
-                  onAbrir={() => setVista({ src: imagenesEnMemoria.get(a.id)?.url ?? a.miniatura!, alt: a.nombre })}
+                  insignia={a.formato === 'video'}
+                  // Un video se mandó como fotogramas: no hay imagen grande que abrir.
+                  onAbrir={
+                    a.formato === 'video'
+                      ? undefined
+                      : () => setVista({ src: imagenesEnMemoria.get(a.id)?.url ?? a.miniatura!, alt: a.nombre })
+                  }
                 />
               ) : (
                 <FichaAdjunto adjunto={a} />

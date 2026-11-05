@@ -132,6 +132,7 @@ async def _transmitir(
             perfil,
             peticion.mensaje,
             peticion.imagenes,
+            peticion.documentos,
             sesion_previa=sesion_previa,
             usuario_id=usuario.id,
             ajuste=ajuste,
@@ -191,7 +192,9 @@ async def _transmitir(
             motor=ajustes.motor,
             # Las imágenes no se guardan (pesan y pueden ser personales); solo se
             # anota cuántas venían, para que el registro diga qué se preguntó.
-            pregunta=peticion.mensaje + (f" [+{len(peticion.imagenes)} imagen(es)]" if peticion.imagenes else ""),
+            pregunta=peticion.mensaje
+            + (f" [+{len(peticion.imagenes)} imagen(es)]" if peticion.imagenes else "")
+            + (f" [+{', '.join(d.nombre for d in peticion.documentos)}]" if peticion.documentos else ""),
             respuesta="".join(partes_respuesta) or None,
             sesion_sdk=registro.sesion_sdk,
             costo_usd=registro.costo_usd,

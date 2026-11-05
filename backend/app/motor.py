@@ -49,7 +49,7 @@ from claude_agent_sdk import (
 
 from . import archivos, corpus
 from .config import ajustes
-from .esquemas import ImagenAdjunta
+from .esquemas import DocumentoAdjunto, ImagenAdjunta
 from .guardias import hook_rutas_bloqueadas, reglas_bloqueo
 from .perfiles import Perfil, leer_prompt
 from .protocolo import evento
@@ -111,6 +111,7 @@ def consultar(
     perfil: Perfil,
     mensaje: str,
     imagenes: Sequence[ImagenAdjunta] = (),
+    documentos: Sequence[DocumentoAdjunto] = (),
     *,
     sesion_previa: str | None,
     usuario_id: str,
@@ -118,8 +119,8 @@ def consultar(
     registro: Registro,
 ) -> AsyncIterator[dict[str, Any]]:
     if ajustes.motor == "prueba":
-        return _consultar_prueba(mensaje, imagenes, sesion_previa, ajuste, registro)
-    return _consultar_sdk(perfil, mensaje, imagenes, sesion_previa, usuario_id, ajuste, registro)
+        return _consultar_prueba(mensaje, imagenes, documentos, sesion_previa, ajuste, registro)
+    return _consultar_sdk(perfil, mensaje, imagenes, documentos, sesion_previa, usuario_id, ajuste, registro)
 
 
 # ─────────────────────────────── Motor real ────────────────────────────────
@@ -256,13 +257,28 @@ def resumir(nombre: str, entrada: dict[str, Any], cwd: Path) -> str:
     return ""
 
 
-def _mensaje_usuario(mensaje: str, imagenes: Sequence[ImagenAdjunta]) -> dict[str, Any]:
-    """El mensaje del usuario como lo espera el agente: texto, o bloques de imagen + texto."""
-    if imagenes:
-        contenido: Any = [
-            {"type": "image", "source": {"type": "base64", "media_type": i.tipo, "data": i.datos}} for i in imagenes
-        ]
-        contenido.append({"type": "text", "text": mensaje.strip() or "Analiza estas imágenes."})
+def _mensaje_usuario(
+    mensaje: str, imagenes: Sequence[ImagenAdjunta], documentos: Sequence[DocumentoAdjunto] = ()
+) -> dict[str, Any]:
+    """El mensaje del usuario como lo espera el agente.
+
+    Documentos primero (la documentación de Anthropic recomienda el material
+    largo ANTES de la pregunta), luego imágenes —cada una con su nombre, que en
+    un video dice el minuto del fotograma— y al final el texto.
+    """
+    if imagenes or documentos:
+        contenido: Any = []
+        for d in documentos:
+            fuente = (
+                {"type": "base64", "media_type": "application/pdf", "data": d.datos}
+                if d.formato == "pdf"
+                else {"type": "text", "media_type": "text/plain", "data": d.datos}
+            )
+            contenido.append({"type": "document", "source": fuente, "title": d.nombre})
+        for i in imagenes:
+            contenido.append({"type": "text", "text": f"[{i.nombre}]"})
+            contenido.append({"type": "image", "source": {"type": "base64", "media_type": i.tipo, "data": i.datos}})
+        contenido.append({"type": "text", "text": mensaje.strip() or "Analiza lo que te adjunto."})
     else:
         contenido = mensaje
     return {
@@ -299,6 +315,7 @@ async def _consultar_sdk(
     perfil: Perfil,
     mensaje: str,
     imagenes: Sequence[ImagenAdjunta],
+    documentos: Sequence[DocumentoAdjunto],
     sesion_previa: str | None,
     usuario_id: str,
     ajuste: Ajuste,
@@ -338,7 +355,7 @@ async def _consultar_sdk(
 
     try:
         async with ClaudeSDKClient(options=opciones) as cliente:
-            await cliente.query(_un_mensaje(_mensaje_usuario(mensaje, imagenes)))
+            await cliente.query(_un_mensaje(_mensaje_usuario(mensaje, imagenes, documentos)))
 
             async for m in cliente.receive_response():
                 if isinstance(m, SystemMessage):
@@ -490,6 +507,7 @@ def _evento_fin(registro: Registro) -> dict[str, Any]:
 async def _consultar_prueba(
     mensaje: str,
     imagenes: Sequence[ImagenAdjunta],
+    documentos: Sequence[DocumentoAdjunto],
     sesion_previa: str | None,
     ajuste: Ajuste,
     registro: Registro,
@@ -522,7 +540,8 @@ async def _consultar_prueba(
         await asyncio.sleep(0.5)
         yield evento("actividad", fase="fin", ok=True, **info)
 
-    adjuntas = f"Recibí **{len(imagenes)} imagen(es)**: {', '.join(i.nombre for i in imagenes)}.\n\n" if imagenes else ""
+    nombres = [i.nombre for i in imagenes] + [d.nombre for d in documentos]
+    adjuntas = f"Recibí **{len(nombres)} adjunto(s)**: {', '.join(nombres)}.\n\n" if nombres else ""
     texto = (
         "**Motor de prueba.** Recibí tu pregunta:\n\n"
         f"> {mensaje}\n\n{adjuntas}"
