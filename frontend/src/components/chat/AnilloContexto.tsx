@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { motion } from 'framer-motion';
 import type { CategoriaContexto, ContextoSesion } from '../../types';
 import { cn } from '../../lib/cn';
@@ -49,7 +49,16 @@ const PCT = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 });
 
 const libre = (c: CategoriaContexto) => c.nombre === 'Free space';
 
-export function AnilloContexto({ contexto, className }: { contexto?: ContextoSesion; className?: string }) {
+export function AnilloContexto({
+  contexto,
+  anclaRef,
+  className,
+}: {
+  contexto?: ContextoSesion;
+  /** El composer: el panel abre por encima de él, no encima de su borde. */
+  anclaRef?: RefObject<HTMLElement>;
+  className?: string;
+}) {
   const [abierto, setAbierto] = useState(false);
   const disparador = useRef<HTMLButtonElement>(null);
   const reducido = useReducedMotion();
@@ -109,6 +118,7 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
           abierto={abierto}
           cerrar={() => setAbierto(false)}
           disparadorRef={disparador}
+          anclaRef={anclaRef}
           tituloHoja={copyLocal.contextoTitulo}
           ancho={320}
         >
@@ -119,7 +129,7 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
             </div>
 
             {/* Barra apilada: el mismo reparto que la lista, de un vistazo. */}
-            <div className="relative flex h-2 w-full overflow-hidden rounded-full bg-hairline" aria-hidden="true">
+            <div className="relative flex h-1.5 w-full overflow-hidden rounded-full bg-hairline" aria-hidden="true">
               {visibles
                 .filter((c) => !libre(c))
                 .map((c) => (
@@ -142,7 +152,7 @@ export function AnilloContexto({ contexto, className }: { contexto?: ContextoSes
               {visibles.map((c) => (
                 <li key={c.nombre} className="flex items-center gap-2 font-ui text-12">
                   <span
-                    className={cn('h-2.5 w-2.5 shrink-0 rounded-[3px]', libre(c) && 'border border-hairlineStrong')}
+                    className={cn('h-2 w-2 shrink-0 rounded-full', libre(c) && 'border border-hairlineStrong')}
                     style={libre(c) ? undefined : { background: COLORES[c.nombre] ?? 'var(--text-3)' }}
                   />
                   <span className="min-w-0 flex-1 truncate text-text-1">{NOMBRES[c.nombre] ?? c.nombre}</span>

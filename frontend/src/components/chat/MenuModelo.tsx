@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -46,9 +46,15 @@ type Props = {
   modelos: ModeloDisponible[];
   ajuste: AjusteModelo;
   onCambiar: (cambio: Partial<AjusteModelo>) => void;
+  /**
+   * Caja contra la que se separa el menú (el composer). Sin ella, el menú se
+   * pega al disparador y, como el disparador vive DENTRO del composer, el
+   * menú tapaba su borde superior: dos esquinas redondeadas encimadas.
+   */
+  anclaRef?: RefObject<HTMLElement>;
 };
 
-export const MenuModelo = memo(function MenuModelo({ modelos, ajuste, onCambiar }: Props) {
+export const MenuModelo = memo(function MenuModelo({ modelos, ajuste, onCambiar, anclaRef }: Props) {
   const compacto = useEsCompacto();
   const { principales, mas } = useMemo(() => agruparModelos(modelos), [modelos]);
 
@@ -56,7 +62,7 @@ export const MenuModelo = memo(function MenuModelo({ modelos, ajuste, onCambiar 
   const nombreEsfuerzo = textoEsfuerzo(ajuste.esfuerzo);
   const etiqueta = copyLocal.modeloYEsfuerzo(nombreModelo, nombreEsfuerzo);
 
-  const datos = { principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta };
+  const datos = { principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef };
   return compacto ? <HojaModelo {...datos} /> : <MenuEscritorio {...datos} />;
 });
 
@@ -68,6 +74,7 @@ type Datos = {
   nombreModelo: string;
   nombreEsfuerzo: string;
   etiqueta: string;
+  anclaRef?: RefObject<HTMLElement>;
 };
 
 /** El disparador: modelo en text-1, esfuerzo en text-3, chevron de 12 px. Fundido cruzado al cambiar. */
@@ -105,8 +112,11 @@ const CLASE_DISPARADOR =
 const CLASE_FILA =
   'relative flex h-8 cursor-default select-none items-center gap-2 rounded-celda px-2.5 font-ui text-14 text-text-1 outline-none transition-colors duration-[120ms] data-[highlighted]:bg-tinta/[.05] data-[state=open]:bg-tinta/[.05] data-[disabled]:text-text-3';
 
-function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta }: Datos) {
+function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nombreEsfuerzo, etiqueta, anclaRef }: Datos) {
   const [abierto, setAbierto] = useState(false);
+  const disparadorRef = useRef<HTMLButtonElement>(null);
+  // Distancia del disparador al borde superior del composer + 8 px de aire.
+  const [separacion, setSeparacion] = useState(8);
   const [sub, setSub] = useState<'esfuerzo' | 'mas' | null>(null);
   const reducido = useReducedMotion();
 
@@ -134,13 +144,18 @@ function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nom
     <Menu.Root
       open={abierto}
       onOpenChange={(a) => {
+        if (a) {
+          const caja = disparadorRef.current?.getBoundingClientRect();
+          const ancla = anclaRef?.current?.getBoundingClientRect();
+          setSeparacion(caja && ancla ? Math.max(8, caja.top - ancla.top + 8) : 8);
+        }
         setAbierto(a);
         if (!a) setSub(null);
       }}
       modal={false}
     >
       <Menu.Trigger asChild>
-        <Disparador type="button" layout="size" transition={springLayout} aria-label={etiqueta} title={etiqueta} className={CLASE_DISPARADOR}>
+        <Disparador ref={disparadorRef} type="button" layout="size" transition={springLayout} aria-label={etiqueta} title={etiqueta} className={CLASE_DISPARADOR}>
           <ContenidoDisparador
           nombreModelo={nombreModelo}
           nombreEsfuerzo={ajuste.esfuerzo === PREDETERMINADO ? null : nombreEsfuerzo}
@@ -158,7 +173,7 @@ function MenuEscritorio({ principales, mas, ajuste, onCambiar, nombreModelo, nom
               asChild
               side="top"
               align="end"
-              sideOffset={8}
+              sideOffset={separacion}
               collisionPadding={8}
               loop
               onKeyDown={alTeclado}

@@ -93,6 +93,8 @@ export function BarraEntrada({
   className,
 }: Props) {
   const campo = useRef<HTMLTextAreaElement>(null);
+  // El composer: los menús de la barra abren por encima de él.
+  const composer = useRef<HTMLDivElement>(null);
   const archivos = useRef<HTMLInputElement>(null);
   const { push } = useToast();
   const reducido = useReducedMotion();
@@ -213,6 +215,7 @@ export function BarraEntrada({
             campo.current?.focus();
           }
         }}
+        ref={composer}
         className={cn(
           'relative rounded-composer bg-surface-1 shadow-composer transition-shadow duration-150 ease-umbral',
           'focus-within:shadow-composer-foco',
@@ -297,10 +300,10 @@ export function BarraEntrada({
               // El hueco del disparador se reserva mientras llega el código: sin
               // él, la fila de herramientas brincaría al aparecer el selector.
               <Suspense fallback={<span className="h-8 w-28" aria-hidden />}>
-                <MenuModelo modelos={ajustesModelo.modelos} ajuste={ajustesModelo.ajuste} onCambiar={ajustesModelo.onCambiar} />
+                <MenuModelo modelos={ajustesModelo.modelos} ajuste={ajustesModelo.ajuste} onCambiar={ajustesModelo.onCambiar} anclaRef={composer} />
               </Suspense>
             )}
-            <AnilloContexto contexto={contexto} />
+            <AnilloContexto contexto={contexto} anclaRef={composer} />
             <BotonEnviar
               transmitiendo={transmitiendo}
               puedeEnviar={puedeEnviar}

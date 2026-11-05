@@ -16,6 +16,11 @@ const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       'font-size': [{ text: ['12', '13', '14', '15', '22', '28', '40', 'display'] }],
+      // Lo mismo con los radios y sombras con nombre: sin esto, pasar
+      // `rounded-modal` a un componente que ya trae `rounded-tarjeta` dejaba
+      // las dos clases y ganaba la que Tailwind hubiera escrito después.
+      rounded: [{ rounded: ['xs', 'celda', 'control', 'menu', 'burbuja', 'tarjeta', 'composer', 'modal', 'pastilla'] }],
+      shadow: [{ shadow: ['1', '2', '3', 'anillo', 'composer', 'composer-foco', 'menu'] }],
     },
   },
 });

@@ -100,6 +100,7 @@ export function PanelAnclado({
   abierto,
   cerrar,
   disparadorRef,
+  anclaRef,
   tituloHoja,
   ancho = 'disparador',
   altoMaximo = 320,
@@ -112,6 +113,12 @@ export function PanelAnclado({
   /** Cerrar SIN cambiar nada. Quien la implementa devuelve el foco al disparador. */
   cerrar: () => void;
   disparadorRef: RefObject<HTMLElement>;
+  /**
+   * Caja de la que se separa el panel en vertical (por defecto, el disparador).
+   * Un disparador DENTRO de otra superficie (el anillo, dentro del composer)
+   * abre el panel fuera de esa superficie, no encima de su borde.
+   */
+  anclaRef?: RefObject<HTMLElement>;
   /** Título de la hoja inferior en móvil, donde el rótulo de la pantalla no se ve. */
   tituloHoja: string;
   /** `'disparador'` copia el ancho del control; un número fija píxeles y se acota a la ventana. */
@@ -160,6 +167,7 @@ export function PanelAnclado({
     if (!disparador || !posicionador) return;
 
     const caja = disparador.getBoundingClientRect();
+    const cajaV = anclaRef?.current?.getBoundingClientRect() ?? caja;
 
     // El disparador se fue de la pantalla (el panel hizo scroll por debajo):
     // un menú flotando lejos de su control ya no explica de dónde salió.
@@ -168,8 +176,8 @@ export function PanelAnclado({
       return;
     }
 
-    const espacioAbajo = window.innerHeight - caja.bottom - SEPARACION - MARGEN_VENTANA;
-    const espacioArriba = caja.top - SEPARACION - MARGEN_VENTANA;
+    const espacioAbajo = window.innerHeight - cajaV.bottom - SEPARACION - MARGEN_VENTANA;
+    const espacioArriba = cajaV.top - SEPARACION - MARGEN_VENTANA;
     const arriba = espacioAbajo < altoMinimoUtil && espacioArriba > espacioAbajo;
     const disponible = arriba ? espacioArriba : espacioAbajo;
     const alto = Math.min(altoMaximo, Math.max(ALTO_MINIMO, disponible));
@@ -189,15 +197,15 @@ export function PanelAnclado({
 
     if (arriba) {
       posicionador.style.top = 'auto';
-      posicionador.style.bottom = `${window.innerHeight - caja.top + SEPARACION}px`;
+      posicionador.style.bottom = `${window.innerHeight - cajaV.top + SEPARACION}px`;
     } else {
       posicionador.style.bottom = 'auto';
-      posicionador.style.top = `${caja.bottom + SEPARACION}px`;
+      posicionador.style.top = `${cajaV.bottom + SEPARACION}px`;
     }
     refAplicarAlto.current?.(alto);
 
     setHaciaArriba(arriba);
-  }, [disparadorRef, cerrar, ancho, altoMaximo, altoMinimoUtil]);
+  }, [disparadorRef, anclaRef, cerrar, ancho, altoMaximo, altoMinimoUtil]);
 
   // Colocación: antes del primer pintado, o el menú aparecería un frame en la
   // esquina superior izquierda antes de saltar a su sitio.
