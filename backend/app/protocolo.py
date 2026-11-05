@@ -4,7 +4,9 @@ El navegador nunca ve los mensajes crudos del SDK (traen rutas absolutas,
 entradas de herramientas, system prompt, razonamiento). Ve SOLO estos eventos,
 tipados igual en `frontend/src/types/index.ts`:
 
-    inicio       {conversacionId, perfil, motor}
+    inicio       {conversacionId, perfil, motor, trabajoId}
+                  trabajoId: para volver a ver la consulta (GET /api/trabajos/{id}/eventos)
+                  o detenerla (POST /api/trabajos/{id}/detener)
     pensamiento  {delta}                                 ← solo con permiso "parametros"
     texto        {delta}                                 ← muchas veces
     actividad    {id, clase, nombre, descripcion, detalle, fase, ok, dentroDe}
@@ -49,6 +51,7 @@ CodigoError = Literal[
     "conexion",        # no se pudo hablar con Anthropic (red caída o Anthropic caído)
     "interrumpido",    # el servidor se reinició a media respuesta
     "motor",           # el subproceso falló
+    "cancelada",       # alguien la detuvo (POST /api/trabajos/{id}/detener)
 ]
 
 LATIDO = ": latido\n\n"

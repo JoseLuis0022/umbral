@@ -12,7 +12,13 @@ import type { Adjunto, ArchivoCompartido, Conversacion, ItemProceso, Mensaje, Mo
 import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
 import { listarModelos } from '../services/modelos.service';
-import type { ParametrosModelo } from '../services/chat.service';
+import { enviarMensaje, type ParametrosModelo, type ResultadoEnvio } from '../services/chat.service';
+import { detenerTrabajo, listarTrabajos } from '../services/trabajos.service';
+import { cerrarProceso, conActividad, conPensamiento } from '../lib/proceso';
+import { notificar, pedirPermisoAvisos, sonarTermino } from '../lib/avisos';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useToast } from '../components/ui';
+import { chat as copyChat } from '../copy';
 import { adjuntoEnMemoria, paraEnviar, type AdjuntoPreparado } from '../lib/adjuntos';
 import { AJUSTE_INICIAL, PREDETERMINADO, type AjusteModelo } from '../lib/ajusteModelo';
 import { useStreamingChat, type EstadoStream } from '../hooks/useStreamingChat';
@@ -23,6 +29,11 @@ const CLAVE_PERFIL = 'chat:perfil';
 const PERFIL_BASE = 'consulta';
 
 const CLAVE = 'conversaciones';
+
+/** Cada cuánto se pregunta por los trabajos que corren sin nadie mirando. */
+const SONDEO_MS = 3000;
+/** Una tarea que tardó menos que esto no merece sonido ni notificación. */
+const AVISO_DESDE_MS = 15_000;
 
 /**
  * El historial persiste, pero CADUCA a las 12 horas.
@@ -107,6 +118,10 @@ type ChatCtx = {
   errorStream: string | null;
   /** En qué conversación está transmitiendo, para no pintar el parcial en otra. */
   streamEnId: string | null;
+  /** Avance de los trabajos que corren sin que nadie los mire, por conversación. */
+  progresoTrabajos: Record<string, { pasos: number; actividad: string | null }>;
+  /** Cuántas conversaciones tienen un trabajo en curso (para el indicador de la barra). */
+  trabajosEnCurso: number;
 
   renombrar: (id: string, titulo: string) => void;
   eliminar: (id: string) => void;
@@ -175,6 +190,29 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [activaId, setActivaId] = useState<string | null>(null);
   const [streamEnId, setStreamEnId] = useState<string | null>(null);
+  const [progresoTrabajos, setProgresoTrabajos] = useState<Record<string, { pasos: number; actividad: string | null }>>({});
+  const navigate = useNavigate();
+  const location = useLocation();
+  const rutaRef = useRef(location.pathname);
+  rutaRef.current = location.pathname;
+  const { push } = useToast();
+
+  /*
+   * La consulta vive en el SERVIDOR como trabajo (backend/app/trabajos.py); la
+   * conexión solo la observa. Aquí se decide quién mira qué:
+   *
+   *  - Hay UNA conexión en vivo (`stream`), y sigue a la conversación abierta.
+   *  - Abrir otra conversación o mandar en otra SUELTA la actual: el trabajo
+   *    sigue en el servidor y queda como `trabajoPendiente` de su conversación.
+   *  - Un sondeo vigila los pendientes que nadie mira; cuando uno termina, se
+   *    RECOGE su respuesta (se repiten sus eventos sin animación) y se guarda.
+   *  - Al recargar o volver otro día, lo mismo: los pendientes guardados en el
+   *    navegador se recogen o se vuelven a observar.
+   */
+  const primerPlanoRef = useRef<string | null>(null); // trabajo que observa `stream`
+  const duenoRef = useRef(0); // quién es dueño de la pantalla del stream ahora
+  const soltadosRef = useRef(new Set<string>());
+  const recogiendoRef = useRef(new Set<string>());
 
   // Espejo síncrono de la lista: `enviar` y `regenerar` necesitan leer el
   // estado más reciente dentro de un callback que puede haberse creado en un
@@ -235,10 +273,131 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
    * guarda igual. Cortar a media respuesta y perder lo leído sería castigar al
    * usuario por haber usado el botón que le ofrecimos.
    */
+  /** Trabajo que sigue corriendo en el servidor y que esta conversación espera. */
+  const marcarPendiente = useCallback(
+    (conversacionId: string, trabajoId: string, desde: string) => {
+      actualizar((previo) =>
+        previo.map((c) =>
+          c.id === conversacionId ? { ...c, trabajoPendiente: trabajoId, trabajoDesde: desde, errorPendiente: undefined } : c
+        )
+      );
+    },
+    [actualizar]
+  );
+
+  /** "Ya terminó": sonido y notificación, solo si tardó y la persona no la está viendo. */
+  const avisarTermino = useCallback(
+    (conv: Conversacion, resultado: ResultadoEnvio) => {
+      if (resultado.estado === 'cancelado' || !conv.trabajoDesde) return;
+      if (Date.now() - new Date(conv.trabajoDesde).getTime() < AVISO_DESDE_MS) return;
+      const mirando = !document.hidden && rutaRef.current === `/chat/${conv.id}`;
+      if (mirando) return;
+      const ok = resultado.estado === 'completo';
+      sonarTermino(ok);
+      const titulo = ok ? copyChat.avisoListo : copyChat.avisoFallo;
+      if (document.hidden) notificar(titulo, conv.titulo, () => navigate(`/chat/${conv.id}`));
+      else push({ message: `${titulo}: «${conv.titulo}»`, tone: ok ? 'success' : 'default', duration: 6000 });
+    },
+    [navigate, push]
+  );
+
+  /**
+   * Deja la respuesta de un trabajo en su conversación (una sola vez: el
+   * `trabajoId` del mensaje evita guardarla doble si dos caminos la recogen).
+   */
+  const finalizar = useCallback(
+    (conversacionId: string, trabajoId: string | undefined, resultado: ResultadoEnvio, proceso: ItemProceso[], pensoMs?: number) => {
+      const conv = todasRef.current.find((c) => c.id === conversacionId);
+      if (!conv) return;
+      const yaEsta = !!trabajoId && conv.mensajes.some((m) => m.trabajoId === trabajoId);
+      const hayRespuesta = !yaEsta && (!!resultado.texto.trim() || resultado.archivos.length > 0);
+      const creadoEn = new Date().toISOString();
+      const contexto = resultado.resumen?.contexto ?? undefined;
+      actualizar((previo) =>
+        previo.map((c) => {
+          if (c.id !== conversacionId) return c;
+          const siguiente: Conversacion = { ...c, contexto: contexto ?? c.contexto };
+          if (!trabajoId || c.trabajoPendiente === trabajoId) {
+            siguiente.trabajoPendiente = undefined;
+            siguiente.trabajoDesde = undefined;
+          }
+          if (hayRespuesta) {
+            const respuesta: Mensaje = {
+              id: idNuevo('m'),
+              rol: 'asistente',
+              contenido: resultado.texto,
+              creadoEn,
+              reaccion: null,
+              proceso: proceso.length ? proceso : undefined,
+              pensoMs,
+              archivos: resultado.archivos.length ? resultado.archivos : undefined,
+              trabajoId,
+            };
+            siguiente.mensajes = [...c.mensajes, respuesta];
+            siguiente.ultimoMensajeEn = creadoEn;
+            siguiente.errorPendiente = undefined;
+          } else if (resultado.estado === 'error' && !yaEsta) {
+            siguiente.errorPendiente = resultado.error?.message ?? copyChat.errorEnvio;
+          }
+          return siguiente;
+        })
+      );
+      if (!yaEsta) avisarTermino(conv, resultado);
+    },
+    [actualizar, avisarTermino]
+  );
+
+  /** Deja de mirar el trabajo en primer plano SIN detenerlo. */
+  const soltarPrimerPlano = useCallback(() => {
+    if (!stream.activo) return;
+    if (primerPlanoRef.current) soltadosRef.current.add(primerPlanoRef.current);
+    primerPlanoRef.current = null;
+    stream.soltar();
+  }, [stream]);
+
+  /**
+   * Observa en vivo (primer plano) un trabajo: uno nuevo (`peticion` sin
+   * `seguir`) o uno que ya corre en el servidor (`seguir`).
+   */
+  const enPrimerPlano = useCallback(
+    async (conversacionId: string, peticion: Parameters<typeof stream.iniciar>[0], medirEspera: boolean) => {
+      const turno = ++duenoRef.current;
+      primerPlanoRef.current = peticion.seguir ?? null;
+      setStreamEnId(conversacionId);
+      inicioEsperaRef.current = medirEspera ? performance.now() : null;
+      pensoRef.current = null;
+      setPensoMs(null);
+
+      let trabajoId = peticion.seguir;
+      const resultado = await stream.iniciar({
+        ...peticion,
+        alInicio: (inicio) => {
+          if (!inicio.trabajoId || peticion.seguir) return;
+          trabajoId = inicio.trabajoId;
+          if (duenoRef.current === turno) primerPlanoRef.current = inicio.trabajoId;
+          marcarPendiente(conversacionId, inicio.trabajoId, new Date().toISOString());
+        },
+      });
+
+      // Se soltó para mirar otra cosa: el trabajo sigue y lo recogerá el sondeo.
+      if (trabajoId && soltadosRef.current.delete(trabajoId)) return;
+
+      finalizar(conversacionId, trabajoId, resultado, resultado.proceso, pensoRef.current ?? undefined);
+      if (duenoRef.current !== turno) return;
+      primerPlanoRef.current = null;
+      // Con texto, el parcial se cambia por el mensaje confirmado en el mismo
+      // lote de React. Sin texto y con error, el aviso se queda con su reintento.
+      if (resultado.texto.trim() || resultado.archivos.length || resultado.estado !== 'error') {
+        stream.limpiar();
+        setStreamEnId(null);
+      }
+    },
+    [finalizar, marcarPendiente, stream]
+  );
+
+  /** Pide la respuesta de `historial` en vivo. */
   const responder = useCallback(
     async (conversacionId: string, historial: Mensaje[]) => {
-      setStreamEnId(conversacionId);
-
       // Los archivos completos viven en memoria (lib/adjuntos.ts). Si la sesión
       // se recargó, ya no están: el mensaje se reenvía sin ellos.
       const adjuntos = historial[historial.length - 1]?.adjuntos ?? [];
@@ -258,70 +417,122 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             }
           : undefined;
 
-      inicioEsperaRef.current = performance.now();
-      pensoRef.current = null;
-      setPensoMs(null);
-
+      actualizar((previo) => previo.map((c) => (c.id === conversacionId ? { ...c, errorPendiente: undefined } : c)));
       const perfil = todasRef.current.find((c) => c.id === conversacionId)?.perfil ?? PERFIL_BASE;
-      const resultado = await stream.iniciar({
+      await enPrimerPlano(
         conversacionId,
-        perfil,
-        mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
-        // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
-        adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
-        imagenes,
-        documentos,
-        parametros,
-      });
+        {
+          conversacionId,
+          perfil,
+          mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
+          // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
+          adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
+          imagenes,
+          documentos,
+          parametros,
+        },
+        true
+      );
+    },
+    [actualizar, enPrimerPlano, puedeAjustarModelo]
+  );
 
-      // El contexto se guarda aunque no haya texto: una respuesta cortada
-      // también ocupó contexto.
-      const contexto = resultado.resumen?.contexto ?? undefined;
-      if (contexto) {
-        actualizar((previo) => previo.map((c) => (c.id === conversacionId ? { ...c, contexto } : c)));
-      }
-
-      // Un archivo mandado sin texto también es respuesta: no se pierde la tarjeta.
-      if (resultado.texto.trim() || resultado.archivos.length) {
-        const creadoEn = new Date().toISOString();
-        const respuesta: Mensaje = {
-          id: idNuevo('m'),
-          rol: 'asistente',
-          contenido: resultado.texto,
-          creadoEn,
-          reaccion: null,
-          proceso: resultado.proceso.length ? resultado.proceso : undefined,
-          pensoMs: pensoRef.current ?? undefined,
-          archivos: resultado.archivos.length ? resultado.archivos : undefined,
-        };
-        actualizar((previo) =>
-          previo.map((c) =>
-            c.id === conversacionId
-              ? { ...c, mensajes: [...c.mensajes, respuesta], ultimoMensajeEn: creadoEn }
-              : c
-          )
-        );
-        // El texto vivo se cambia por el mensaje confirmado en el mismo lote de
-        // React 18, así que no hay un frame en el que se vea duplicado o vacío.
-        stream.limpiar();
-        setStreamEnId(null);
-        return;
-      }
-
-      // Sin texto: o falló, o lo detuvieron antes del primer fragmento. En el
-      // primer caso el error se conserva para pintar el aviso con reintento.
-      if (resultado.estado !== 'error') {
-        stream.limpiar();
-        setStreamEnId(null);
+  /** Repite los eventos de un trabajo que terminó sin nadie mirando y guarda su respuesta. */
+  const recoger = useCallback(
+    async (conversacionId: string, trabajoId: string) => {
+      if (recogiendoRef.current.has(trabajoId)) return;
+      recogiendoRef.current.add(trabajoId);
+      let proceso: ItemProceso[] = [];
+      try {
+        const resultado = await enviarMensaje({
+          mensajes: [],
+          conversacionId,
+          seguir: trabajoId,
+          alActividad: (a) => {
+            proceso = conActividad(proceso, a);
+          },
+          alPensamiento: (fragmento) => {
+            proceso = conPensamiento(proceso, fragmento);
+          },
+        });
+        finalizar(conversacionId, trabajoId, resultado, cerrarProceso(proceso));
+      } finally {
+        recogiendoRef.current.delete(trabajoId);
       }
     },
-    [actualizar, stream, puedeAjustarModelo]
+    [finalizar]
   );
+
+  // La conexión en vivo SIGUE a la conversación abierta: si tiene un trabajo
+  // corriendo (o terminado y sin recoger), se observa aquí, desde el principio.
+  const pendienteActivo = todas.find((c) => c.id === activaId)?.trabajoPendiente;
+  useEffect(() => {
+    if (!activaId || !pendienteActivo) return;
+    if (primerPlanoRef.current === pendienteActivo || recogiendoRef.current.has(pendienteActivo)) return;
+    soltarPrimerPlano();
+    void enPrimerPlano(activaId, { conversacionId: activaId, mensajes: [], seguir: pendienteActivo }, false);
+  }, [activaId, pendienteActivo, enPrimerPlano, soltarPrimerPlano]);
+
+  // Sondeo de los trabajos que nadie mira: avance para la barra, y recogida al terminar.
+  const clavePendientes = todas
+    .filter((c) => c.trabajoPendiente)
+    .map((c) => c.trabajoPendiente)
+    .join(',');
+  useEffect(() => {
+    if (cargando || !usuario || !clavePendientes) {
+      setProgresoTrabajos({});
+      return;
+    }
+    let vivo = true;
+    const revisar = async () => {
+      let lista;
+      try {
+        lista = await listarTrabajos();
+      } catch {
+        return; // sin red: se vuelve a intentar en el siguiente turno
+      }
+      if (!vivo) return;
+      const progreso: Record<string, { pasos: number; actividad: string | null }> = {};
+      for (const conv of todasRef.current) {
+        const pendiente = conv.trabajoPendiente;
+        if (!pendiente || conv.usuarioId !== usuario.id) continue;
+        const t = lista.find((x) => x.id === pendiente);
+        if (!t) {
+          // El servidor ya no lo conoce: se reinició a media tarea.
+          if (primerPlanoRef.current === pendiente) continue;
+          actualizar((previo) =>
+            previo.map((c) =>
+              c.id === conv.id
+                ? { ...c, trabajoPendiente: undefined, trabajoDesde: undefined, errorPendiente: copyChat.errorTrabajoPerdido }
+                : c
+            )
+          );
+          continue;
+        }
+        progreso[conv.id] = { pasos: t.pasos, actividad: t.actividad };
+        if (t.estado !== 'corriendo' && primerPlanoRef.current !== pendiente) void recoger(conv.id, pendiente);
+      }
+      setProgresoTrabajos(progreso);
+    };
+    void revisar();
+    const intervalo = setInterval(revisar, SONDEO_MS);
+    return () => {
+      vivo = false;
+      clearInterval(intervalo);
+    };
+  }, [actualizar, cargando, clavePendientes, recoger, usuario]);
 
   const enviar = useCallback(
     (texto: string, preparados: AdjuntoPreparado[] = []): string | null => {
       const contenido = texto.trim();
-      if ((!contenido && !preparados.length) || !usuario || stream.activo) return null;
+      if ((!contenido && !preparados.length) || !usuario) return null;
+      const destino = activaId ? todasRef.current.find((c) => c.id === activaId) : undefined;
+      // Esta conversación ya trabaja: no se encima otra pregunta.
+      if (destino?.trabajoPendiente || (stream.activo && streamEnId === destino?.id)) return null;
+      // Otra conversación trabaja en vivo: se suelta (sigue en el servidor).
+      soltarPrimerPlano();
+      // Las tareas largas avisan al terminar; el permiso solo se puede pedir dentro de un clic.
+      if ((destino?.perfil ?? perfilNuevoRef.current) !== PERFIL_BASE) pedirPermisoAvisos();
       // En el mensaje se guarda la FICHA de cada archivo (con su miniatura si
       // es imagen o video); los datos completos se quedan en memoria, por id.
       const adjuntos: Adjunto[] = preparados.map((a) => ({
@@ -371,24 +582,26 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       void responder(actual.id, historial);
       return actual.id;
     },
-    [activaId, actualizar, responder, stream.activo, usuario]
+    [activaId, actualizar, responder, soltarPrimerPlano, stream.activo, streamEnId, usuario]
   );
 
   const regenerar = useCallback(() => {
     const conv = todasRef.current.find((c) => c.id === activaId);
-    if (!conv || stream.activo) return;
+    if (!conv || conv.trabajoPendiente || (stream.activo && streamEnId === conv.id)) return;
+    soltarPrimerPlano();
     const indice = conv.mensajes.map((m) => m.rol).lastIndexOf('asistente');
     const base = indice === -1 ? conv.mensajes : conv.mensajes.slice(0, indice);
     if (!base.length) return;
     actualizar((previo) => previo.map((c) => (c.id === conv.id ? { ...c, mensajes: base } : c)));
     void responder(conv.id, base);
-  }, [activaId, actualizar, responder, stream.activo]);
+  }, [activaId, actualizar, responder, soltarPrimerPlano, stream.activo, streamEnId]);
 
   const reintentar = useCallback(() => {
     const conv = todasRef.current.find((c) => c.id === activaId);
-    if (!conv || stream.activo || !conv.mensajes.length) return;
+    if (!conv || conv.trabajoPendiente || (stream.activo && streamEnId === conv.id) || !conv.mensajes.length) return;
+    soltarPrimerPlano();
     void responder(conv.id, conv.mensajes);
-  }, [activaId, responder, stream.activo]);
+  }, [activaId, responder, soltarPrimerPlano, stream.activo, streamEnId]);
 
   const renombrar = useCallback(
     (id: string, titulo: string) => {
@@ -401,7 +614,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
 
   const eliminar = useCallback(
     (id: string) => {
-      if (streamEnId === id) stream.detener();
+      // Borrar la conversación sí detiene su trabajo: nadie va a leer la respuesta.
+      if (streamEnId === id && stream.activo) stream.detener();
+      const pendiente = todasRef.current.find((c) => c.id === id)?.trabajoPendiente;
+      if (pendiente) void detenerTrabajo(pendiente);
       actualizar((previo) => previo.filter((c) => c.id !== id));
       setActivaId((previo) => (previo === id ? null : previo));
     },
@@ -426,6 +642,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     },
     [actualizar]
   );
+
+  const trabajosEnCurso = conversaciones.filter((c) => c.trabajoPendiente).length;
 
   const valor = useMemo<ChatCtx>(
     () => ({
@@ -453,6 +671,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       pensoMs,
       errorStream: stream.error,
       streamEnId,
+      progresoTrabajos,
+      trabajosEnCurso,
       renombrar,
       eliminar,
       reaccionar,
@@ -482,6 +702,8 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       regenerar,
       reintentar,
       streamEnId,
+      progresoTrabajos,
+      trabajosEnCurso,
       renombrar,
       eliminar,
       reaccionar,

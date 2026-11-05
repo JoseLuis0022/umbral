@@ -4,13 +4,15 @@ import { enviarMensaje, type OpcionesEnvio, type ResultadoEnvio } from '../servi
 import { describirActividad } from '../lib/actividad';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { chat as copyChat } from '../copy';
+import { cerrarProceso, conActividad, conPensamiento } from '../lib/proceso';
+import { detenerTrabajo } from '../services/trabajos.service';
 
 export type EstadoStream = 'inactivo' | 'esperando' | 'transmitiendo' | 'error';
 
 /** Lo que necesita una petición; los callbacks los pone el hook. */
 export type PeticionStream = Pick<
   OpcionesEnvio,
-  'mensajes' | 'conversacionId' | 'perfil' | 'adjuntos' | 'imagenes' | 'documentos' | 'parametros'
+  'mensajes' | 'conversacionId' | 'perfil' | 'adjuntos' | 'imagenes' | 'documentos' | 'parametros' | 'seguir' | 'alInicio'
 >;
 
 /*
@@ -69,6 +71,8 @@ export function useStreamingChat() {
 
   const control = useRef<AbortController | null>(null);
   const montado = useRef(true);
+  // Trabajo del servidor que se está observando: Detener lo necesita.
+  const trabajoActual = useRef<string | null>(null);
 
   // Revelador
   const objetivo = useRef('');
@@ -186,6 +190,7 @@ export function useStreamingChat() {
       setActividad(null);
       setEstado('esperando');
 
+      trabajoActual.current = peticion.seguir ?? null;
       const vigente = () => montado.current && control.current === propio;
       // Mientras algo se reintenta, la frase de estado lo dice; con lo primero
       // que llegue de verdad (paso, razonamiento o texto), se retira.
@@ -199,6 +204,10 @@ export function useStreamingChat() {
       const resultado = await enviarMensaje({
         ...peticion,
         senal: propio.signal,
+        alInicio: (inicio) => {
+          if (vigente() && inicio.trabajoId) trabajoActual.current = inicio.trabajoId;
+          peticion.alInicio?.(inicio);
+        },
         alReintento: (r) => {
           if (!vigente()) return;
           reintentando = true;
@@ -212,28 +221,9 @@ export function useStreamingChat() {
         alActividad: (a) => {
           if (!vigente()) return;
           salirDeReintento();
-          const lista = procesoRef.current;
-          if (a.fase === 'inicio') {
-            // Se anuncia lo que EMPIEZA; la frase se queda hasta que empiece otra cosa.
-            setActividad(describirActividad(a));
-            procesoRef.current = [
-              ...lista,
-              {
-                tipo: 'paso',
-                id: a.id,
-                clase: a.clase,
-                nombre: a.nombre,
-                descripcion: a.descripcion,
-                detalle: a.detalle,
-                estado: 'trabajando',
-                dentroDe: a.dentroDe,
-              },
-            ];
-          } else {
-            procesoRef.current = lista.map((item) =>
-              item.tipo === 'paso' && item.id === a.id ? { ...item, estado: a.ok === false ? 'fallo' : 'listo' } : item
-            );
-          }
+          // Se anuncia lo que EMPIEZA; la frase se queda hasta que empiece otra cosa.
+          if (a.fase === 'inicio') setActividad(describirActividad(a));
+          procesoRef.current = conActividad(procesoRef.current, a);
           volcarProceso();
         },
         alArchivo: (archivo) => {
@@ -243,14 +233,7 @@ export function useStreamingChat() {
         alPensamiento: (fragmento) => {
           if (!vigente()) return;
           salirDeReintento();
-          // Pensamiento que sigue a otro se pega; si hubo un paso en medio,
-          // abre un bloque nuevo: la línea de tiempo respeta el orden real.
-          const lista = procesoRef.current;
-          const ultimo = lista[lista.length - 1];
-          procesoRef.current =
-            ultimo?.tipo === 'pensamiento'
-              ? [...lista.slice(0, -1), { tipo: 'pensamiento', texto: ultimo.texto + fragmento }]
-              : [...lista, { tipo: 'pensamiento', texto: fragmento }];
+          procesoRef.current = conPensamiento(procesoRef.current, fragmento);
           volcarProceso();
         },
         alFragmento: (_fragmento, acumulado) => {
@@ -270,9 +253,7 @@ export function useStreamingChat() {
 
       // Un paso que se quedó "trabajando" es uno cuyo fin nunca llegó (se
       // cortó la transmisión): se cierra para no dejar un spinner eterno.
-      const proceso = procesoRef.current.map((item) =>
-        item.tipo === 'paso' && item.estado === 'trabajando' ? { ...item, estado: 'listo' as const } : item
-      );
+      const proceso = cerrarProceso(procesoRef.current);
       if (!vigente()) return { ...resultado, proceso };
 
       detenerBucle();
@@ -287,8 +268,21 @@ export function useStreamingChat() {
     [encenderBucle, esperarVaciado]
   );
 
-  /** Botón Detener. Lo transmitido hasta el corte se conserva. */
+  /**
+   * Botón Detener: le ORDENA al servidor parar el trabajo y deja de observar.
+   * Lo transmitido hasta el corte se conserva.
+   */
   const detener = useCallback(() => {
+    if (trabajoActual.current) void detenerTrabajo(trabajoActual.current);
+    control.current?.abort();
+  }, []);
+
+  /**
+   * Deja de observar SIN detener: el trabajo sigue en el servidor y su
+   * respuesta se recoge después. Es lo que pasa al abrir otra conversación
+   * mientras esta trabaja.
+   */
+  const soltar = useCallback(() => {
     control.current?.abort();
   }, []);
 
@@ -313,6 +307,7 @@ export function useStreamingChat() {
     activo: estado === 'esperando' || estado === 'transmitiendo',
     iniciar,
     detener,
+    soltar,
     limpiar,
   };
 }

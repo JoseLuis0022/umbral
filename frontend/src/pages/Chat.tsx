@@ -8,6 +8,8 @@ import { dur, ease, springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
+import { BarraTrabajo } from '../components/chat/BarraTrabajo';
+import { pasosPrincipales } from '../lib/proceso';
 import { Button, Drawer, EmptyState, IconButton, useEsCompacto, useToast } from '../components/ui';
 import {
   BarraEntrada,
@@ -78,6 +80,7 @@ export default function Chat() {
     perfilFijo,
     cambiarPerfil,
     streamEnId,
+    progresoTrabajos,
     renombrar,
     eliminar,
     reaccionar,
@@ -129,7 +132,12 @@ export default function Chat() {
   // a la que pertenece: si el usuario se va a otro hilo mientras responde, el
   // texto vivo no debe aparecer donde no es.
   const streamAqui = streamEnId !== null && streamEnId === idAbierto;
-  const ocupado = estadoStream === 'esperando' || estadoStream === 'transmitiendo';
+  // Ocupada es ESTA conversación: otra que trabaje en segundo plano no bloquea
+  // el composer (mandar aquí la suelta y sigue en el servidor).
+  const trabajandoAqui = !!conversacionActiva?.trabajoPendiente;
+  const ocupado = (streamAqui && (estadoStream === 'esperando' || estadoStream === 'transmitiendo')) || trabajandoAqui;
+  const pasosAqui = streamAqui ? pasosPrincipales(proceso) : idAbierto ? progresoTrabajos[idAbierto]?.pasos ?? 0 : 0;
+  const errorAqui = streamAqui && estadoStream === 'error' ? errorStream : conversacionActiva?.errorPendiente ?? null;
 
   const nombre = useMemo(() => (usuario ? primerNombre(usuario.nombre) : ''), [usuario]);
 
@@ -144,7 +152,9 @@ export default function Chat() {
     !noEncontrada &&
     !(cargando && !!conversacionId) &&
     (conversacionActiva?.mensajes.length ?? 0) === 0 &&
-    !(streamAqui && (ocupado || estadoStream === 'error'));
+    !ocupado &&
+    !errorAqui &&
+    !(streamAqui && estadoStream === 'error');
 
   /*
    * Los chips del estado vacío SE ENVÍAN al pulsarlos, no se precargan.
@@ -359,6 +369,7 @@ export default function Chat() {
           </h1>
 
         </header>
+        <BarraTrabajo visible={trabajandoAqui} desde={conversacionActiva?.trabajoDesde} pasos={pasosAqui} />
 
         {enBlanco ? (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -379,7 +390,7 @@ export default function Chat() {
               proceso={streamAqui ? proceso : []}
               archivosEnVivo={streamAqui ? archivosEnVivo : []}
               pensoMs={streamAqui ? pensoMs : null}
-              error={streamAqui && estadoStream === 'error' ? errorStream : null}
+              error={ocupado ? null : errorAqui}
               onReintentar={reintentar}
               onRegenerar={regenerar}
               onReaccion={alReaccionar}

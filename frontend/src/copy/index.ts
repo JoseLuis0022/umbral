@@ -86,6 +86,13 @@ export const chat = {
   errorCorte: 'Se cortó la conexión con el servidor antes de terminar la respuesta. Intenta de nuevo.',
   errorServidor: 'No pudimos contactar al servidor. Revisa tu conexión o espera un momento e intenta de nuevo.',
   motivoServidor: 'No pudimos contactar al servidor',
+  avisoListo: 'Umbral terminó',
+  avisoFallo: 'Umbral no pudo terminar',
+  trabajando: 'Trabajando',
+  trabajandoDetalle: 'Puedes cambiar de pantalla o cerrar la página: seguirá en el servidor.',
+  tareasEnCurso: (n: number) => (n === 1 ? '1 tarea en curso' : `${n} tareas en curso`),
+  pasos: (n: number) => (n === 1 ? '1 paso' : `${n} pasos`),
+  errorTrabajoPerdido: 'Esta respuesta se perdió porque el servidor se reinició mientras trabajaba. Vuelve a pedirla.',
   /** Lo que se lee mientras algo se reintenta solo. */
   reintentando: (motivo: string, intento: number, maximo: number) => `${motivo}. Reintentando (${intento} de ${maximo})…`,
 };

@@ -673,6 +673,11 @@ async def _consultar_prueba(
         ("Read", "Revisando el índice de temas", "estado/indice-temas.md"),
         ("Grep", "Buscando «mediana» en el material", '"mediana" en estado/inventario'),
     ]
+    # "tarea lenta": simula al Generador (muchos pasos, ~30 s) para probar que
+    # la tarea sigue en el servidor al cambiar de pantalla o cerrar la página.
+    lenta = bool(re.search(r"tarea\s+lenta", mensaje, re.I))
+    if lenta:
+        pasos = [(n, f"{d} ({k + 1} de 8)", det) for k, (n, d, det) in enumerate(pasos * 4)]
     for i, (nombre, descripcion, detalle) in enumerate(pasos):
         info = {
             "id": f"prueba-{i}",
@@ -684,7 +689,7 @@ async def _consultar_prueba(
         }
         registro.herramientas.append(nombre)
         yield evento("actividad", fase="inicio", ok=None, **info)
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(3.5 if lenta else 0.5)
         yield evento("actividad", fase="fin", ok=True, **info)
 
     nombres = [i.nombre for i in imagenes] + [d.nombre for d in documentos]

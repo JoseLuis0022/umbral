@@ -128,8 +128,18 @@ export interface OpcionesEnvio {
   adjuntos?: AdjuntoEnvio[];
   imagenes?: ImagenEnvio[];
   documentos?: DocumentoEnvio[];
-  /** Cancelación (botón Detener). */
+  /**
+   * Deja de OBSERVAR. No detiene al agente: el trabajo sigue en el servidor
+   * (para detenerlo, `detenerTrabajo` de trabajos.service).
+   */
   senal?: AbortSignal;
+  /**
+   * Volver a ver un trabajo que ya existe, en vez de crear uno: se repiten sus
+   * eventos desde el principio y se sigue en vivo. `mensajes` no se usa.
+   */
+  seguir?: string;
+  /** Llega con el id del trabajo: con él se vuelve a ver o se detiene. */
+  alInicio?: (inicio: EventoInicio) => void;
   parametros?: ParametrosModelo;
   /** Se llama por cada fragmento. `acumulado` evita que quien consume concatene. */
   alFragmento?: (fragmento: string, acumulado: string) => void;
@@ -210,6 +220,7 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
   const archivos: ArchivoCompartido[] = [];
   let resumen: ResumenConsulta | undefined;
   let errorDelAgente: ErrorChat | undefined;
+  let detenida = false;
   let porTiempo = false;
   let reloj: ReturnType<typeof setTimeout> | undefined;
 
@@ -254,6 +265,11 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         opciones.alFin?.(evento.datos);
         return;
       case 'error':
+        // Alguien la detuvo (este u otro navegador): no es una falla.
+        if (evento.datos.codigo === 'cancelada') {
+          detenida = true;
+          return;
+        }
         // No corta el bucle: después del error todavía llega el `fin` con el
         // costo de lo que alcanzó a hacer el agente.
         errorDelAgente = new ErrorChat(
@@ -265,6 +281,7 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         );
         return;
       case 'inicio':
+        opciones.alInicio?.(evento.datos);
         return;
     }
   };
@@ -276,6 +293,10 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
       : eventosDelServidor(opciones, control.signal, rearmar);
     for await (const evento of fuente) aplicar(evento);
 
+    if (detenida) {
+      opciones.alCerrar?.(acumulado, 'cancelado');
+      return { estado: 'cancelado', texto: acumulado, resumen, pensamiento, archivos };
+    }
     // El servidor cerró sin `fin` ni `error`: se cayó a media respuesta. Antes
     // esto se tomaba como "completo" y la respuesta quedaba cortada sin aviso.
     if (!errorDelAgente && !resumen) errorDelAgente = new ErrorChat('red', copyChat.errorCorte);
@@ -336,12 +357,17 @@ async function* eventosDelServidor(
   let respuesta: Response | undefined;
   for (let intento = 1; ; intento++) {
     try {
-      respuesta = await pedir('/chat', {
-        method: 'POST',
-        headers: { Accept: 'text/event-stream' },
-        json: cuerpo,
-        signal: senal,
-      });
+      respuesta = opciones.seguir
+        ? await pedir(`/trabajos/${encodeURIComponent(opciones.seguir)}/eventos?desde=0`, {
+            headers: { Accept: 'text/event-stream' },
+            signal: senal,
+          })
+        : await pedir('/chat', {
+            method: 'POST',
+            headers: { Accept: 'text/event-stream' },
+            json: cuerpo,
+            signal: senal,
+          });
     } catch (e) {
       if (esAborto(e)) throw e;
       respuesta = undefined; // la petición ni siquiera llegó
@@ -349,7 +375,12 @@ async function* eventosDelServidor(
     if (respuesta?.ok) break;
     let fallo: ErrorChat;
     if (respuesta) {
-      const porDefecto = respuesta.status >= 500 ? copyChat.errorServidor : copyChat.errorEnvio;
+      const porDefecto =
+        respuesta.status >= 500
+          ? copyChat.errorServidor
+          : opciones.seguir && respuesta.status === 404
+            ? copyChat.errorTrabajoPerdido
+            : copyChat.errorEnvio;
       fallo = new ErrorChat(tipoPorEstado(respuesta.status), await mensajeDeError(respuesta, porDefecto));
       if (respuesta.status < 500) throw fallo; // 401, 403, 429…: repetir no cambia nada
     } else {

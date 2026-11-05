@@ -56,6 +56,8 @@ export interface Mensaje {
   pensoMs?: number;
   /** Material del curso que el agente mandó con `compartir_archivo`. */
   archivos?: ArchivoCompartido[];
+  /** Trabajo del servidor que produjo esta respuesta: evita guardarla dos veces. */
+  trabajoId?: string;
 }
 
 /**
@@ -108,6 +110,15 @@ export interface Conversacion {
   analisis?: AnalisisConversacion;
   /** Último uso de contexto que reportó el agente para esta conversación. */
   contexto?: ContextoSesion;
+  /**
+   * Trabajo del servidor que aún no deja su respuesta aquí. Se guarda en el
+   * navegador para poder recogerla aunque la página se cierre a media tarea.
+   */
+  trabajoPendiente?: string;
+  /** Inicio del trabajo pendiente (ISO), para el cronómetro de la barra. */
+  trabajoDesde?: string;
+  /** La última respuesta falló sin dejar texto (p. ej. se perdió con un reinicio). */
+  errorPendiente?: string;
 }
 
 export interface Sesion {
@@ -134,6 +145,24 @@ export interface EventoInicio {
   conversacionId: string;
   perfil: string;
   motor: 'sdk' | 'prueba';
+  /** La consulta vive en el servidor como trabajo: con este id se vuelve a ver o se detiene. */
+  trabajoId?: string;
+}
+
+/** Un trabajo del agente en el servidor (GET /api/trabajos). Sobrevive a cerrar la página. */
+export interface TrabajoAgente {
+  id: string;
+  conversacionId: string;
+  perfil: string;
+  pregunta: string;
+  estado: 'corriendo' | 'completa' | 'error' | 'cancelada';
+  creadoEn: string;
+  terminadoEn: string | null;
+  /** Pasos (herramientas) que lleva: lo único honesto para medir avance. */
+  pasos: number;
+  actividad: string | null;
+  costoUsd: number | null;
+  eventos: number;
 }
 
 export interface ActividadAgente {
@@ -223,6 +252,7 @@ export type CodigoErrorChat =
   | 'limite_presupuesto'
   | 'conexion'
   | 'interrumpido'
+  | 'cancelada'
   | 'motor';
 
 export interface EventoError {

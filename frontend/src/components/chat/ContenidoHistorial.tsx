@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Conversacion } from '../../types';
 import { cn } from '../../lib/cn';
 import { grupoDeFecha, haceCuanto, type GrupoHistorial } from '../../lib/fechas';
@@ -247,6 +247,15 @@ function FilaConversacion({
         <span className={cn('min-w-0 flex-1 truncate font-ui text-14', activa ? 'font-medium text-text-1' : 'text-text-2 group-hover:text-text-1')}>
           {conv.titulo}
         </span>
+        {/* Trabaja en el servidor aunque no la estés viendo. */}
+        {conv.trabajoPendiente && (
+          <Loader2
+            size={13}
+            strokeWidth={2.5}
+            aria-label={copy.trabajando}
+            className="shrink-0 animate-spin text-accent-fg motion-reduce:animate-none"
+          />
+        )}
         <span className="sr-only">{haceCuanto(conv.ultimoMensajeEn, ahora)}</span>
       </button>
 

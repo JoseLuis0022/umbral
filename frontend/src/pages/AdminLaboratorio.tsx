@@ -28,6 +28,7 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ESFUERZO_POR_NIVEL } from '../components/admin/laboratorio/tipos';
 import type { ActividadAgente, ResumenConsulta } from '../types';
+import { detenerTrabajo } from '../services/trabajos.service';
 import { enviarMensaje, type ParametrosModelo } from '../services/chat.service';
 
 const NIVELES_VALIDOS: NivelPensamiento[] = ['ninguno', 'bajo', 'medio', 'alto'];
@@ -102,6 +103,18 @@ export default function AdminLaboratorio() {
   const [cajonAbierto, setCajonAbierto] = useState(false);
 
   const controlRef = useRef<AbortController | null>(null);
+  /*
+   * El agente corre en el servidor como TRABAJO y no muere al cortar la
+   * conexión. En el Laboratorio sí se quiere que muera (se mide una respuesta a
+   * la vez, y salir de la pantalla no debe dejar un agente gastando): cortar
+   * aquí es detener el trabajo Y dejar de observarlo.
+   */
+  const trabajoRef = useRef<string | null>(null);
+  const cortarTrabajo = () => {
+    if (trabajoRef.current) void detenerTrabajo(trabajoRef.current);
+    trabajoRef.current = null;
+    controlRef.current?.abort();
+  };
   const bufferRef = useRef('');
   const frameRef = useRef<number | null>(null);
   const montadoRef = useRef(true);
@@ -150,7 +163,7 @@ export default function AdminLaboratorio() {
       // Cambiar de pantalla a media respuesta: se aborta la petición y se
       // cancela el frame pendiente, o quedaría un setState sobre un componente
       // muerto y un agente trabajando para nadie en el backend.
-      controlRef.current?.abort();
+      cortarTrabajo();
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
   }, []);
@@ -207,7 +220,7 @@ export default function AdminLaboratorio() {
 
   const ejecutar = useCallback(
     async (historial: MensajeLab[]) => {
-      controlRef.current?.abort();
+      cortarTrabajo();
       const control = new AbortController();
       controlRef.current = control;
 
@@ -256,6 +269,9 @@ export default function AdminLaboratorio() {
           // Sale de "esperando" con el primer fragmento: es lo que retira el
           // esqueleto. Del segundo en adelante React descarta el mismo valor.
           setEstado((previo) => (previo === 'esperando' ? 'transmitiendo' : previo));
+        },
+        alInicio: (inicio) => {
+          trabajoRef.current = inicio.trabajoId ?? null;
         },
         alActividad: registrarActividad,
         // La consulta volvió a empezar en el backend: los pasos del intento
@@ -350,7 +366,7 @@ export default function AdminLaboratorio() {
   }, [borrador, activo, mensajes, ejecutar]);
 
   const detener = useCallback(() => {
-    controlRef.current?.abort();
+    cortarTrabajo();
   }, []);
 
   /**
@@ -381,7 +397,7 @@ export default function AdminLaboratorio() {
    * hilo que acabamos de vaciar.
    */
   const reiniciarSesion = useCallback(() => {
-    controlRef.current?.abort();
+    cortarTrabajo();
     controlRef.current = null;
 
     const nueva = nuevaSesionId();

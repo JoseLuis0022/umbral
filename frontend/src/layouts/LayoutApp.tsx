@@ -1,7 +1,7 @@
 import { forwardRef, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
-import { SquarePen, Settings } from 'lucide-react';
+import { Loader2, SquarePen, Settings } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { pageTransitionVariants } from '../lib/routeTransition';
 import { MarcaProducto } from '../components/brand/Logo';
@@ -10,6 +10,7 @@ import { NavAdmin } from '../components/shell/NavAdmin';
 import { IconButton } from '../components/ui';
 import { LimiteError } from '../components/LimiteError';
 import { useAuth } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext';
 import { chat as copyChat, navegacion as copyNav, ajustes as copyAjustes } from '../copy';
 
 /**
@@ -24,8 +25,17 @@ import { chat as copyChat, navegacion as copyNav, ajustes as copyAjustes } from 
  * cabecera quede fija sin position:fixed y el rebote elástico de macOS no
  * arrastre la página entera.
  */
-export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) {
+export function LayoutApp() {
   const location = useLocation();
+  /*
+   * UN solo shell para todas las pantallas. Antes el chat tenía su propio
+   * <LayoutApp scrollPropio /> en otra rama de rutas: al pasar de Inicio a
+   * Corpus, React veía otro componente, destruía la cabecera entera y la
+   * volvía a construir — ese era el parpadeo. Ahora la cabecera nunca se
+   * desmonta y solo cambia el contenido de abajo.
+   */
+  const scrollPropio = location.pathname === '/chat' || location.pathname.startsWith('/chat/');
+  const { trabajosEnCurso } = useChat();
   const navigate = useNavigate();
   const navType = useNavigationType();
   const { esAdmin } = useAuth();
@@ -83,7 +93,16 @@ export function LayoutApp({ scrollPropio = false }: { scrollPropio?: boolean }) 
             <MarcaProducto />
           </NavLink>
           <nav className="flex min-w-0 items-center gap-0.5 sm:gap-1">
-            <EnlaceNav to="/chat">{copyNav.inicio}</EnlaceNav>
+            <EnlaceNav to="/chat">
+              {copyNav.inicio}
+              {/* Una tarea del agente sigue en el servidor: se ve desde cualquier pantalla. */}
+              {trabajosEnCurso > 0 && (
+                <span title={copyChat.tareasEnCurso(trabajosEnCurso)} className="ml-1.5 inline-flex items-center">
+                  <Loader2 size={13} strokeWidth={2.5} aria-hidden className="animate-spin text-accent-fg motion-reduce:animate-none" />
+                  <span className="sr-only">{copyChat.tareasEnCurso(trabajosEnCurso)}</span>
+                </span>
+              )}
+            </EnlaceNav>
             {esAdmin && <NavAdmin />}
           </nav>
         </div>
@@ -166,7 +185,7 @@ function EnlaceNav({ to, children }: { to: string; children: ReactNode }) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'whitespace-nowrap rounded-control px-2.5 py-1.5 font-ui text-14 font-medium transition-colors duration-150 sm:px-3',
+          'inline-flex items-center whitespace-nowrap rounded-control px-2.5 py-1.5 font-ui text-14 font-medium transition-colors duration-150 sm:px-3',
           isActive ? 'bg-accent-soft text-accent-fg' : 'text-text-2 hover:bg-tinta/[.05] hover:text-text-1'
         )
       }

@@ -62,15 +62,13 @@ export default function App() {
                       sesión: es documentación del equipo, no una pantalla de producto. */}
                   <Route path="/_dev/sistema-diseno" element={<SistemaDiseno />} />
 
-                  {/* El chat ancla su entrada abajo y maneja su propio scroll, así
-                      que recibe el alto completo del shell. El resto de pantallas
-                      scrollea el contenedor de contenido. */}
-                  <Route element={<RutaProtegida><LayoutApp scrollPropio /></RutaProtegida>}>
+                  {/* UN solo shell para todo: con dos (uno para el chat y otro para
+                      lo demás) la cabecera se destruía y reconstruía al cambiar
+                      de pantalla, y parpadeaba. LayoutApp decide por la ruta si
+                      la pantalla maneja su propio scroll (el chat). */}
+                  <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/chat/:conversacionId" element={<Chat />} />
-                  </Route>
-
-                  <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
                     <Route path="/" element={<Navigate to="/chat" replace />} />
                     <Route path="/ajustes" element={<Ajustes />} />
                     <Route path="/perfil" element={<Perfil />} />
