@@ -86,7 +86,9 @@ function ContenidoDisparador({ nombreModelo, nombreEsfuerzo }: { nombreModelo: s
           className="min-w-0 truncate"
         >
           <span className="text-text-1">{nombreModelo}</span>
-          <span className="text-text-3"> · {nombreEsfuerzo}</span>
+          {/* El esfuerzo solo se nombra cuando se eligió uno: "Automático ·
+              Automático" se leía como un error de la interfaz. */}
+          {ajuste.esfuerzo !== PREDETERMINADO && <span className="text-text-3"> · {nombreEsfuerzo}</span>}
         </motion.span>
       </AnimatePresence>
       <ChevronDown size={12} strokeWidth={2.25} className="shrink-0 text-text-3" aria-hidden />

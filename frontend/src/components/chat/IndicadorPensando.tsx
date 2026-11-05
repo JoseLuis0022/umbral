@@ -149,7 +149,7 @@ export function TextoBrillante({ children, className }: { children: string; clas
   return (
     <span
       className={cn(
-        'animate-brillo bg-[linear-gradient(90deg,var(--text-3)_45%,var(--text-1)_50%,var(--text-3)_55%)] bg-[length:250%_100%] bg-clip-text text-transparent',
+        'animate-brillo bg-[linear-gradient(90deg,var(--text-2)_40%,var(--text-1)_50%,var(--text-2)_60%)] bg-[length:250%_100%] bg-clip-text text-transparent',
         className
       )}
     >
