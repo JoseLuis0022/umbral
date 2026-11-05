@@ -148,6 +148,10 @@ def construir_opciones(
         effort=ajuste.esfuerzo or perfil.esfuerzo,  # type: ignore[arg-type]
         resume=sesion_previa,
         include_partial_messages=True,
+        # Sin `display`, el razonamiento no se transmite (llega "omitted"). Se
+        # pide resumido solo para quien puede verlo; a los demás ni se genera
+        # la versión visible.
+        thinking={"type": "adaptive", "display": "summarized"} if ajuste.ver_interno else None,
         hooks=hooks,
         env={
             "ANTHROPIC_API_KEY": ajustes.anthropic_api_key,
