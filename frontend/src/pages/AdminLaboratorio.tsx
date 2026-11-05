@@ -258,6 +258,13 @@ export default function AdminLaboratorio() {
           setEstado((previo) => (previo === 'esperando' ? 'transmitiendo' : previo));
         },
         alActividad: registrarActividad,
+        // La consulta volvió a empezar en el backend: los pasos del intento
+        // roto no son parte de esta medición.
+        alReintento: (r) => {
+          if (r.capa !== 'agente') return;
+          cadenaRef.current = [];
+          setCadenaViva([]);
+        },
       });
 
       if (frameRef.current !== null) {

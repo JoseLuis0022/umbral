@@ -13,7 +13,13 @@ tipados igual en `frontend/src/types/index.ts`:
                   material que el agente mandó (compartir_archivo); se descarga
                   con GET /api/archivos?ruta=…, que vuelve a validar la ruta
     fin          {costoUsd, vueltas, duracionMs, tokens, modelo, contexto}
-    error        {codigo, mensaje}
+    reintento    {capa, intento, maximo, esperaMs, motivo}
+                  capa "api": el CLI reintenta una llamada a Anthropic (429, 5xx, red)
+                  capa "agente": la consulta entera se repite; lo que se mostró de
+                  ese intento (pasos, razonamiento) se descarta. Solo ocurre si
+                  aún no salió texto ni archivos.
+    error        {codigo, mensaje, detalle?}
+                  detalle: la causa técnica, solo con permiso "parametros"
 
 `contexto` = {usados, maximo, porcentaje, umbralCompactacion, categorias:
 [{nombre, tokens, diferida}]}: lo mismo que muestra /context en Claude Code.
@@ -30,7 +36,7 @@ SSE): mantienen viva la conexión mientras el modelo piensa.
 import json
 from typing import Any, Literal
 
-TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "archivo", "fin", "error"]
+TipoEvento = Literal["inicio", "pensamiento", "texto", "actividad", "archivo", "reintento", "fin", "error"]
 
 # Códigos de error estables: el front decide el mensaje y el tono por código.
 CodigoError = Literal[
@@ -40,6 +46,8 @@ CodigoError = Literal[
     "limite_api",      # rate limit de Anthropic
     "limite_vueltas",  # el agente agotó max_vueltas
     "limite_presupuesto",  # el agente agotó el tope en USD de la consulta
+    "conexion",        # no se pudo hablar con Anthropic (red caída o Anthropic caído)
+    "interrumpido",    # el servidor se reinició a media respuesta
     "motor",           # el subproceso falló
 ]
 

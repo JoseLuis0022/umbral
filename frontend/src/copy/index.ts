@@ -83,6 +83,11 @@ export const chat = {
   eliminar: 'Eliminar',
   errorEnvio: 'No pudimos enviar tu mensaje. Revisa tu conexión e intenta de nuevo.',
   errorTimeout: 'El asistente tardó demasiado en responder. Intenta de nuevo o reformula tu pregunta.',
+  errorCorte: 'Se cortó la conexión con el servidor antes de terminar la respuesta. Intenta de nuevo.',
+  errorServidor: 'No pudimos contactar al servidor. Revisa tu conexión o espera un momento e intenta de nuevo.',
+  motivoServidor: 'No pudimos contactar al servidor',
+  /** Lo que se lee mientras algo se reintenta solo. */
+  reintentando: (motivo: string, intento: number, maximo: number) => `${motivo}. Reintentando (${intento} de ${maximo})…`,
 };
 
 export const navegacion = {

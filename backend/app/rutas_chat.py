@@ -183,7 +183,9 @@ async def _transmitir(
         if not tarea.done():
             tarea.cancel()
         estado = "error" if registro.error else ("completa" if terminada else "cancelada")
-        if registro.sesion_sdk:
+        # Una consulta fallida no reemplaza la sesión buena anterior: si no, la
+        # siguiente pregunta reanudaría una sesión rota y fallaría igual.
+        if registro.sesion_sdk and not registro.error:
             db.guardar_sesion(usuario.id, peticion.conversacion_id, perfil.id, registro.sesion_sdk)
         db.registrar_consulta(
             usuario_id=usuario.id,
@@ -207,6 +209,6 @@ async def _transmitir(
             error=registro.error,
         )
         log.info(
-            "consulta %s · %s · %s · $%s · %s vueltas",
-            estado, usuario.correo, perfil.id, registro.costo_usd, registro.vueltas,
+            "consulta %s · %s · %s · $%s · %s vueltas · %s reintentos",
+            estado, usuario.correo, perfil.id, registro.costo_usd, registro.vueltas, registro.reintentos,
         )

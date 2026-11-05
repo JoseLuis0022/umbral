@@ -6,6 +6,7 @@ rol: el motor no sabe qué es un rol) y devuelve eventos del protocolo.
 Qué emite el SDK y en qué se convierte:
 
     SystemMessage(init)          → (nada visible) guarda session_id, modelo
+    SystemMessage(api_retry)     → reintento {capa: api} ← el CLI reintenta la API
     StreamEvent thinking_delta   → pensamiento {delta}   ← solo si se pidió
     StreamEvent text_delta       → texto {delta}         ← token por token
     AssistantMessage ToolUse     → actividad {fase: inicio}
@@ -29,6 +30,7 @@ import random
 import re
 import time
 import uuid
+from collections import deque
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,6 +41,7 @@ from claude_agent_sdk import (
     ClaudeAgentOptions,
     ClaudeSDKClient,
     ClaudeSDKError,
+    ProcessError,
     ResultMessage,
     StreamEvent,
     SystemMessage,
@@ -79,6 +82,51 @@ ERROR_POR_FALLA_API = {
     "unknown": ("conexion", "No pudimos conectar con Anthropic. Revisa tu conexión a internet e intenta de nuevo."),
 }
 
+# ── Resiliencia ──────────────────────────────────────────────────────────────
+# Dos capas de reintento, cada una para lo suyo:
+#
+#  1. API (dentro del CLI). Un 429, 5xx, 529 o un corte de red los reintenta
+#     el propio Claude Code con espera exponencial. Aquí solo se acota cuántas
+#     veces (por defecto son tantas que la persona esperaba minutos sin saber
+#     nada) y se AVISA: cada intento sale como evento `reintento`.
+#  2. Agente (aquí). Si el subproceso muere o la conexión no se recupera, se
+#     vuelve a correr la consulta completa, pero SOLO si la persona todavía no
+#     vio nada de la respuesta (ni texto ni archivos): repetir a media
+#     respuesta duplicaría lo que ya leyó.
+REINTENTOS_API = 6
+INTENTOS_AGENTE = 3
+ESPERA_AGENTE_S = (2, 5)
+# Fallas pasajeras: vale la pena volver a intentar. Las demás (API key, saldo,
+# límites de la consulta, configuración) fallarían igual la segunda vez.
+CODIGOS_REINTENTABLES = {"conexion", "motor"}
+
+
+def motivo_api(estado: int | None, error: str | None) -> str:
+    """La causa de un reintento de la API, en palabras."""
+    if estado == 429 or error == "rate_limit":
+        return "Anthropic está limitando las peticiones"
+    if estado == 529 or error == "overloaded_error":
+        return "Anthropic está saturado"
+    if estado is not None and estado >= 500:
+        return "Anthropic tuvo un error temporal"
+    if estado == 401:
+        return "La API key no es válida"
+    return "No hay conexión con Anthropic"
+
+
+def error_de_proceso(exc: BaseException, salida: Sequence[str]) -> tuple[str, str, str]:
+    """(codigo, mensaje, detalle técnico) de un subproceso `claude` que murió."""
+    codigo_salida = getattr(exc, "exit_code", None)
+    ultima = next((l for l in reversed(salida) if l.strip()), "")
+    detalle = f"{type(exc).__name__}" + (f", código de salida {codigo_salida}" if codigo_salida is not None else "")
+    if ultima:
+        detalle += f": {ultima[:300]}"
+    # 143 = SIGTERM, 137 = SIGKILL: alguien apagó el proceso (reinicio del
+    # servidor, falta de memoria). No es culpa de la pregunta.
+    if codigo_salida in (143, 137, -15, -9):
+        return "interrumpido", "La respuesta se interrumpió porque el servidor se reinició. Vuelve a intentarlo.", detalle
+    return "motor", "El agente se cerró de forma inesperada.", detalle
+
 
 @dataclass
 class Ajuste:
@@ -108,6 +156,7 @@ class Registro:
     error: str | None = None
     fuente_llave: str | None = None
     contexto: dict[str, Any] | None = None
+    reintentos: int = 0
 
 
 def consultar(
@@ -121,16 +170,68 @@ def consultar(
     ajuste: Ajuste,
     registro: Registro,
 ) -> AsyncIterator[dict[str, Any]]:
-    if ajustes.motor == "prueba":
-        return _consultar_prueba(mensaje, imagenes, documentos, sesion_previa, ajuste, registro)
-    return _consultar_sdk(perfil, mensaje, imagenes, documentos, sesion_previa, usuario_id, ajuste, registro)
+    def un_intento() -> AsyncIterator[dict[str, Any]]:
+        if ajustes.motor == "prueba":
+            return _consultar_prueba(mensaje, imagenes, documentos, sesion_previa, ajuste, registro)
+        return _consultar_sdk(perfil, mensaje, imagenes, documentos, sesion_previa, usuario_id, ajuste, registro)
+
+    return _con_reintentos(un_intento, registro)
+
+
+async def _con_reintentos(
+    un_intento: Any, registro: Registro, intentos: int = INTENTOS_AGENTE
+) -> AsyncIterator[dict[str, Any]]:
+    """Corre la consulta; si falla por algo pasajero ANTES de mostrar respuesta, la repite.
+
+    Cada intento parte de la misma `sesion_previa`: la sesión del intento
+    fallido se descarta, así que el agente no "recuerda" el intento roto.
+    """
+    for intento in range(1, intentos + 1):
+        visible = False          # la persona ya vio texto o un archivo
+        retenido: dict[str, Any] | None = None
+        async for ev in un_intento():
+            if retenido is not None:
+                continue  # tras un error reintentable, el `fin` de ese intento sobra
+            if (
+                ev["tipo"] == "error"
+                and ev.get("codigo") in CODIGOS_REINTENTABLES
+                and not visible
+                and intento < intentos
+            ):
+                retenido = ev
+                continue
+            if ev["tipo"] in ("texto", "archivo"):
+                visible = True
+            yield ev
+        if retenido is None:
+            return
+        espera = ESPERA_AGENTE_S[min(intento, len(ESPERA_AGENTE_S)) - 1]
+        log.warning("intento %s de %s falló (%s); reintento en %ss", intento, intentos, retenido.get("detalle") or retenido.get("codigo"), espera)
+        registro.error = None
+        registro.reintentos += 1
+        yield evento(
+            "reintento",
+            capa="agente",
+            intento=intento + 1,
+            maximo=intentos,
+            esperaMs=espera * 1000,
+            motivo={"conexion": "Se perdió la conexión con Anthropic", "motor": "El agente se cerró"}.get(
+                str(retenido.get("codigo")), "El agente falló"
+            ),
+        )
+        await asyncio.sleep(espera)
 
 
 # ─────────────────────────────── Motor real ────────────────────────────────
 
 
 def construir_opciones(
-    perfil: Perfil, *, sesion_previa: str | None, usuario_id: str, ajuste: Ajuste
+    perfil: Perfil,
+    *,
+    sesion_previa: str | None,
+    usuario_id: str,
+    ajuste: Ajuste,
+    salida_error: deque[str] | None = None,
 ) -> ClaudeAgentOptions:
     cwd = ajustes.agente_cwd.resolve()
     ajustes.config_claude.mkdir(parents=True, exist_ok=True)
@@ -175,8 +276,12 @@ def construir_opciones(
             "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
             # Etiqueta para la observabilidad (OpenTelemetry), cuando la encendamos.
             "OTEL_RESOURCE_ATTRIBUTES": f"enduser.id={usuario_id}",
+            # Cuántas veces reintenta el CLI una llamada a la API. Cada intento
+            # se avisa en la interfaz (evento `reintento`).
+            "CLAUDE_CODE_MAX_RETRIES": str(REINTENTOS_API),
         },
-        stderr=lambda linea: log.debug("claude: %s", linea.rstrip()),
+        # Las últimas líneas de stderr explican por qué murió el proceso.
+        stderr=lambda linea: (log.debug("claude: %s", linea.rstrip()), salida_error.append(linea.rstrip()) if salida_error is not None else None),
     )
 
 
@@ -330,7 +435,10 @@ async def _consultar_sdk(
         return
 
     cwd = ajustes.agente_cwd.resolve()
-    opciones = construir_opciones(perfil, sesion_previa=sesion_previa, usuario_id=usuario_id, ajuste=ajuste)
+    salida_error: deque[str] = deque(maxlen=20)
+    opciones = construir_opciones(
+        perfil, sesion_previa=sesion_previa, usuario_id=usuario_id, ajuste=ajuste, salida_error=salida_error
+    )
 
     hay_texto = False       # ya se pintó algo de la respuesta
     separar = False         # hubo herramientas desde el último texto
@@ -369,6 +477,18 @@ async def _consultar_sdk(
                         log.info("sesión %s · modelo %s · credencial %s", registro.sesion_sdk, registro.modelo, registro.fuente_llave)
                         if registro.fuente_llave not in (None, "ANTHROPIC_API_KEY"):
                             log.warning("El agente no está usando la API key del laboratorio: %s", registro.fuente_llave)
+                    elif m.subtype == "api_retry":
+                        d = m.data
+                        estado = d.get("error_status")
+                        log.warning("API: reintento %s de %s (%s %s)", d.get("attempt"), d.get("max_retries"), estado, d.get("error"))
+                        yield evento(
+                            "reintento",
+                            capa="api",
+                            intento=int(d.get("attempt") or 1),
+                            maximo=int(d.get("max_retries") or REINTENTOS_API),
+                            esperaMs=int(d.get("retry_delay_ms") or 0),
+                            motivo=motivo_api(estado, d.get("error")),
+                        )
                     continue
 
                 if isinstance(m, StreamEvent):
@@ -410,7 +530,7 @@ async def _consultar_sdk(
                         codigo, texto = ERROR_POR_FALLA_API.get(m.error, ("motor", "El agente falló al responder."))
                         registro.error = codigo
                         error_emitido = True
-                        yield evento("error", codigo=codigo, mensaje=texto)
+                        yield _error(codigo, texto, f"La API respondió «{m.error}»", ajuste)
                     for bloque in m.content:
                         if isinstance(bloque, ToolUseBlock):
                             es_subagente = bloque.name in HERRAMIENTAS_SUBAGENTE
@@ -458,11 +578,12 @@ async def _consultar_sdk(
                 registro.contexto = _contexto_publico(await asyncio.wait_for(cliente.get_context_usage(), timeout=10))
             except Exception:
                 log.warning("No se pudo leer el uso de contexto", exc_info=True)
-    except ClaudeSDKError:
-        log.exception("Falló el subproceso del agente")
-        registro.error = "motor"
+    except (ClaudeSDKError, ProcessError) as exc:
+        codigo, texto, detalle = error_de_proceso(exc, list(salida_error))
+        log.error("Falló el subproceso del agente: %s", detalle)
+        registro.error = codigo
         if not error_emitido:
-            yield evento("error", codigo="motor", mensaje="El agente falló al responder.")
+            yield _error(codigo, texto, detalle, ajuste)
         return
 
     if retenido:
@@ -492,8 +613,16 @@ async def _consultar_sdk(
         if "ECONNREFUSED" in (resultado.result or "") or "Connection" in (resultado.result or ""):
             codigo, texto = ERROR_POR_FALLA_API["server_error"]
         registro.error = codigo
-        yield evento("error", codigo=codigo, mensaje=texto)
+        yield _error(codigo, texto, (resultado.result or resultado.subtype or "")[:300], ajuste)
     yield _evento_fin(registro)
+
+
+def _error(codigo: str, mensaje: str, detalle: str, ajuste: Ajuste) -> dict[str, Any]:
+    """Evento `error`. El detalle técnico (la causa real) solo va a quien puede verlo."""
+    datos: dict[str, Any] = {"codigo": codigo, "mensaje": mensaje}
+    if ajuste.ver_interno and detalle:
+        datos["detalle"] = detalle
+    return evento("error", **datos)
 
 
 def _evento_fin(registro: Registro) -> dict[str, Any]:
@@ -523,6 +652,17 @@ async def _consultar_prueba(
     inicio = time.monotonic()
     registro.sesion_sdk = sesion_previa or f"prueba-{uuid.uuid4()}"
     registro.modelo = "motor-de-prueba"
+
+    # Escotilla para probar la resiliencia sin desconectar nada: la API "se
+    # cae" dos veces (reintentos del CLI) y el primer intento del agente muere.
+    if re.search(r"forzar\s+reintento", mensaje, re.I):
+        if registro.reintentos == 0:
+            for n in (1, 2):
+                yield evento("reintento", capa="api", intento=n, maximo=REINTENTOS_API, esperaMs=800, motivo=motivo_api(None, None))
+                await asyncio.sleep(0.8)
+            registro.error = "conexion"
+            yield _error("conexion", ERROR_POR_FALLA_API["unknown"][1], "prueba: conexión rechazada", ajuste)
+            return
 
     if ajuste.ver_interno:
         for pieza in re.findall(r"\S+\s*", "Primero reviso el índice de temas para ubicar la clase, luego leo su resumen."):

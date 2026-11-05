@@ -221,9 +221,28 @@ export type CodigoErrorChat =
   | 'limite_api'
   | 'limite_vueltas'
   | 'limite_presupuesto'
+  | 'conexion'
+  | 'interrumpido'
   | 'motor';
 
 export interface EventoError {
   codigo: CodigoErrorChat;
   mensaje: string;
+  /** La causa técnica. Solo llega a quien tiene permiso de ver lo interno. */
+  detalle?: string;
+}
+
+/**
+ * Algo falló y se está reintentando solo.
+ *  - `api`: el agente reintenta una llamada a Anthropic (saturado, límite, red).
+ *  - `agente`: la consulta completa vuelve a empezar; lo mostrado del intento
+ *    anterior (pasos, razonamiento) se descarta. Solo pasa si aún no salió texto.
+ *  - `servidor`: el navegador no alcanzó al backend y vuelve a llamar.
+ */
+export interface EventoReintento {
+  capa: 'api' | 'agente' | 'servidor';
+  intento: number;
+  maximo: number;
+  esperaMs: number;
+  motivo: string;
 }

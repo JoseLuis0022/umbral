@@ -38,6 +38,7 @@ import type {
   CodigoErrorChat,
   Esfuerzo,
   EventoError,
+  EventoReintento,
   EventoInicio,
   ResumenConsulta,
 } from '../types';
@@ -138,6 +139,8 @@ export interface OpcionesEnvio {
   alActividad?: (actividad: ActividadAgente) => void;
   /** El agente mandó un archivo del curso. */
   alArchivo?: (archivo: ArchivoCompartido) => void;
+  /** Algo falló y se está reintentando solo. Con capa `agente`, lo del intento anterior se descarta. */
+  alReintento?: (reintento: EventoReintento) => void;
   /** Costo y tokens reales de la consulta. Llega al final, también tras un error del agente. */
   alFin?: (resumen: ResumenConsulta) => void;
   /** Evento de cierre. Se dispara igual si terminó solo o si lo detuvieron. */
@@ -163,10 +166,24 @@ type EventoProtocolo =
   | { tipo: 'texto'; datos: { delta: string } }
   | { tipo: 'actividad'; datos: ActividadAgente }
   | { tipo: 'archivo'; datos: ArchivoCompartido }
+  | { tipo: 'reintento'; datos: EventoReintento }
   | { tipo: 'fin'; datos: ResumenConsulta }
   | { tipo: 'error'; datos: EventoError };
 
-const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>(['inicio', 'pensamiento', 'texto', 'actividad', 'archivo', 'fin', 'error']);
+const TIPOS_EVENTO = new Set<EventoProtocolo['tipo']>([
+  'inicio',
+  'pensamiento',
+  'texto',
+  'actividad',
+  'archivo',
+  'reintento',
+  'fin',
+  'error',
+]);
+
+/** Intentos para ALCANZAR al servidor (antes de que empiece la respuesta) y su espera. */
+const INTENTOS_SERVIDOR = 4;
+const ESPERAS_SERVIDOR_MS = [1000, 2500, 5000];
 
 function errorAborto() {
   return new DOMException('Transmisión cancelada', 'AbortError');
@@ -227,6 +244,11 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         archivos.push(evento.datos);
         opciones.alArchivo?.(evento.datos);
         return;
+      case 'reintento':
+        // La consulta vuelve a empezar: el razonamiento del intento roto no cuenta.
+        if (evento.datos.capa === 'agente') pensamiento = '';
+        opciones.alReintento?.(evento.datos);
+        return;
       case 'fin':
         resumen = evento.datos;
         opciones.alFin?.(evento.datos);
@@ -236,7 +258,9 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
         // costo de lo que alcanzó a hacer el agente.
         errorDelAgente = new ErrorChat(
           evento.datos.codigo.startsWith('limite') ? 'limite' : 'respuesta',
-          evento.datos.mensaje || copyChat.errorEnvio,
+          // La causa técnica (solo para quien puede verla) va entre paréntesis:
+          // "falló" sin un porqué no le sirve a nadie.
+          (evento.datos.mensaje || copyChat.errorEnvio) + (evento.datos.detalle ? ` (${evento.datos.detalle})` : ''),
           evento.datos.codigo
         );
         return;
@@ -252,6 +276,9 @@ export async function enviarMensaje(opciones: OpcionesEnvio): Promise<ResultadoE
       : eventosDelServidor(opciones, control.signal, rearmar);
     for await (const evento of fuente) aplicar(evento);
 
+    // El servidor cerró sin `fin` ni `error`: se cayó a media respuesta. Antes
+    // esto se tomaba como "completo" y la respuesta quedaba cortada sin aviso.
+    if (!errorDelAgente && !resumen) errorDelAgente = new ErrorChat('red', copyChat.errorCorte);
     if (errorDelAgente) {
       opciones.alError?.(errorDelAgente);
       return { estado: 'error', texto: acumulado, error: errorDelAgente, resumen, pensamiento, archivos };
@@ -293,22 +320,49 @@ async function* eventosDelServidor(
   senal: AbortSignal,
   alRecibir: () => void
 ): AsyncGenerator<EventoProtocolo> {
-  const respuesta = await pedir('/chat', {
-    method: 'POST',
-    headers: { Accept: 'text/event-stream' },
-    json: {
-      conversacionId: opciones.conversacionId,
-      mensaje: ultimaPregunta(opciones.mensajes),
-      imagenes: opciones.imagenes?.length ? opciones.imagenes : undefined,
-      documentos: opciones.documentos?.length ? opciones.documentos : undefined,
-      perfil: opciones.perfil ?? 'consulta',
-      parametros: opciones.parametros,
-    },
-    signal: senal,
-  });
+  const cuerpo = {
+    conversacionId: opciones.conversacionId,
+    mensaje: ultimaPregunta(opciones.mensajes),
+    imagenes: opciones.imagenes?.length ? opciones.imagenes : undefined,
+    documentos: opciones.documentos?.length ? opciones.documentos : undefined,
+    perfil: opciones.perfil ?? 'consulta',
+    parametros: opciones.parametros,
+  };
 
-  if (!respuesta.ok) {
-    throw new ErrorChat(tipoPorEstado(respuesta.status), await mensajeDeError(respuesta, copyChat.errorEnvio));
+  // Alcanzar al servidor SÍ se reintenta solo: si la petición no llegó (red
+  // caída, backend reiniciándose → 5xx del proxy), el agente no corrió y no
+  // se cobró nada. Una vez que empieza la respuesta, ya no: repetirla
+  // duplicaría el gasto; de eso se encarga el backend, que sabe si es seguro.
+  let respuesta: Response | undefined;
+  for (let intento = 1; ; intento++) {
+    try {
+      respuesta = await pedir('/chat', {
+        method: 'POST',
+        headers: { Accept: 'text/event-stream' },
+        json: cuerpo,
+        signal: senal,
+      });
+    } catch (e) {
+      if (esAborto(e)) throw e;
+      respuesta = undefined; // la petición ni siquiera llegó
+    }
+    if (respuesta?.ok) break;
+    let fallo: ErrorChat;
+    if (respuesta) {
+      const porDefecto = respuesta.status >= 500 ? copyChat.errorServidor : copyChat.errorEnvio;
+      fallo = new ErrorChat(tipoPorEstado(respuesta.status), await mensajeDeError(respuesta, porDefecto));
+      if (respuesta.status < 500) throw fallo; // 401, 403, 429…: repetir no cambia nada
+    } else {
+      fallo = new ErrorChat('red', copyChat.errorServidor);
+    }
+    if (intento >= INTENTOS_SERVIDOR) throw fallo;
+    const espera = ESPERAS_SERVIDOR_MS[Math.min(intento, ESPERAS_SERVIDOR_MS.length) - 1];
+    yield {
+      tipo: 'reintento',
+      datos: { capa: 'servidor', intento: intento + 1, maximo: INTENTOS_SERVIDOR, esperaMs: espera, motivo: copyChat.motivoServidor },
+    };
+    alRecibir(); // la espera no cuenta como silencio
+    await pausa(espera, senal);
   }
   if (!respuesta.body) throw new ErrorChat('respuesta', copyChat.errorEnvio);
 

@@ -3,6 +3,7 @@ import type { ArchivoCompartido, ItemProceso } from '../types';
 import { enviarMensaje, type OpcionesEnvio, type ResultadoEnvio } from '../services/chat.service';
 import { describirActividad } from '../lib/actividad';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { chat as copyChat } from '../copy';
 
 export type EstadoStream = 'inactivo' | 'esperando' | 'transmitiendo' | 'error';
 
@@ -186,12 +187,31 @@ export function useStreamingChat() {
       setEstado('esperando');
 
       const vigente = () => montado.current && control.current === propio;
+      // Mientras algo se reintenta, la frase de estado lo dice; con lo primero
+      // que llegue de verdad (paso, razonamiento o texto), se retira.
+      let reintentando = false;
+      const salirDeReintento = () => {
+        if (!reintentando) return;
+        reintentando = false;
+        setActividad(null);
+      };
 
       const resultado = await enviarMensaje({
         ...peticion,
         senal: propio.signal,
+        alReintento: (r) => {
+          if (!vigente()) return;
+          reintentando = true;
+          setActividad(copyChat.reintentando(r.motivo, r.intento, r.maximo));
+          if (r.capa === 'agente') {
+            // La consulta vuelve a empezar: los pasos del intento roto se borran.
+            procesoRef.current = [];
+            volcarProceso();
+          }
+        },
         alActividad: (a) => {
           if (!vigente()) return;
+          salirDeReintento();
           const lista = procesoRef.current;
           if (a.fase === 'inicio') {
             // Se anuncia lo que EMPIEZA; la frase se queda hasta que empiece otra cosa.
@@ -222,6 +242,7 @@ export function useStreamingChat() {
         },
         alPensamiento: (fragmento) => {
           if (!vigente()) return;
+          salirDeReintento();
           // Pensamiento que sigue a otro se pega; si hubo un paso en medio,
           // abre un bloque nuevo: la línea de tiempo respeta el orden real.
           const lista = procesoRef.current;
@@ -234,6 +255,7 @@ export function useStreamingChat() {
         },
         alFragmento: (_fragmento, acumulado) => {
           if (!vigente()) return;
+          salirDeReintento();
           objetivo.current = acumulado;
           encenderBucle();
           // Sale de "esperando" con el primer fragmento: es lo que retira los
