@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Adjunto, ArchivoCompartido, Conversacion, ItemProceso, Mensaje, ModeloDisponible } from '../types';
+import type { Adjunto, ArchivoCompartido, Conversacion, ItemProceso, Mensaje, ModeloDisponible, PerfilAgente } from '../types';
 import { conversacionesSemilla } from '../data/conversaciones';
 import { escribir, esperar, idNuevo, leer } from '../services/simulacion';
 import { listarModelos } from '../services/modelos.service';
@@ -19,6 +19,8 @@ import { useStreamingChat, type EstadoStream } from '../hooks/useStreamingChat';
 import { useAuth } from './AuthContext';
 
 const CLAVE_AJUSTES = 'chat:ajustes-modelo';
+const CLAVE_PERFIL = 'chat:perfil';
+const PERFIL_BASE = 'consulta';
 
 const CLAVE = 'conversaciones';
 
@@ -88,6 +90,13 @@ type ChatCtx = {
 
   /** `true` si la cuenta puede elegir modelo y esfuerzo (permiso "parametros"). */
   puedeAjustarModelo: boolean;
+  /** Modos que esta cuenta puede usar (los decide el backend por rol). */
+  perfiles: PerfilAgente[];
+  /** Modo de la conversación abierta, o el elegido para la próxima. */
+  perfilActual: string;
+  /** `true` si la conversación abierta ya empezó: su modo no se cambia. */
+  perfilFijo: boolean;
+  cambiarPerfil: (id: string) => void;
   modelos: ModeloDisponible[];
   ajusteModelo: AjusteModelo;
   cambiarAjusteModelo: (ajuste: Partial<AjusteModelo>) => void;
@@ -107,7 +116,7 @@ type ChatCtx = {
 const Ctx = createContext<ChatCtx | null>(null);
 
 export function ChatProvider({ children }: { children?: ReactNode }) {
-  const { usuario, puede } = useAuth();
+  const { usuario, puede, perfiles } = useAuth();
   const stream = useStreamingChat();
   const puedeAjustarModelo = puede('parametros');
 
@@ -122,6 +131,17 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       escribir(CLAVE_AJUSTES, siguiente);
       return siguiente;
     });
+  }, []);
+
+  // Modo para la PRÓXIMA conversación. Se recuerda; si la cuenta ya no tiene
+  // ese modo (le cambiaron el rol), cae a consulta.
+  const [perfilNuevo, setPerfilNuevo] = useState<string>(() => leer(CLAVE_PERFIL, PERFIL_BASE));
+  const perfilValido = perfiles.some((p) => p.id === perfilNuevo) ? perfilNuevo : PERFIL_BASE;
+  const perfilNuevoRef = useRef(perfilValido);
+  perfilNuevoRef.current = perfilValido;
+  const cambiarPerfil = useCallback((id: string) => {
+    setPerfilNuevo(id);
+    escribir(CLAVE_PERFIL, id);
   }, []);
 
   const [modelos, setModelos] = useState<ModeloDisponible[]>([]);
@@ -200,6 +220,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
     [conversaciones, activaId]
   );
 
+  // Una conversación que ya empezó conserva su modo; si no, manda el elegido.
+  const perfilFijo = !!conversacionActiva && conversacionActiva.mensajes.length > 0;
+  const perfilActual = perfilFijo ? conversacionActiva?.perfil ?? PERFIL_BASE : perfilValido;
+
   const seleccionar = useCallback((id: string | null) => {
     setActivaId(id);
   }, []);
@@ -238,8 +262,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       pensoRef.current = null;
       setPensoMs(null);
 
+      const perfil = todasRef.current.find((c) => c.id === conversacionId)?.perfil ?? PERFIL_BASE;
       const resultado = await stream.iniciar({
         conversacionId,
+        perfil,
         mensajes: historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
         // Sin `usuario`: quién eres lo dice el token, no el cuerpo de la petición.
         adjuntos: adjuntos.map((a) => ({ nombre: a.nombre, tipo: a.tipo, tamanoBytes: a.tamanoBytes })),
@@ -328,7 +354,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
           mensajes: [mensaje],
           creadoEn,
           ultimoMensajeEn: creadoEn,
+          perfil: perfilNuevoRef.current,
         };
+        // El ref se actualiza ya: `responder` busca el perfil ahí, antes del re-render.
+        todasRef.current = [nueva, ...todasRef.current];
         actualizar((previo) => [nueva, ...previo]);
         setActivaId(id);
         void responder(id, [mensaje]);
@@ -412,6 +441,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       textoParcial: stream.textoParcial,
       proceso: stream.proceso,
       archivosEnVivo: stream.archivos,
+      perfiles,
+      perfilActual,
+      perfilFijo,
+      cambiarPerfil,
       puedeAjustarModelo,
       modelos,
       ajusteModelo,
@@ -435,6 +468,10 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
       stream.textoParcial,
       stream.proceso,
       stream.archivos,
+      perfiles,
+      perfilActual,
+      perfilFijo,
+      cambiarPerfil,
       puedeAjustarModelo,
       modelos,
       ajusteModelo,

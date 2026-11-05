@@ -97,6 +97,12 @@ export interface Conversacion {
   usuarioId: string;
   titulo: string;
   mensajes: Mensaje[];
+  /**
+   * Modo del agente (perfil del backend) con el que se abrió. Queda fijo: el
+   * backend guarda una sesión del agente por conversación Y perfil, así que
+   * cambiarlo a media conversación empezaría otra memoria. Sin dato = consulta.
+   */
+  perfil?: string;
   creadoEn: string;
   ultimoMensajeEn: string;
   analisis?: AnalisisConversacion;

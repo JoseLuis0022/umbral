@@ -51,9 +51,7 @@ export default function Chat() {
   const reducido = useReducedMotion();
   const compacto = useEsCompacto();
   const { push } = useToast();
-  const { usuario, perfiles } = useAuth();
-  // El chat habla con el perfil de consulta: su modelo es el "Automático".
-  const modeloDelPerfil = perfiles.find((p) => p.id === 'consulta')?.modelo ?? null;
+  const { usuario } = useAuth();
 
   const {
     conversaciones,
@@ -75,11 +73,18 @@ export default function Chat() {
     modelos,
     ajusteModelo,
     cambiarAjusteModelo,
+    perfiles: perfilesChat,
+    perfilActual,
+    perfilFijo,
+    cambiarPerfil,
     streamEnId,
     renombrar,
     eliminar,
     reaccionar,
   } = useChat();
+
+  // "Automático" = el modelo del modo con el que habla esta conversación.
+  const modeloDelPerfil = perfilesChat.find((p) => p.id === perfilActual)?.modelo ?? null;
 
   const [texto, setTexto] = useState('');
   const [adjuntos, setAdjuntos] = useState<AdjuntoPreparado[]>([]);
@@ -255,6 +260,11 @@ export default function Chat() {
         ajustesModelo={
           puedeAjustarModelo
             ? { modelos, ajuste: ajusteModelo, onCambiar: cambiarAjusteModelo, modeloPredeterminado: modeloDelPerfil }
+            : undefined
+        }
+        ajustesModo={
+          perfilesChat.length > 1
+            ? { perfiles: perfilesChat, actual: perfilActual, fijo: perfilFijo, onCambiar: cambiarPerfil }
             : undefined
         }
         onEnviar={alEnviar}

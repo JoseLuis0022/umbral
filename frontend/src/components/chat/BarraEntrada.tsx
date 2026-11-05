@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUp, FileCode2, FileText, Film, Loader2, Paperclip, Play, X, type LucideIcon } from 'lucide-react';
-import type { Adjunto, ContextoSesion, ModeloDisponible } from '../../types';
+import type { Adjunto, ContextoSesion, ModeloDisponible, PerfilAgente } from '../../types';
 import type { AjusteModelo } from '../../lib/ajusteModelo';
 import { cn } from '../../lib/cn';
 import { springSnappy, springLayout, springPress, dur, ease } from '../../lib/motion';
@@ -28,6 +28,7 @@ import { AnilloContexto } from './AnilloContexto';
  * descarga ese código.
  */
 const MenuModelo = lazy(() => import('./MenuModelo').then((m) => ({ default: m.MenuModelo })));
+const MenuModo = lazy(() => import('./MenuModo').then((m) => ({ default: m.MenuModo })));
 
 const MAX_LINEAS = 8;
 
@@ -45,6 +46,14 @@ export type AjustesModelo = {
   modeloPredeterminado?: string | null;
 };
 
+/** Modo del agente. Solo llega si la cuenta tiene más de un perfil. */
+export type AjustesModo = {
+  perfiles: PerfilAgente[];
+  actual: string;
+  fijo: boolean;
+  onCambiar: (id: string) => void;
+};
+
 type Props = {
   valor: string;
   onCambio: (valor: string) => void;
@@ -54,6 +63,7 @@ type Props = {
   onDetener: () => void;
   transmitiendo: boolean;
   ajustesModelo?: AjustesModelo;
+  ajustesModo?: AjustesModo;
   contexto?: ContextoSesion;
   autoFoco?: boolean;
   /**
@@ -89,6 +99,7 @@ export function BarraEntrada({
   onDetener,
   transmitiendo,
   ajustesModelo,
+  ajustesModo,
   contexto,
   autoFoco,
   senalFoco = 0,
@@ -315,6 +326,11 @@ export function BarraEntrada({
           >
             <Paperclip size={18} />
           </IconButton>
+          {ajustesModo && (
+            <Suspense fallback={null}>
+              <MenuModo {...ajustesModo} anclaRef={composer} />
+            </Suspense>
+          )}
 
           <div className="ml-auto flex min-w-0 items-center gap-0.5">
             {ajustesModelo && (
