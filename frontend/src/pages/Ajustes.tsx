@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Accessibility,
   Info,
+  Mail,
   MessagesSquare,
   Palette,
   RotateCcw,
@@ -12,6 +13,8 @@ import {
 import { PageEnter, Banner, Button, SegmentedControl, Modal, useToast } from '../components/ui';
 import { PageHeader } from '../components/shell/PageHeader';
 import { Seccion, FilaAjuste, FilaTexto, FilaDato, FilaPendiente, Interruptor } from '../components/ajustes';
+import { ModalCorreo } from '../components/ajustes/ModalCorreo';
+import { configCorreo as copyCorreo } from '../copy';
 import {
   usePreferencias,
   type Contraste,
@@ -128,7 +131,8 @@ export default function Ajustes() {
     hayPersonalizacion,
     restablecerPreferencias,
   } = usePreferencias();
-  const { usuario, esAdmin } = useAuth();
+  const { usuario, esAdmin, puede } = useAuth();
+  const [correoAbierto, setCorreoAbierto] = useState(false);
   // Solo para AVISAR: si el sistema ya pide movimiento reducido, el interruptor
   // apagado no significa "con movimiento", y callárselo parecería un bug.
   const sistemaReduceMovimiento = useReducedMotion();
@@ -302,6 +306,20 @@ export default function Ajustes() {
             )}
           </FilaAjuste>
         </Seccion>
+
+        {/* Solo quien administra cuentas: el registro público depende del correo. */}
+        {puede('usuarios') && (
+          <Seccion titulo="Registro público" icono={Mail}>
+            <FilaAjuste titulo={copyCorreo.titulo} detalle={copyCorreo.descripcion}>
+              {() => (
+                <Button variant="secondary" size="sm" onClick={() => setCorreoAbierto(true)}>
+                  <Mail size={14} /> {copyCorreo.boton}
+                </Button>
+              )}
+            </FilaAjuste>
+          </Seccion>
+        )}
+        <ModalCorreo abierto={correoAbierto} onCerrar={() => setCorreoAbierto(false)} />
 
         <Seccion titulo={TEXTO.cuenta} icono={UserRound}>
           <dl className="flex flex-col divide-y divide-hairline">

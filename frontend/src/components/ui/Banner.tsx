@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Info, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, XCircle, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { dur, ease } from '../../lib/motion';
 
@@ -8,6 +8,7 @@ const TONES = {
   amber: { classes: 'bg-status-amber-soft text-status-amber border-status-amber/20', icon: AlertTriangle },
   blue: { classes: 'bg-status-blue-soft text-status-blue border-status-blue/20', icon: Info },
   red: { classes: 'bg-status-red-soft text-status-red border-status-red/20', icon: XCircle },
+  green: { classes: 'bg-status-green-soft text-status-green border-status-green/20', icon: CheckCircle2 },
   neutral: { classes: 'bg-bg text-text-2 border-hairline', icon: Info },
 } as const;
 
