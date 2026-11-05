@@ -133,3 +133,79 @@ def publico(usuario: db.Usuario) -> Yo:
         perfiles=[PerfilPublico(id=p.id, nombre=p.nombre, descripcion=p.descripcion) for p in perfiles],
         permisos=list(rol(usuario.rol).permisos),
     )
+
+
+# ── Administración: auditoría ──────────────────────────────────────
+
+
+class UsuarioAuditoria(Modelo):
+    id: str
+    # La cuenta pudo borrarse después de preguntar: el registro se conserva.
+    nombre: str | None = None
+    correo: str | None = None
+    rol: str | None = None
+
+
+class ConsultaResumida(Modelo):
+    id: int
+    usuario: UsuarioAuditoria
+    conversacion_id: str
+    perfil: str
+    motor: str
+    modelo: str | None = None
+    pregunta: str
+    # Los primeros caracteres de la respuesta; la completa, en el detalle.
+    extracto: str | None = None
+    costo_usd: float | None = None
+    vueltas: int | None = None
+    duracion_ms: int | None = None
+    tokens: dict[str, int] = Field(default_factory=dict)
+    herramientas: list[str] = Field(default_factory=list)
+    estado: str
+    error: str | None = None
+    creado_en: str
+
+
+class ConsultaDetalle(ConsultaResumida):
+    respuesta: str | None = None
+
+
+class PaginaConsultas(Modelo):
+    consultas: list[ConsultaResumida]
+    # Id para pedir la página siguiente (`antesDe`); None = no hay más.
+    siguiente: int | None = None
+
+
+class TotalPeriodo(Modelo):
+    consultas: int
+    costo_usd: float
+
+
+class ResumenUsuario(Modelo):
+    usuario: UsuarioAuditoria
+    consultas: int
+    costo_usd: float
+    ultima: str | None = None
+
+
+class ResumenModelo(Modelo):
+    modelo: str
+    consultas: int
+    costo_usd: float
+
+
+class ResumenDia(Modelo):
+    dia: str  # AAAA-MM-DD (UTC)
+    consultas: int
+    costo_usd: float
+
+
+class ResumenAuditoria(Modelo):
+    dias: int
+    desde: str
+    historico: TotalPeriodo
+    periodo: TotalPeriodo
+    por_estado: dict[str, int]
+    por_usuario: list[ResumenUsuario]
+    por_modelo: list[ResumenModelo]
+    por_dia: list[ResumenDia]

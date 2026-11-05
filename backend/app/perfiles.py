@@ -74,7 +74,8 @@ class Rol:
     # "*" = todos los perfiles.
     perfiles: tuple[str, ...]
     # Permisos extra: "parametros" = puede mandar modelo/system prompt desde el
-    # Laboratorio; "usuarios" = puede administrar cuentas.
+    # Laboratorio; "usuarios" = puede administrar cuentas; "auditoria" = puede
+    # leer todas las consultas (pregunta y respuesta) y los archivos del agente.
     permisos: tuple[str, ...] = ()
     # None = sin límite.
     consultas_por_dia: int | None = None
@@ -83,7 +84,7 @@ class Rol:
 ROLES: dict[str, Rol] = {
     "usuario": Rol(perfiles=("consulta",), consultas_por_dia=40),
     "especialista": Rol(perfiles=("consulta", "generador"), consultas_por_dia=100),
-    "admin": Rol(perfiles=("*",), permisos=("parametros", "usuarios")),
+    "admin": Rol(perfiles=("*",), permisos=("parametros", "usuarios", "auditoria")),
 }
 
 

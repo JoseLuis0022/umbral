@@ -1,69 +1,58 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarOff } from 'lucide-react';
-import { Button, Card, EmptyState, ErrorState, PageEnter, SegmentedControl, useToast } from '../components/ui';
-import { PageHeader } from '../components/shell/PageHeader';
+import { AlertTriangle, CalendarOff, CircleDollarSign, MessagesSquare, Scale } from 'lucide-react';
 import {
-  BarrasArea,
-  DonutRiesgo,
-  EsqueletoAreas,
-  EsqueletoKpis,
-  EsqueletoRiesgo,
-  EsqueletoSerie,
-  FilaKpis,
-  GraficaSerie,
-  TablaImpacto,
-} from '../components/admin/tablero';
+  AnimatedNumber,
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  KpiCard,
+  PageEnter,
+  SegmentedControl,
+  type Column,
+} from '../components/ui';
+import { PageHeader } from '../components/shell/PageHeader';
+import { EsqueletoAreas, EsqueletoKpis, EsqueletoSerie, GraficaCostoDia } from '../components/admin/tablero';
+import { formatoEntero, formatoUsd } from '../components/admin/laboratorio/formato';
 import { dur, ease } from '../lib/motion';
-import { PERIODOS, tableroService, type DatosTablero, type Periodo } from '../services/tablero.service';
+import { formatoFechaCorta } from '../lib/fechas';
+import {
+  auditoriaService,
+  nombreDe,
+  type ResumenAuditoria,
+  type ResumenModelo,
+  type ResumenUsuario,
+} from '../services/auditoria.service';
+import { tablero as copy } from '../copy';
 
-// Cadenas que no existen todavía en src/copy (ver reporte).
-const TEXTO = {
-  titulo: 'Tablero directivo',
-  subtitulo: 'Cuánto está resolviendo el asistente, cuánto ahorra y dónde hay que mirar.',
-  periodo: 'Periodo',
-  actualizando: 'Actualizando…',
-  errorTitulo: 'No pudimos cargar el tablero',
-  errorDetalle: 'Revisa tu conexión e intenta de nuevo. Las cifras no se perdieron, solo no llegaron.',
-  vacioTitulo: 'Sin actividad en este periodo',
-  vacioDetalle:
-    'Nadie usó el asistente en el rango que elegiste. Amplía el periodo para ver si hubo movimiento antes.',
-  vacioAccion: 'Ver todo el periodo',
-  exportado: 'Descargamos el detalle en CSV.',
-  // Etiquetas cortas para el selector: "Últimos 7 días" no cabe cuatro veces
-  // seguidas en una barra de acciones. El nombre largo va en el `title`.
-  periodoCorto: { '7d': '7 días', '30d': '30 días', '90d': '90 días', todo: 'Todo' } as Record<Periodo, string>,
-};
-
+const PERIODOS = [7, 30, 90] as const;
+type Periodo = (typeof PERIODOS)[number];
 type EstadoCarga = 'cargando' | 'actualizando' | 'listo' | 'error';
 
 /**
- * Tablero directivo (/admin/tablero).
+ * Tablero (/admin/tablero): los números REALES del registro de consultas,
+ * desde `GET /api/admin/resumen`. Consultas, costo en dólares, costo por día,
+ * por persona y por modelo.
  *
- * Está escrito para una sola persona: alguien que abre esto entre dos juntas y
- * necesita salir con tres cosas en la cabeza —si la herramienta se usa, cuánto
- * está ahorrando y dónde hay un problema—. Por eso el orden de la pantalla es
- * de menor a mayor detalle: KPIs, gráficas y, al final, la tabla exportable,
- * que es la que sirve para defender el presupuesto por escrito.
- *
- * Cambiar de periodo NO vacía la pantalla: se conservan las cifras anteriores
- * y solo se avisa "Actualizando…" (estado parcial). Ver los KPIs desaparecer
- * en cada clic se lee como que algo se rompió, no como que algo va rápido.
+ * Cambiar de periodo no vacía la pantalla: se conservan las cifras anteriores y
+ * solo se avisa "Actualizando…" (estado parcial).
  */
 export default function AdminTablero() {
-  const [periodo, setPeriodo] = useState<Periodo>('30d');
-  const [datos, setDatos] = useState<DatosTablero | null>(null);
+  const navigate = useNavigate();
+  const [periodo, setPeriodo] = useState<Periodo>(30);
+  const [datos, setDatos] = useState<ResumenAuditoria | null>(null);
   const [estado, setEstado] = useState<EstadoCarga>('cargando');
-  // Fuerza un reintento sin tocar el periodo.
   const [intento, setIntento] = useState(0);
   const yaCargoUnaVez = useRef(false);
-  const { push } = useToast();
 
   useEffect(() => {
     let vigente = true;
     setEstado(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
-    tableroService
-      .obtener(periodo)
+    auditoriaService
+      .obtenerResumen(periodo)
       .then((resultado) => {
         if (!vigente) return;
         yaCargoUnaVez.current = true;
@@ -78,19 +67,37 @@ export default function AdminTablero() {
     };
   }, [periodo, intento]);
 
-  const etiquetaPeriodo = PERIODOS.find((p) => p.valor === periodo)?.etiqueta ?? '';
   const primeraCarga = estado === 'cargando' && !datos;
-  const sinActividad = datos !== null && datos.resumen.conversaciones === 0;
+  const sinActividad = datos !== null && datos.periodo.consultas === 0;
 
-  /*
-   * El aviso "Actualizando…" ocupa un hueco RESERVADO y solo se le cruza la
-   * opacidad. Antes se montaba y desmontaba dentro del flujo del `flex`, así
-   * que al cambiar de periodo empujaba el selector unos noventa píxeles a la
-   * derecha justo mientras la pastilla `layoutId` viajaba a la opción nueva:
-   * la pastilla perseguía un destino que se había movido sin animación, daba un
-   * tirón, y al terminar la carga el control volvía a saltar a su sitio.
-   * Con el hueco reservado no se mueve nada.
-   */
+  const columnasPersona: Column<ResumenUsuario>[] = [
+    {
+      key: 'persona',
+      header: copy.colPersona,
+      cardTitle: true,
+      render: (f) => (
+        <span className="flex flex-col">
+          <span className="font-medium text-text-1">{nombreDe(f.usuario)}</span>
+          <span className="text-12 text-text-3">{f.usuario.correo ?? '—'}</span>
+        </span>
+      ),
+    },
+    { key: 'consultas', header: copy.colConsultas, align: 'right', render: (f) => formatoEntero(f.consultas) },
+    { key: 'costo', header: copy.colCosto, align: 'right', render: (f) => formatoUsd(f.costoUsd) },
+    {
+      key: 'ultima',
+      header: copy.colUltima,
+      align: 'right',
+      render: (f) => (f.ultima ? formatoFechaCorta(f.ultima) : '—'),
+    },
+  ];
+
+  const columnasModelo: Column<ResumenModelo>[] = [
+    { key: 'modelo', header: copy.colModelo, cardTitle: true, mono: true, render: (f) => f.modelo || copy.sinModelo },
+    { key: 'consultas', header: copy.colConsultas, align: 'right', render: (f) => formatoEntero(f.consultas) },
+    { key: 'costo', header: copy.colCosto, align: 'right', render: (f) => formatoUsd(f.costoUsd) },
+  ];
+
   const selector = (
     <div className="flex items-center gap-3">
       <motion.span
@@ -101,28 +108,24 @@ export default function AdminTablero() {
         aria-hidden={estado !== 'actualizando'}
         className="hidden w-[86px] text-right font-ui text-12 text-text-3 sm:block"
       >
-        {TEXTO.actualizando}
+        {copy.actualizando}
       </motion.span>
       <SegmentedControl
         layoutId="tablero-periodo"
-        value={periodo}
-        onChange={(valor) => setPeriodo(valor as Periodo)}
-        options={PERIODOS.map((p) => ({ value: p.valor, label: TEXTO.periodoCorto[p.valor] }))}
+        value={String(periodo)}
+        onChange={(valor) => setPeriodo(Number(valor) as Periodo)}
+        options={PERIODOS.map((p) => ({ value: String(p), label: copy.periodoCorto[p] }))}
       />
     </div>
   );
 
   return (
     <PageEnter className="flex flex-col pb-2">
-      <PageHeader compacto title={TEXTO.titulo} subtitle={TEXTO.subtitulo} actions={selector} />
+      <PageHeader compacto title={copy.titulo} subtitle={copy.subtitulo} actions={selector} />
 
-      {estado === 'error' ? (
+      {estado === 'error' && !datos ? (
         <Card>
-          <ErrorState
-            title={TEXTO.errorTitulo}
-            description={TEXTO.errorDetalle}
-            onRetry={() => setIntento((n) => n + 1)}
-          />
+          <ErrorState title={copy.errorTitulo} description={copy.errorDetalle} onRetry={() => setIntento((n) => n + 1)} />
         </Card>
       ) : primeraCarga ? (
         <div className="flex flex-col gap-4">
@@ -132,26 +135,19 @@ export default function AdminTablero() {
             <div className="lg:col-span-2">
               <EsqueletoAreas />
             </div>
-            <EsqueletoRiesgo />
-          </div>
-          {/* La tabla no lleva esqueleto propio: `DataTable` ya reutiliza el
-              encabezado REAL y solo sustituye las celdas, así que se monta la
-              tabla de verdad con `cargando` y el layout no cambia al llegar
-              los datos. */}
-          <div className="mt-2">
-            <TablaImpacto filas={[]} periodo={periodo} cargando />
+            <EsqueletoAreas />
           </div>
         </div>
-      ) : sinActividad ? (
+      ) : datos && sinActividad ? (
         <Card>
           <EmptyState
             icon={CalendarOff}
-            title={TEXTO.vacioTitulo}
-            description={TEXTO.vacioDetalle}
+            title={copy.vacioTitulo}
+            description={copy.vacioDetalle}
             action={
-              periodo !== 'todo' && (
-                <Button variant="secondary" size="sm" onClick={() => setPeriodo('todo')}>
-                  {TEXTO.vacioAccion}
+              periodo !== 90 && (
+                <Button variant="secondary" size="sm" onClick={() => setPeriodo(90)}>
+                  {copy.vacioAccion}
                 </Button>
               )
             }
@@ -160,33 +156,63 @@ export default function AdminTablero() {
       ) : (
         datos && (
           <div className="flex flex-col gap-4">
-            <FilaKpis resumen={datos.resumen} periodoEtiqueta={etiquetaPeriodo} />
-
-            <Card className="p-5">
-              <GraficaSerie serie={datos.serie} />
-            </Card>
-
-            {/* Las áreas piden ancho (los nombres institucionales son largos)
-                y la dona no: 2/3 y 1/3, no mitad y mitad. */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card className="p-5 lg:col-span-2">
-                <BarrasArea areas={datos.areas} />
+            {estado === 'error' && (
+              // Parcial: el cambio de periodo falló pero quedan las cifras anteriores.
+              <Card>
+                <ErrorState title={copy.errorTitulo} description={copy.errorDetalle} onRetry={() => setIntento((n) => n + 1)} />
               </Card>
-              <Card className="p-5">
-                <DonutRiesgo resumen={datos.resumen} />
-              </Card>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard
+                icon={MessagesSquare}
+                label={copy.kpiConsultas}
+                value={<AnimatedNumber value={datos.periodo.consultas} />}
+                detail={copy.kpiPeriodo(datos.dias)}
+              />
+              <KpiCard
+                icon={CircleDollarSign}
+                label={copy.kpiCosto}
+                value={formatoUsd(datos.periodo.costoUsd)}
+                detail={copy.kpiHistorico(formatoEntero(datos.historico.consultas), formatoUsd(datos.historico.costoUsd))}
+              />
+              <KpiCard
+                icon={Scale}
+                label={copy.kpiPromedio}
+                value={formatoUsd(datos.periodo.consultas ? datos.periodo.costoUsd / datos.periodo.consultas : 0)}
+                detail={copy.kpiPeriodo(datos.dias)}
+              />
+              <KpiCard
+                icon={AlertTriangle}
+                label={copy.kpiErrores}
+                value={<AnimatedNumber value={(datos.porEstado.error ?? 0) + (datos.porEstado.cancelada ?? 0)} />}
+                detail={copy.kpiErroresDetalle(datos.porEstado.error ?? 0, datos.porEstado.cancelada ?? 0)}
+              />
             </div>
 
-            <div className="mt-2">
-              {/* `cargando` va en false incluso mientras se recarga: durante
-                  un cambio de periodo la tabla sigue mostrando las filas
-                  anteriores, igual que los KPIs. */}
-              <TablaImpacto
-                filas={datos.filas}
-                periodo={periodo}
-                cargando={false}
-                onExportado={() => push({ message: TEXTO.exportado, tone: 'success' })}
-              />
+            <Card className="p-5">
+              <GraficaCostoDia serie={datos.porDia} />
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <section className="flex flex-col gap-2 lg:col-span-2">
+                <div>
+                  <h2 className="font-ui text-15 font-semibold text-text-1">{copy.porPersona}</h2>
+                  <p className="font-ui text-13 text-text-2">{copy.porPersonaDetalle}</p>
+                </div>
+                <DataTable
+                  columns={columnasPersona}
+                  rows={datos.porUsuario}
+                  rowKey={(f) => f.usuario.id}
+                  onRowClick={(f) => navigate(`/admin/conversaciones?usuario=${encodeURIComponent(f.usuario.id)}`)}
+                />
+              </section>
+              <section className="flex flex-col gap-2">
+                <div>
+                  <h2 className="font-ui text-15 font-semibold text-text-1">{copy.porModelo}</h2>
+                  <p className="font-ui text-13 text-text-2">{copy.porModeloDetalle}</p>
+                </div>
+                <DataTable columns={columnasModelo} rows={datos.porModelo} rowKey={(f) => f.modelo || '—'} />
+              </section>
             </div>
           </div>
         )

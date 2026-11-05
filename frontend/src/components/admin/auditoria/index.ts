@@ -1,9 +1,6 @@
-// Punto único de importación de la auditoría de conversaciones.
+// Punto único de importación de la auditoría de consultas.
 export { BarraFiltros } from './BarraFiltros';
-export { ListaConversaciones } from './ListaConversaciones';
-export { CarrilConversaciones } from './CarrilConversaciones';
-export { DetalleConversacion } from './DetalleConversacion';
-export { BarraAnalisis } from './BarraAnalisis';
-export { IndicadorAnalisis, MarcaRiesgoAlto } from './IndicadorAnalisis';
-export { Transcripcion } from './Transcripcion';
+export { ListaConsultas } from './ListaConsultas';
+export { CarrilConsultas } from './CarrilConsultas';
+export { DetalleConsulta } from './DetalleConsulta';
 export { EsqueletoLista, EsqueletoDetalle } from './EsqueletosAuditoria';

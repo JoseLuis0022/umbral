@@ -1,45 +1,30 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessagesSquare, SearchX } from 'lucide-react';
 import { Button, EmptyState, ErrorState, PageEnter } from '../components/ui';
 import { PageHeader } from '../components/shell/PageHeader';
 import {
   BarraFiltros,
-  CarrilConversaciones,
-  DetalleConversacion,
+  CarrilConsultas,
+  DetalleConsulta,
   EsqueletoDetalle,
   EsqueletoLista,
-  ListaConversaciones,
+  ListaConsultas,
 } from '../components/admin/auditoria';
 import { PanelPlegable } from '../components/shell';
 import { cn } from '../lib/cn';
 import { dur, ease } from '../lib/motion';
 import {
-  adminService,
+  auditoriaService,
   hayFiltrosActivos,
   FILTROS_VACIOS,
-  type ConversacionAuditada,
+  type ConsultaAuditada,
+  type ConsultaDetalle,
   type FiltrosAuditoria,
-} from '../services/admin.service';
-import { admin as copy } from '../copy';
-
-// Cadenas que no existen todavía en src/copy (ver reporte).
-const TEXTO = {
-  actualizando: 'Actualizando…',
-  sinResultados: 'Ninguna conversación coincide',
-  sinResultadosDetalle: 'Prueba con otras palabras, otra persona o un rango de fechas más amplio.',
-  limpiarFiltros: 'Quitar todos los filtros',
-  sinConversaciones: 'Todavía no hay conversaciones que auditar',
-  sinConversacionesDetalle: 'En cuanto la comunidad use el asistente, sus sesiones aparecerán aquí.',
-  errorLista: 'No pudimos cargar las conversaciones',
-  errorListaDetalle: 'Revisa tu conexión e intenta de nuevo.',
-  errorDetalle: 'No pudimos abrir esta conversación',
-  errorDetalleDetalle: 'Puede que se haya movido. Intenta de nuevo o elige otra de la lista.',
-  conteo: (n: number) => `${n} ${n === 1 ? 'conversación' : 'conversaciones'}`,
-  sinSeleccionTitulo: 'Ninguna conversación abierta',
-  plegarLista: 'Plegar la lista de conversaciones',
-  desplegarLista: 'Desplegar la lista de conversaciones',
-};
+  type ResumenUsuario,
+} from '../services/auditoria.service';
+import { admin as copyAdmin, auditoria as copy } from '../copy';
 
 /** Clave propia de esta pantalla: plegar aquí no pliega Corpus ni el Laboratorio. */
 const CLAVE_PLEGADO = 'panel-plegado:auditoria';
@@ -47,63 +32,74 @@ const CLAVE_PLEGADO = 'panel-plegado:auditoria';
 type EstadoCarga = 'cargando' | 'actualizando' | 'listo' | 'error';
 
 /**
- * Auditoría de conversaciones (/admin/conversaciones).
+ * Auditoría (/admin/conversaciones).
  *
- * El administrador ve TODAS las conversaciones de TODAS las personas, con
- * nombre, área y correo a la vista. Es una facultad deliberada de la
- * herramienta y por eso no se atenúa ni se esconde: media pantalla es la lista
- * global y la otra media, la evidencia completa.
+ * Lee lo que el backend guarda de CADA consulta al agente —pregunta, respuesta,
+ * modelo, costo, tokens, herramientas, estado— y lo muestra con nombre y correo
+ * de quien preguntó. Es una facultad deliberada del laboratorio (Ajustes lo
+ * explica a cada persona), por eso la identidad no se atenúa.
  *
- * En escritorio los dos paneles conviven (lista angosta / lectura ancha, una
- * asimetría que dice cuál manda). En móvil no caben lado a lado, así que se
- * convierten en navegación de dos niveles: lista → detalle con botón de volver.
- *
- * La lista se PLIEGA a un carril de avatares (`PanelPlegable`), no hasta
- * desaparecer: leer un resumen largo pide ancho, pero saltar a la siguiente
- * conversación tiene que seguir siendo un clic. El estado se recuerda solo para
- * esta pantalla.
+ * Lista angosta a la izquierda (filtros y paginación por "Cargar más") y
+ * lectura ancha a la derecha. En móvil, navegación de dos niveles.
  */
 export default function AdminConversaciones() {
-  const personas = useMemo(() => adminService.listarPersonas(), []);
-
-  const [filtros, setFiltros] = useState<FiltrosAuditoria>(FILTROS_VACIOS);
-  // El campo de búsqueda es inmediato; el FILTRO va con retraso. Separarlos es
-  // lo que permite que se escriba sin tirones y que la lista no se recargue
-  // una vez por tecla.
+  const [personas, setPersonas] = useState<ResumenUsuario[]>([]);
+  // `?usuario=<id>` llega desde el Tablero ("ver sus consultas").
+  const [parametros] = useSearchParams();
+  const [filtros, setFiltros] = useState<FiltrosAuditoria>(() => ({
+    ...FILTROS_VACIOS,
+    usuarioId: parametros.get('usuario') || null,
+  }));
+  // El campo de búsqueda es inmediato; el FILTRO va con retraso, para no pedir
+  // una página al servidor por cada tecla.
   const [textoCampo, setTextoCampo] = useState('');
 
-  const [conversaciones, setConversaciones] = useState<ConversacionAuditada[]>([]);
+  const [consultas, setConsultas] = useState<ConsultaAuditada[]>([]);
+  const [siguiente, setSiguiente] = useState<number | null>(null);
   const [estadoLista, setEstadoLista] = useState<EstadoCarga>('cargando');
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [errorMas, setErrorMas] = useState(false);
 
-  const [seleccionId, setSeleccionId] = useState<string | null>(null);
-  const [detalle, setDetalle] = useState<ConversacionAuditada | null>(null);
+  const [seleccionId, setSeleccionId] = useState<number | null>(null);
+  const [detalle, setDetalle] = useState<ConsultaDetalle | null>(null);
   const [estadoDetalle, setEstadoDetalle] = useState<EstadoCarga>('listo');
 
-  // Navegación de dos niveles, solo activa por debajo de lg.
   const [vistaMovil, setVistaMovil] = useState<'lista' | 'detalle'>('lista');
-
-  // Fuerza un reintento sin tocar los filtros.
   const [intento, setIntento] = useState(0);
-
+  const [intentoDetalle, setIntentoDetalle] = useState(0);
   const yaCargoUnaVez = useRef(false);
 
+  // Quién ha preguntado en el último año: alimenta el filtro por persona. Si
+  // falla, el filtro solo ofrece "todas"; la lista sigue funcionando.
   useEffect(() => {
-    const t = setTimeout(() => setFiltros((f) => (f.texto === textoCampo ? f : { ...f, texto: textoCampo })), 220);
+    let vigente = true;
+    auditoriaService
+      .obtenerResumen(365)
+      .then((r) => vigente && setPersonas(r.porUsuario))
+      .catch(() => undefined);
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setFiltros((f) => (f.texto === textoCampo ? f : { ...f, texto: textoCampo })), 300);
     return () => clearTimeout(t);
   }, [textoCampo]);
 
   useEffect(() => {
     let vigente = true;
-    // La primera carga muestra esqueleto; las siguientes conservan los
-    // resultados anteriores y solo avisan "Actualizando…" (estado parcial):
-    // vaciar la lista en cada tecla se siente roto, no rápido.
+    // La primera carga muestra esqueleto; las siguientes conservan la lista
+    // anterior y avisan "Actualizando…" (estado parcial).
     setEstadoLista(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
-    adminService
-      .listarConversaciones(filtros)
-      .then((datos) => {
+    setErrorMas(false);
+    auditoriaService
+      .listarConsultas(filtros)
+      .then((pagina) => {
         if (!vigente) return;
         yaCargoUnaVez.current = true;
-        setConversaciones(datos);
+        setConsultas(pagina.consultas);
+        setSiguiente(pagina.siguiente);
         setEstadoLista('listo');
       })
       .catch(() => {
@@ -115,19 +111,19 @@ export default function AdminConversaciones() {
   }, [filtros, intento]);
 
   useEffect(() => {
-    if (!seleccionId) {
+    if (seleccionId == null) {
       setDetalle(null);
       setEstadoDetalle('listo');
       return;
     }
     let vigente = true;
     setEstadoDetalle('cargando');
-    adminService
-      .obtenerConversacion(seleccionId)
+    auditoriaService
+      .obtenerConsulta(seleccionId)
       .then((datos) => {
         if (!vigente) return;
         setDetalle(datos);
-        setEstadoDetalle(datos ? 'listo' : 'error');
+        setEstadoDetalle('listo');
       })
       .catch(() => {
         if (vigente) setEstadoDetalle('error');
@@ -135,9 +131,23 @@ export default function AdminConversaciones() {
     return () => {
       vigente = false;
     };
-  }, [seleccionId, intento]);
+  }, [seleccionId, intentoDetalle]);
 
-  const seleccionar = useCallback((id: string) => {
+  const cargarMas = useCallback(() => {
+    if (siguiente == null) return;
+    setCargandoMas(true);
+    setErrorMas(false);
+    auditoriaService
+      .listarConsultas(filtros, siguiente)
+      .then((pagina) => {
+        setConsultas((previas) => [...previas, ...pagina.consultas]);
+        setSiguiente(pagina.siguiente);
+      })
+      .catch(() => setErrorMas(true))
+      .finally(() => setCargandoMas(false));
+  }, [filtros, siguiente]);
+
+  const seleccionar = useCallback((id: number) => {
     setSeleccionId(id);
     setVistaMovil('detalle');
   }, []);
@@ -152,31 +162,21 @@ export default function AdminConversaciones() {
   }, []);
 
   const conFiltros = hayFiltrosActivos(filtros);
-  const listaOcupada = estadoLista === 'cargando' || estadoLista === 'actualizando';
 
   return (
-    // La pantalla ocupa el alto disponible y el scroll vive DENTRO de cada
-    // panel: si scrollara la página entera, la cabecera de filtros se iría y
-    // habría que subir hasta arriba para cambiar de persona.
-    // El selector de último hijo es lo que deja que el bloque de paneles crezca
-    // dentro de la envoltura que PageEnter le pone a cada hijo.
     <PageEnter className="flex h-full flex-col [&>*:last-child]:flex [&>*:last-child]:min-h-0 [&>*:last-child]:flex-1">
-      <PageHeader compacto title={copy.conversacionesTitulo} subtitle={copy.conversacionesSubtitulo} />
+      <PageHeader compacto title={copyAdmin.conversacionesTitulo} subtitle={copyAdmin.conversacionesSubtitulo} />
 
-      {/* La columna de la lista es `auto` y no un ancho fijo: el ancho lo pone
-          ahora `PanelPlegable` como estilo en línea (es lo que anima al plegar),
-          y la rejilla se limita a seguirlo. Por debajo de `lg` no hay plegado y
-          las dos zonas se apilan, como antes. */}
       <div className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)]">
         {/* ── Panel izquierdo: lista global ── */}
         <PanelPlegable
           clave={CLAVE_PLEGADO}
-          ancho={{ lg: 340, xl: 380 }}
-          textoPlegar={TEXTO.plegarLista}
-          textoDesplegar={TEXTO.desplegarLista}
+          ancho={{ lg: 360, xl: 400 }}
+          textoPlegar={copy.plegarLista}
+          textoDesplegar={copy.desplegarLista}
           carril={
-            <CarrilConversaciones
-              conversaciones={conversaciones}
+            <CarrilConsultas
+              consultas={consultas}
               cargando={estadoLista === 'cargando'}
               seleccionId={seleccionId}
               onSeleccionar={seleccionar}
@@ -184,7 +184,7 @@ export default function AdminConversaciones() {
           }
         >
           <section
-            aria-label={copy.conversacionesTitulo}
+            aria-label={copyAdmin.conversacionesTitulo}
             className={cn(
               'min-h-0 flex-col rounded-tarjeta border border-hairline bg-surface-1 shadow-1 lg:h-full',
               vistaMovil === 'detalle' ? 'hidden lg:flex' : 'flex'
@@ -203,41 +203,47 @@ export default function AdminConversaciones() {
                 <EsqueletoLista />
               ) : estadoLista === 'error' ? (
                 <ErrorState
-                  title={TEXTO.errorLista}
-                  description={TEXTO.errorListaDetalle}
+                  title={copy.errorLista}
+                  description={copy.errorListaDetalle}
                   onRetry={() => setIntento((n) => n + 1)}
                 />
-              ) : conversaciones.length === 0 ? (
+              ) : consultas.length === 0 ? (
                 conFiltros ? (
                   <EmptyState
                     icon={SearchX}
-                    title={TEXTO.sinResultados}
-                    description={TEXTO.sinResultadosDetalle}
+                    title={copy.sinResultados}
+                    description={copy.sinResultadosDetalle}
                     action={
                       <Button variant="secondary" size="sm" onClick={limpiarTodo}>
-                        {TEXTO.limpiarFiltros}
+                        {copy.limpiarFiltros}
                       </Button>
                     }
                   />
                 ) : (
-                  <EmptyState
-                    icon={MessagesSquare}
-                    title={TEXTO.sinConversaciones}
-                    description={TEXTO.sinConversacionesDetalle}
-                  />
+                  <EmptyState icon={MessagesSquare} title={copy.sinConsultas} description={copy.sinConsultasDetalle} />
                 )
               ) : (
-                <ListaConversaciones
-                  conversaciones={conversaciones}
-                  seleccionId={seleccionId}
-                  onSeleccionar={seleccionar}
-                />
+                <>
+                  <ListaConsultas consultas={consultas} seleccionId={seleccionId} onSeleccionar={seleccionar} />
+                  {siguiente != null && (
+                    <div className="flex flex-col items-center gap-1.5 px-4 py-3">
+                      <Button variant="secondary" size="sm" loading={cargandoMas} onClick={cargarMas}>
+                        {copy.cargarMas}
+                      </Button>
+                      {errorMas && (
+                        <p role="alert" className="font-ui text-12 text-status-red">
+                          {copy.errorMas}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-hairline px-4 py-2">
               <span className="font-ui text-12 tabular-nums text-text-3">
-                {listaOcupada && !yaCargoUnaVez.current ? ' ' : TEXTO.conteo(conversaciones.length)}
+                {yaCargoUnaVez.current ? copy.conteo(consultas.length, siguiente != null) : ' '}
               </span>
               <AnimatePresence>
                 {estadoLista === 'actualizando' && (
@@ -249,7 +255,7 @@ export default function AdminConversaciones() {
                     role="status"
                     className="font-ui text-12 text-text-3"
                   >
-                    {TEXTO.actualizando}
+                    {copy.actualizando}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -257,9 +263,9 @@ export default function AdminConversaciones() {
           </section>
         </PanelPlegable>
 
-        {/* ── Panel derecho: análisis, resumen y transcripción ── */}
+        {/* ── Panel derecho: la consulta completa ── */}
         <section
-          aria-label={copy.transcripcion}
+          aria-label={copy.respuesta}
           className={cn(
             'min-h-0 flex-col overflow-hidden rounded-tarjeta border border-hairline bg-surface-1 shadow-1',
             vistaMovil === 'lista' ? 'hidden lg:flex' : 'flex'
@@ -271,18 +277,14 @@ export default function AdminConversaciones() {
             </div>
           ) : estadoDetalle === 'error' ? (
             <ErrorState
-              title={TEXTO.errorDetalle}
-              description={TEXTO.errorDetalleDetalle}
-              onRetry={() => setIntento((n) => n + 1)}
+              title={copy.errorDetalle}
+              description={copy.errorDetalleDetalle}
+              onRetry={() => setIntentoDetalle((n) => n + 1)}
             />
           ) : detalle ? (
-            <DetalleConversacion conversacion={detalle} onVolver={() => setVistaMovil('lista')} />
+            <DetalleConsulta consulta={detalle} onVolver={() => setVistaMovil('lista')} />
           ) : (
-            <EmptyState
-              icon={MessagesSquare}
-              title={TEXTO.sinSeleccionTitulo}
-              description={copy.sinSeleccion}
-            />
+            <EmptyState icon={MessagesSquare} title={copy.sinSeleccionTitulo} description={copy.sinSeleccion} />
           )}
         </section>
       </div>

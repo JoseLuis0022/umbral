@@ -123,6 +123,9 @@ async def _transmitir(
 ) -> AsyncIterator[str]:
     registro = Registro()
     cola: asyncio.Queue[object] = asyncio.Queue()
+    # Lo que la persona vio en pantalla, para la auditoría. Solo los eventos
+    # `texto`: el razonamiento (`pensamiento`) no es parte de la respuesta.
+    partes_respuesta: list[str] = []
 
     async def correr_motor() -> None:
         eventos = consultar(
@@ -166,6 +169,8 @@ async def _transmitir(
                 continue
             if ev is _FIN:
                 break
+            if isinstance(ev, dict) and ev.get("tipo") == "texto":
+                partes_respuesta.append(str(ev.get("delta") or ""))
             yield a_sse(ev)  # type: ignore[arg-type]
         terminada = True
     finally:
@@ -184,6 +189,7 @@ async def _transmitir(
             # Las imágenes no se guardan (pesan y pueden ser personales); solo se
             # anota cuántas venían, para que el registro diga qué se preguntó.
             pregunta=peticion.mensaje + (f" [+{len(peticion.imagenes)} imagen(es)]" if peticion.imagenes else ""),
+            respuesta="".join(partes_respuesta) or None,
             sesion_sdk=registro.sesion_sdk,
             costo_usd=registro.costo_usd,
             vueltas=registro.vueltas,
