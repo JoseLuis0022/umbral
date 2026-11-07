@@ -249,6 +249,7 @@ umbral/
 
 ## Hoja de ruta
 
+- **Pruebas automáticas en cada commit**: pruebas del backend (pytest: auth, límites, planes, guardias de rutas, protocolo SSE con el motor de prueba) y del frontend (typecheck + pruebas de componentes y un recorrido end-to-end con Playwright), corriendo en GitHub Actions para que un cambio que rompe algo no llegue a `main`.
 - **Ejemplos interactivos en el chat**: que el agente pueda generar HTML (simulaciones, gráficas, un filtro aplicado sobre una imagen con controles) y que se renderice dentro de la conversación, como los artefactos de Claude, en un iframe aislado (`sandbox`) para que se pueda explorar sin riesgo.
 - Sesión en cookie `httpOnly` en lugar de `localStorage`.
 - Recuperación de contraseña.
