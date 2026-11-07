@@ -106,7 +106,7 @@ const TarjetaCarpeta = memo(function TarjetaCarpeta({
     <motion.li
       initial={reducido || !primera ? false : { opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.04 * orden }}
+      transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.04 * orden, opacity: { duration: 0.2, delay: 0.04 * orden } }}
     >
       {/* El ícono va suelto, en el color del grupo, sin cuadro teñido. Al
           pasar el cursor da un pequeño salto (variante "activo"). */}

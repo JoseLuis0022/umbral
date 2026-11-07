@@ -62,7 +62,8 @@ export function KpiCard({
       initial={primera ? { opacity: 0, y: 10, scale: 0.97 } : false}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       whileTap={onClick ? { scale: 0.97 } : undefined}
-      transition={springRebote}
+      // La opacidad con su propio tween: con el resorte se quedaba en 0 y saltaba.
+      transition={{ ...springRebote, opacity: { duration: 0.2 } }}
       className={cn(
         'flex flex-col gap-1 rounded-tarjeta px-5 py-4 text-left shadow-anillo',
         active ? 'bg-accent-soft' : 'bg-surface-1',

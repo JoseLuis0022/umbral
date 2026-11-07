@@ -121,7 +121,7 @@ export function PantallaArranque() {
               className="font-ui text-28 font-semibold tracking-[-0.02em] text-text-1"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ ...springRebote, delay: 0.85 }}
+              transition={{ ...springRebote, delay: 0.85, opacity: { duration: 0.25, delay: 0.85 } }}
             >
               {marca.nombre}
             </motion.span>

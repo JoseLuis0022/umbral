@@ -59,13 +59,12 @@ export const EstadoVacio = memo(function EstadoVacio({
           {copy.paraEmpezar}
         </h3>
         <ul className="mt-2 divide-y divide-hairline border-y border-hairline">
-          {sugerencias.map((chip, i) => (
-            <motion.li
-              key={chip}
-              initial={animarEntrada ? { opacity: 0, y: 8 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.12 + i * 0.05 }}
-            >
+          {sugerencias.map((chip) => (
+            // Sin entrada propia: aparecen con el bloque, en el mismo
+            // desvanecido. Con su resorte con rebote la opacidad se quedaba en
+            // 0 ~770 ms y saltaba a 1 de golpe al final (medido por cuadro):
+            // era el parpadeo de las preguntas al abrir Inicio.
+            <li key={chip}>
               <motion.button
                 type="button"
                 initial="reposo"
@@ -90,7 +89,7 @@ export const EstadoVacio = memo(function EstadoVacio({
                   <ArrowUpRight size={15} strokeWidth={2} aria-hidden />
                 </motion.span>
               </motion.button>
-            </motion.li>
+            </li>
           ))}
         </ul>
       </section>
