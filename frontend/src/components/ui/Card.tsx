@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
-import { spring } from '../../lib/motion';
+import { spring, springRebote } from '../../lib/motion';
 
 export function Card({
   className,
@@ -53,8 +53,12 @@ export function KpiCard({
   return (
     <Comp
       onClick={onClick}
-      whileTap={onClick ? { scale: 0.98 } : undefined}
-      transition={spring}
+      // Entra con un rebote corto, y la cifra cuenta hasta su valor
+      // (AnimatedNumber): el tablero se siente vivo al abrirlo.
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
+      transition={springRebote}
       className={cn(
         'flex flex-col gap-1 rounded-tarjeta px-5 py-4 text-left shadow-anillo',
         active ? 'bg-accent-soft' : 'bg-surface-1',

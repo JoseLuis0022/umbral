@@ -18,6 +18,7 @@ import AdminTablero from './pages/AdminTablero';
 import AdminLaboratorio from './pages/AdminLaboratorio';
 import NoEncontrada from './pages/NoEncontrada';
 import { SistemaDiseno } from './pages/SistemaDiseno';
+import { PantallaArranque } from './components/brand/PantallaArranque';
 
 /*
  * Prefijo de las RUTAS, hermano del `base` de vite.config.ts pero distinto:
@@ -51,6 +52,8 @@ export default function App() {
   return (
     <BrowserRouter basename={BASE_RUTAS}>
       <PreferenciasProvider>
+        {/* Encima de todo y fuera de las rutas: se ve una sola vez al abrir. */}
+        <PantallaArranque />
         <AuthProvider>
           <ToastProvider>
             <ChatProvider>

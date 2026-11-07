@@ -1,0 +1,19 @@
+{
+  "name": "Umbral · Asistente de estudio",
+  "short_name": "Umbral",
+  "description": "Pregúntale a tus clases: cada respuesta cita la clase, la diapositiva o el apunte de donde sale.",
+  "lang": "es-MX",
+  "id": "./",
+  "start_url": "./chat",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f7fa",
+  "theme_color": "#f5f7fa",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

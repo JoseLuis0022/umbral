@@ -1,7 +1,8 @@
 import { memo, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
-import { springPress, dur, ease } from '../../lib/motion';
+import { springPress, springRebote, dur, ease } from '../../lib/motion';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
 import { cn } from '../../lib/cn';
@@ -33,6 +34,7 @@ export const EstadoVacio = memo(function EstadoVacio({
   onSugerencia: (texto: string) => void;
   composer?: ReactNode;
 }) {
+  const reducido = useReducedMotion();
   const sugerencias = copy.chips.slice(0, SUGERENCIAS);
 
   return (
@@ -52,25 +54,38 @@ export const EstadoVacio = memo(function EstadoVacio({
           {copy.paraEmpezar}
         </h3>
         <ul className="mt-2 divide-y divide-hairline border-y border-hairline">
-          {sugerencias.map((chip) => (
-            <li key={chip}>
+          {sugerencias.map((chip, i) => (
+            <motion.li
+              key={chip}
+              initial={reducido ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.12 + i * 0.05 }}
+            >
               <motion.button
                 type="button"
+                initial="reposo"
+                whileHover="activo"
                 onClick={() => onSugerencia(chip)}
                 aria-label={`${copyLocal.sugerenciaEtiqueta}: ${chip}`}
                 whileTap={{ scale: 0.99 }}
                 transition={springPress}
                 className="group flex min-h-[44px] w-full items-center justify-between gap-4 px-1 py-2.5 text-left font-ui text-15 text-text-1 transition-colors duration-[120ms] hover:bg-tinta/[.03]"
               >
-                {chip}
-                <ArrowUpRight
-                  size={15}
-                  strokeWidth={2}
-                  aria-hidden
+                <motion.span
+                  variants={reducido ? undefined : { reposo: { x: 0 }, activo: { x: 4 } }}
+                  transition={springRebote}
+                >
+                  {chip}
+                </motion.span>
+                <motion.span
+                  variants={reducido ? undefined : { reposo: { x: 0, y: 0 }, activo: { x: 3, y: -3 } }}
+                  transition={springRebote}
                   className="shrink-0 text-text-2 transition-colors duration-[120ms] group-hover:text-accent-fg"
-                />
+                >
+                  <ArrowUpRight size={15} strokeWidth={2} aria-hidden />
+                </motion.span>
               </motion.button>
-            </li>
+            </motion.li>
           ))}
         </ul>
       </section>
