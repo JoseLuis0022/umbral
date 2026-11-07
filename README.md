@@ -20,9 +20,9 @@ Chat multiusuario con tareas que sobreviven a cerrar la página, gasto en vivo, 
 
 <br><br>
 
-<img src="docs/img/chat.png" width="900" alt="Chat de Umbral: respuesta con citas a la clase y a la página del PDF, y el apunte adjunto">
+<img src="docs/img/hero.png" width="920" alt="Umbral en una MacBook y un iPhone: respuesta con citas a la clase y a la página del PDF">
 
-<sub>El agente responde con citas clicables a la clase y a la página exacta de las diapositivas, y manda el apunte del tema.</sub>
+<sub>El agente responde con citas clicables a la clase y a la página exacta de las diapositivas, y manda el apunte del tema. En escritorio y en el celular, instalable como app.</sub>
 
 </div>
 
@@ -66,9 +66,9 @@ El primer agente que corre en Umbral es un asistente de estudio de
       <img src="docs/img/corpus.png" alt="Explorador del corpus">
       <p align="center"><b>Corpus</b><br><sub>El material del agente por colecciones: lo que el estudiante puede recibir y lo que solo el agente lee.</sub></p>
     </td>
-    <td width="50%" valign="top" align="center">
-      <img src="docs/img/movil.png" width="190" alt="Umbral en el celular">
-      <p align="center"><b>En el celular</b><br><sub>La misma app, adaptada a pantallas chicas.</sub></p>
+    <td width="50%" valign="top">
+      <img src="docs/img/acceso.png" alt="Inicio de sesión con la gráfica de la función umbral">
+      <p align="center"><b>Acceso</b><br><sub>La función umbral a escala real: reacciona a lo que escribes y, al entrar, el nodo cruza el umbral.</sub></p>
     </td>
   </tr>
 </table>
@@ -79,7 +79,7 @@ El primer agente que corre en Umbral es un asistente de estudio de
 <p align="center"><img src="docs/img/correo-verificacion.png" width="560" alt="Correo de verificación"></p>
 </details>
 
-<sub>Las capturas usan una instancia de demostración: cuentas y material ficticios.</sub>
+<sub>Las capturas usan una instancia de demostración (cuentas y material ficticios). Marcos de dispositivo con <a href="https://github.com/picturepan2/devices.css">devices.css</a> (MIT).</sub>
 
 ## Qué hace
 
@@ -90,6 +90,7 @@ El primer agente que corre en Umbral es un asistente de estudio de
 - **Citas de fuentes clicables**: el agente enlaza la clase, la página del PDF o el apunte de donde sale cada dato, con la frase resaltada.
 - Adjuntos de cualquier tipo (imágenes, PDF, texto, video como fotogramas) y archivos del curso que el agente puede mandar.
 - Historial sincronizado entre dispositivos; conversaciones fijadas, archivadas y no leídas.
+- **PWA instalable** (escritorio y celular) con animación de arranque; el service worker nunca sirve una versión vieja.
 
 **Para quien opera la plataforma**
 - **Registro self-service** con verificación por correo (Gmail + contraseña de aplicación, configurable desde la app).
@@ -248,6 +249,7 @@ umbral/
 
 ## Hoja de ruta
 
+- **Ejemplos interactivos en el chat**: que el agente pueda generar HTML (simulaciones, gráficas, un filtro aplicado sobre una imagen con controles) y que se renderice dentro de la conversación, como los artefactos de Claude, en un iframe aislado (`sandbox`) para que se pueda explorar sin riesgo.
 - Sesión en cookie `httpOnly` en lugar de `localStorage`.
 - Recuperación de contraseña.
 - Sandbox del sistema operativo para el modo Generador (Bash).
