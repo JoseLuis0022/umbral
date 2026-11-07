@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CalendarOff, CircleDollarSign, MessagesSquare, Scale } from 'lucide-react';
+import { CalendarOff } from 'lucide-react';
 import {
   AnimatedNumber,
   Button,
@@ -27,6 +27,8 @@ import {
   type ResumenUsuario,
 } from '../services/auditoria.service';
 import { tablero as copy } from '../copy';
+import { recordar, recuerdo } from '../lib/memoria';
+import { igualProfundo } from '../lib/igual';
 
 const PERIODOS = [7, 30, 90] as const;
 type Periodo = (typeof PERIODOS)[number];
@@ -43,20 +45,25 @@ type EstadoCarga = 'cargando' | 'actualizando' | 'listo' | 'error';
 export default function AdminTablero() {
   const navigate = useNavigate();
   const [periodo, setPeriodo] = useState<Periodo>(30);
-  const [datos, setDatos] = useState<ResumenAuditoria | null>(null);
-  const [estado, setEstado] = useState<EstadoCarga>('cargando');
+  const [datos, setDatos] = useState<ResumenAuditoria | null>(() => recuerdo<ResumenAuditoria>('tablero:30') ?? null);
+  const [estado, setEstado] = useState<EstadoCarga>(() => (recuerdo('tablero:30') ? 'listo' : 'cargando'));
   const [intento, setIntento] = useState(0);
   const yaCargoUnaVez = useRef(false);
 
   useEffect(() => {
     let vigente = true;
-    setEstado(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
+    const clave = `tablero:${periodo}`;
+    const guardado = recuerdo<ResumenAuditoria>(clave);
+    if (guardado) setDatos((previos) => (igualProfundo(previos, guardado) ? previos : guardado));
+    // Con datos en memoria se actualiza en silencio (sin "Actualizando…").
+    if (!guardado) setEstado(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
     auditoriaService
       .obtenerResumen(periodo)
       .then((resultado) => {
         if (!vigente) return;
         yaCargoUnaVez.current = true;
-        setDatos(resultado);
+        recordar(clave, resultado);
+        setDatos((previos) => (igualProfundo(previos, resultado) ? previos : resultado));
         setEstado('listo');
       })
       .catch(() => {
@@ -164,25 +171,21 @@ export default function AdminTablero() {
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
-                icon={MessagesSquare}
                 label={copy.kpiConsultas}
                 value={<AnimatedNumber value={datos.periodo.consultas} />}
                 detail={copy.kpiPeriodo(datos.dias)}
               />
               <KpiCard
-                icon={CircleDollarSign}
                 label={copy.kpiCosto}
                 value={formatoUsd(datos.periodo.costoUsd)}
                 detail={copy.kpiHistorico(formatoEntero(datos.historico.consultas), formatoUsd(datos.historico.costoUsd))}
               />
               <KpiCard
-                icon={Scale}
                 label={copy.kpiPromedio}
                 value={formatoUsd(datos.periodo.consultas ? datos.periodo.costoUsd / datos.periodo.consultas : 0)}
                 detail={copy.kpiPeriodo(datos.dias)}
               />
               <KpiCard
-                icon={AlertTriangle}
                 label={copy.kpiErrores}
                 value={<AnimatedNumber value={(datos.porEstado.error ?? 0) + (datos.porEstado.cancelada ?? 0)} />}
                 detail={copy.kpiErroresDetalle(datos.porEstado.error ?? 0, datos.porEstado.cancelada ?? 0)}

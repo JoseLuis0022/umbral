@@ -57,7 +57,7 @@ export function DetalleConsulta({ consulta, onVolver }: { consulta: Consulta; on
               <p className="truncate font-ui text-14 font-semibold text-text-1">{nombreDe(usuario)}</p>
               <p className="truncate font-ui text-12 text-text-2">{usuario.correo ?? copy.cuentaEliminada}</p>
               <p className="truncate font-ui text-12 text-text-3">
-                {usuario.rol ?? copy.sinDato} · {copy.conversacion} {consulta.conversacionId}
+                {usuario.rol ?? copy.sinDato}, {copy.conversacion.toLowerCase()} {consulta.conversacionId}
               </p>
             </div>
             <div className="ml-auto flex shrink-0 flex-col items-end gap-1">

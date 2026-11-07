@@ -23,6 +23,7 @@ import { adjuntoEnMemoria, paraEnviar, type AdjuntoPreparado } from '../lib/adju
 import { AJUSTE_INICIAL, PREDETERMINADO, type AjusteModelo } from '../lib/ajusteModelo';
 import { useStreamingChat, type EstadoStream } from '../hooks/useStreamingChat';
 import { useAuth } from './AuthContext';
+import { igualProfundo } from '../lib/igual';
 
 const CLAVE_AJUSTES = 'chat:ajustes-modelo';
 const CLAVE_PERFIL = 'chat:perfil';
@@ -383,13 +384,25 @@ export function ChatProvider({ children }: { children?: ReactNode }) {
             if (suciasRef.current.has(local.id)) {
               resultado.push(local);
               porSubir.push(local.id);
-            } else resultado.push(remota);
+            } else {
+              // Idéntica a la que ya se pinta: se conserva el MISMO objeto. Si
+              // se cambiara por la copia del servidor, React volvería a pintar
+              // la lista y el hilo completos cada vez que la pestaña vuelve a
+              // estar visible (en Chrome/Brave eso pasa con solo cambiar de
+              // ventana) y se veía como un parpadeo.
+              resultado.push(igualProfundo(remota, local) ? local : remota);
+            }
           } else if (!sincronizadasRef.current.has(local.id) || suciasRef.current.has(local.id)) {
             resultado.push(local);
             porSubir.push(local.id);
           }
         }
         resultado.push(...porId.values()); // creadas en otro dispositivo
+        // Nada cambió: se devuelve el estado anterior tal cual y React no
+        // vuelve a pintar nada.
+        if (!porSubir.length && resultado.length === previo.length && resultado.every((c, i) => c === previo[i])) {
+          return previo;
+        }
         todasRef.current = resultado;
         guardarConversaciones(resultado);
         queueMicrotask(() => porSubir.forEach(programarSubida));

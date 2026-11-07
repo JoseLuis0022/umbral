@@ -55,6 +55,14 @@ export const springSoft: Transition = { type: 'spring', stiffness: 260, damping:
  *    centro al fondo, la altura del campo, el pliegue del Proceso).
  */
 export const springPress: Transition = { type: 'spring', stiffness: 700, damping: 40, mass: 0.6 };
+/** Rebote visible, estilo Apple (ζ ≈ 0.49: ~17 % de sobrepaso, ~450 ms).
+ *  OJO: solo para MOVIMIENTO (x, y, scale, cy). La opacidad con este resorte
+ *  se queda en 0 casi todo el recorrido y salta a 1 al final (medido); dale a
+ *  `opacity` su propio tween: `{ ...springRebote, opacity: { duration: 0.2 } }`. Solo
+ *  para momentos de deleite pequeños y en objetos chicos: barras que crecen,
+ *  el nodo del umbral, un ícono al pasar el cursor. Nunca en superficies
+ *  grandes ni en lo que responde a escribir. */
+export const springRebote: Transition = { type: 'spring', stiffness: 420, damping: 18, mass: 0.8 };
 export const springMensaje: Transition = { type: 'spring', stiffness: 320, damping: 32, mass: 1 };
 export const springPanel: Transition = { type: 'spring', stiffness: 420, damping: 36, mass: 0.8 };
 export const springLayout: Transition = { type: 'spring', stiffness: 380, damping: 38 };

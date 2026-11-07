@@ -39,7 +39,7 @@ export function CarrilConsultas({
         <ElementoCarril
           key={c.id}
           idSeleccion="auditoria-carril-seleccion"
-          etiqueta={`${nombreDe(c.usuario)}\n${formatoFechaCorta(c.creadoEn)} · ${c.pregunta.slice(0, 120)}`}
+          etiqueta={`${nombreDe(c.usuario)}\n${formatoFechaCorta(c.creadoEn)}: ${c.pregunta.slice(0, 120)}`}
           activo={c.id === seleccionId}
           onClick={() => onSeleccionar(c.id)}
         >

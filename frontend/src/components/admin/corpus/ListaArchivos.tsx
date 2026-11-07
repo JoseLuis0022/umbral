@@ -25,7 +25,7 @@ export function tituloLegible(nombre: string): string {
     return `${ACENTOS[palabra] ?? palabra[0].toUpperCase() + palabra.slice(1)} ${kebab[2]}`;
   }
   const conTitulo = sinExt.match(/^(Tema|Clase|Práctica|Practica)\s+0*(\d+)\s*[-–]\s*(.+)$/i);
-  if (conTitulo) return `${conTitulo[1]} ${conTitulo[2]} · ${conTitulo[3]}`;
+  if (conTitulo) return `${conTitulo[1]} ${conTitulo[2]}: ${conTitulo[3]}`;
   return sinExt.replace(/_/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 

@@ -13,3 +13,12 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// PWA: el service worker solo en la versión compilada. En desarrollo
+// estorbaría a la recarga en caliente de Vite. Ver public/sw.js: el HTML va
+// siempre a la red primero, así que nunca deja una versión vieja pegada.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined);
+  });
+}

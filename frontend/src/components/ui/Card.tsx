@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
-import { spring } from '../../lib/motion';
+import { spring, springRebote } from '../../lib/motion';
+import { usePrimeraVez } from '../../lib/memoria';
 
 export function Card({
   className,
@@ -30,13 +30,12 @@ export function Card({
 }
 
 /**
- * Tarjeta de KPI: layout HORIZONTAL a propósito — icono en badge a la
- * izquierda, etiqueta y cifra apiladas a la derecha. El layout vertical
- * (icono arriba, cifra enorme, detalle abajo) siempre termina leyéndose como
- * un cuadrado; el horizontal se siente rectangular sin recortar contenido.
+ * Tarjeta de KPI: solo tipografía. Etiqueta, cifra y detalle; sin ícono en
+ * cuadro teñido (el "badge" decorativo era la marca más reconocible de
+ * tablero genérico). La cifra es la protagonista y la jerarquía la dan el
+ * tamaño y el peso, no un adorno.
  */
 export function KpiCard({
-  icon: Icon,
   label,
   value,
   detail,
@@ -44,7 +43,6 @@ export function KpiCard({
   onClick,
   active,
 }: {
-  icon?: LucideIcon;
   label: string;
   value: ReactNode;
   detail?: string;
@@ -53,29 +51,29 @@ export function KpiCard({
   active?: boolean;
 }) {
   const Comp = onClick ? motion.button : motion.div;
+  // Rebote de entrada solo la primera vez en la sesión: al volver al tablero
+  // las tarjetas ya están, no vuelven a aparecer.
+  const primera = usePrimeraVez('kpi');
   return (
     <Comp
       onClick={onClick}
-      whileHover={onClick ? { y: -2 } : undefined}
-      whileTap={onClick ? { scale: 0.98 } : undefined}
-      transition={spring}
+      // Entra con un rebote corto, y la cifra cuenta hasta su valor
+      // (AnimatedNumber): el tablero se siente vivo al abrirlo.
+      initial={primera ? { opacity: 0, y: 10, scale: 0.97 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
+      // La opacidad con su propio tween: con el resorte se quedaba en 0 y saltaba.
+      transition={{ ...springRebote, opacity: { duration: 0.2 } }}
       className={cn(
-        'flex items-center gap-4 rounded-tarjeta border px-5 py-4 text-left shadow-1',
-        active ? 'border-accent bg-accent-soft' : 'border-hairline bg-surface-1',
-        onClick && 'cursor-pointer hover:shadow-2',
+        'flex flex-col gap-1 rounded-tarjeta px-5 py-4 text-left shadow-anillo',
+        active ? 'bg-accent-soft' : 'bg-surface-1',
+        onClick && 'cursor-pointer transition-colors duration-150 hover:bg-tinta/[.02]',
         className
       )}
     >
-      {Icon && (
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-fg">
-          <Icon size={20} strokeWidth={1.75} />
-        </span>
-      )}
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-ui text-13 text-text-2">{label}</span>
-        <span className="font-ui text-28 tabular-nums text-text-1">{value}</span>
-        {detail && <span className="truncate font-ui text-12 text-text-3">{detail}</span>}
-      </div>
+      <span className="font-ui text-13 text-text-2">{label}</span>
+      <span className="font-ui text-28 font-medium tracking-[-0.02em] tabular-nums text-text-1">{value}</span>
+      {detail && <span className="truncate font-ui text-13 text-text-2">{detail}</span>}
     </Comp>
   );
 }

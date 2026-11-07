@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { getStatusFamily, getStatusClasses, type StatusFamily } from '../../lib/status';
-import { dur } from '../../lib/motion';
 
 const DOT_COLOR: Record<StatusFamily, string> = {
   green: 'bg-status-green',
@@ -53,9 +52,10 @@ export function StatusPill({
        * fila de cada tabla del panel de administración.
        */
       key={label}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: dur.base }}
+      /* Sin aparición al montar: una tabla con 50 píldoras que se
+         desvanecían a la vez en cada visita era una de las "olas" del
+         parpadeo al entrar a Auditoría. Aparecen en su sitio. */
+      initial={false}
       className={cn(
         'inline-flex h-[26px] items-center whitespace-nowrap rounded-pastilla px-3.5 font-ui text-12 font-medium',
         getStatusClasses(label, tone),

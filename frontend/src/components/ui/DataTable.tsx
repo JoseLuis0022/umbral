@@ -152,7 +152,8 @@ export function DataTable<T>({
                   // deforma el texto de las celdas durante el viaje.
                   // Con movimiento reducido no viaja: aparece ya recolocada.
                   layout={!isLoading && !reducido ? 'position' : false}
-                  initial={{ opacity: 0 }}
+                  // Sin aparición al montar (era parpadeo al volver a la pantalla).
+                  initial={false}
                   animate={{ opacity: 1, transition: { delay: retardoEscalonado(ri), duration: dur.fast, ease } }}
                   onClick={() => !isLoading && onRowClick?.(row as T)}
                   className={cn(
@@ -195,7 +196,7 @@ export function DataTable<T>({
           <motion.div
             key={isLoading ? `skeleton-${ri}` : rowKey(row as T, ri)}
             layout={!isLoading && !reducido ? 'position' : false}
-            initial={{ opacity: 0 }}
+            initial={false}
             // Misma duración y misma curva que la tabla de escritorio. Antes esta
             // rama no declaraba ninguna de las dos y caía en el tween por defecto
             // de Framer (0.3 s, otra curva): la MISMA tabla se veía entrar distinto

@@ -24,7 +24,9 @@ export function EmptyState({
 }) {
   return (
     <motion.div
-      initial="hidden"
+      // Aparece en su sitio (sin desvanecido al montar): al navegar se sumaba
+      // al parpadeo de la pantalla.
+      initial={false}
       animate="visible"
       variants={nestedFade}
       className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center"

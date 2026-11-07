@@ -91,7 +91,7 @@ export default function Login() {
   }
 
   return (
-    <LayoutAcceso pie={copy.pie} cruzado={saliendo}>
+    <LayoutAcceso pie={copy.pie} progreso={(correo.trim() ? 0.5 : 0) + (contrasena ? 0.5 : 0)} cruzado={saliendo}>
       {/* Un solo movimiento de entrada (opacidad, toda la columna junta): la
           cascada bloque por bloque era el gesto más genérico de la pantalla.
           El momento con carácter es el cruce del umbral al entrar. */}

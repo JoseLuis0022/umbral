@@ -36,7 +36,7 @@ export const copyLocal = {
   modoEtiqueta: (nombre: string) => `Modo del agente: ${nombre}`,
   modoFijo: 'El modo se elige al empezar la conversación. Para usar otro, abre una sesión nueva.',
   modoNota: 'Se aplica a la conversación nueva y queda fijo en ella. El generador puede ejecutar comandos y escribir en la carpeta del agente.',
-  videoDetalle: (n: number) => `Video · el modelo verá ${n} fotogramas`,
+  videoDetalle: (n: number) => `Video: el modelo verá ${n} fotogramas`,
   formatoAdjunto: { pdf: 'PDF', texto: 'Texto', video: 'Video', imagen: 'Imagen' } as Record<string, string>,
   adjuntarImagen: 'Adjuntar archivos',
   adjuntarImagenAyuda: 'Adjuntar archivos: imágenes, PDF, texto, código o video (también con ⌘V o arrastrándolos)',
@@ -61,7 +61,7 @@ export const copyLocal = {
 
   // Contexto
   contextoTitulo: 'Contexto de la sesión',
-  contextoResumen: (usados: string, maximo: string, pct: string) => `${usados} de ${maximo} tokens · ${pct} %`,
+  contextoResumen: (usados: string, maximo: string, pct: string) => `${usados} de ${maximo} tokens (${pct} %)`,
   contextoSinDato: 'El uso de contexto aparece después de la primera respuesta',
   contextoUmbral: 'Aquí el agente compacta la conversación automáticamente',
   contextoCompactacion: (restante: string) =>

@@ -43,11 +43,13 @@
   --hairline-strong: rgba(22, 28, 39, 0.14); /* separador de fila en tablas densas */
 
   /* Texto — jerarquía por peso y tamaño; el color solo separa 3 niveles.
-     text-1 y text-2 cumplen AA sobre --surface-1; text-3 es exclusivamente
-     para texto no esencial (metadatos, placeholders, sufijos). */
+     Los tres cumplen AA (≥ 4.5:1) sobre --surface-1 y sobre --bg. text-3
+     era #97a1b2 (2.4:1): se usaba en etiquetas que sí hay que leer ("Hoy",
+     fechas, pies), así que se oscureció hasta pasar sin dejar de ser el
+     tercer nivel. Sigue siendo para lo secundario: metadatos, placeholders. */
   --text-1: #161c27; /* pizarra-900 */
-  --text-2: #535e70; /* pizarra-600 */
-  --text-3: #97a1b2; /* pizarra-400 */
+  --text-2: #535e70; /* pizarra-600 · 6.1:1 sobre --bg */
+  --text-3: #677184; /* 4.9:1 sobre blanco, 4.6:1 sobre --bg */
 
   /* Marca / acción primaria.
      --accent es el azul cobalto (azul-500): viste rellenos (botón primario,

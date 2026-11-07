@@ -78,7 +78,10 @@ export default function Registro() {
   }
 
   return (
-    <LayoutAcceso pie={copy.invitadoNota}>
+    <LayoutAcceso
+      pie={copy.invitadoNota}
+      progreso={enviadoA ? 1 : ((nombre.trim().length >= 2 ? 1 : 0) + (RX_CORREO.test(correo.trim()) ? 1 : 0) + (contrasena.length >= 8 ? 1 : 0)) / 3}
+    >
       <motion.div animate={sacudir}>
         <AnimatePresence mode="wait" initial={false}>
           {enviadoA ? (

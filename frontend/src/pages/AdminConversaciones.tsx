@@ -25,6 +25,10 @@ import {
   type ResumenUsuario,
 } from '../services/auditoria.service';
 import { admin as copyAdmin, auditoria as copy } from '../copy';
+import { recordar, recuerdo } from '../lib/memoria';
+import { igualProfundo } from '../lib/igual';
+
+type PaginaRecordada = { consultas: ConsultaAuditada[]; siguiente: number | null };
 
 /** Clave propia de esta pantalla: plegar aquí no pliega Corpus ni el Laboratorio. */
 const CLAVE_PLEGADO = 'panel-plegado:auditoria';
@@ -54,9 +58,11 @@ export default function AdminConversaciones() {
   // una página al servidor por cada tecla.
   const [textoCampo, setTextoCampo] = useState('');
 
-  const [consultas, setConsultas] = useState<ConsultaAuditada[]>([]);
-  const [siguiente, setSiguiente] = useState<number | null>(null);
-  const [estadoLista, setEstadoLista] = useState<EstadoCarga>('cargando');
+  // La lista sin filtros se recuerda en la sesión: volver a Auditoría la
+  // muestra al instante y se actualiza en silencio.
+  const [consultas, setConsultas] = useState<ConsultaAuditada[]>(() => recuerdo<PaginaRecordada>('auditoria')?.consultas ?? []);
+  const [siguiente, setSiguiente] = useState<number | null>(() => recuerdo<PaginaRecordada>('auditoria')?.siguiente ?? null);
+  const [estadoLista, setEstadoLista] = useState<EstadoCarga>(() => (recuerdo('auditoria') ? 'listo' : 'cargando'));
   const [cargandoMas, setCargandoMas] = useState(false);
   const [errorMas, setErrorMas] = useState(false);
 
@@ -89,16 +95,20 @@ export default function AdminConversaciones() {
 
   useEffect(() => {
     let vigente = true;
+    // Clave de memoria solo para la vista sin filtros (la que se abre al entrar).
+    const sinFiltros = !filtros.texto && !filtros.usuarioId && !filtros.estado && !filtros.desde && !filtros.hasta;
+    const guardada = sinFiltros ? recuerdo<PaginaRecordada>('auditoria') : undefined;
     // La primera carga muestra esqueleto; las siguientes conservan la lista
-    // anterior y avisan "Actualizando…" (estado parcial).
-    setEstadoLista(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
+    // anterior y avisan "Actualizando…" (estado parcial). Con memoria, en silencio.
+    if (!guardada) setEstadoLista(yaCargoUnaVez.current ? 'actualizando' : 'cargando');
     setErrorMas(false);
     auditoriaService
       .listarConsultas(filtros)
       .then((pagina) => {
         if (!vigente) return;
         yaCargoUnaVez.current = true;
-        setConsultas(pagina.consultas);
+        if (sinFiltros) recordar<PaginaRecordada>('auditoria', { consultas: pagina.consultas, siguiente: pagina.siguiente });
+        setConsultas((previas) => (igualProfundo(previas, pagina.consultas) ? previas : pagina.consultas));
         setSiguiente(pagina.siguiente);
         setEstadoLista('listo');
       })

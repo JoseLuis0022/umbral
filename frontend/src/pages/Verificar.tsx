@@ -43,7 +43,7 @@ export default function Verificar() {
   }, [token, entrarConSesion, navigate]);
 
   return (
-    <LayoutAcceso cruzado={estado.tipo === 'listo'}>
+    <LayoutAcceso progreso={estado.tipo === 'confirmando' ? 1 : 0} cruzado={estado.tipo === 'listo'}>
       <motion.div
         key={estado.tipo}
         initial={{ opacity: 0 }}

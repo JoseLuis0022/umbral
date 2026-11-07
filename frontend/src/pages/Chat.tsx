@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { MessagesSquare, PanelLeft, PanelLeftClose, Plus } from 'lucide-react';
 import type { AdjuntoPreparado } from '../lib/adjuntos';
 import { cn } from '../lib/cn';
-import { dur, ease, springLayout, springSoft } from '../lib/motion';
+import { springLayout, springSoft } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -319,9 +319,9 @@ export default function Chat() {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: dur.base, ease }}
+      // Sin desvanecido al montar: volver a Inicio no debe hacer aparecer de
+      // nuevo el panel y el hilo (medido: era una ola de opacidad al navegar).
+      initial={false}
       className="flex h-full w-full overflow-hidden"
     >
       {/* ── Panel lateral: historial (escritorio) ── */}

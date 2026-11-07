@@ -14,11 +14,14 @@ import { acceso as copy } from '../../copy';
 export function LayoutAcceso({
   children,
   pie,
+  progreso = 0,
   cruzado = false,
 }: {
   children: ReactNode;
   /** Nota al pie de la columna (p. ej. qué incluye el modo invitado). En text-2: es información, no adorno. */
   pie?: ReactNode;
+  /** 0–1: cuánto del formulario está lleno; la gráfica lo refleja. */
+  progreso?: number;
   /** El nodo del umbral sube: confirma que se entró. */
   cruzado?: boolean;
 }) {
@@ -34,7 +37,7 @@ export function LayoutAcceso({
 
       <div className="hidden min-h-full flex-col items-center justify-center border-l border-hairline bg-surface-1 px-12 lg:flex">
         <figure className="w-full max-w-[560px]">
-          <GraficaUmbral cruzado={cruzado} />
+          <GraficaUmbral progreso={progreso} cruzado={cruzado} />
           <figcaption className="mt-6 max-w-[440px] font-ui text-14 leading-relaxed text-text-2">
             {copy.leyendaGrafica}
           </figcaption>

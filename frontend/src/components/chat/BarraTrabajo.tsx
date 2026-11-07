@@ -57,7 +57,7 @@ export const BarraTrabajo = memo(function BarraTrabajo({
             <span className="font-medium text-text-1">{copy.trabajando}</span>
             <span className="tabular-nums text-text-2">
               {minutoLegible(segundos)}
-              {pasos > 0 && <> · {copy.pasos(pasos)}</>}
+              {pasos > 0 && <>, {copy.pasos(pasos)}</>}
             </span>
           </div>
           <div className="relative h-1 w-full overflow-hidden rounded-full bg-accent-soft">

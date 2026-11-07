@@ -14,7 +14,7 @@ export default function Perfil() {
     { etiqueta: copy.area, valor: area },
     { etiqueta: copy.rol, valor: copy.roles[usuario.rol] ?? usuario.rol },
     // Lo que el backend dijo que esta cuenta puede usar, no lo que el front supone.
-    { etiqueta: copy.modos, valor: perfiles.map((p) => p.nombre).join(' · ') || '—' },
+    { etiqueta: copy.modos, valor: perfiles.map((p) => p.nombre).join(', ') || '—' },
   ];
 
   return (

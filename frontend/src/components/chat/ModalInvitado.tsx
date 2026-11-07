@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Mail, Sparkles } from 'lucide-react';
+import { Copy, Mail } from 'lucide-react';
 import type { PlanCuenta } from '../../types';
 import { Button, Modal } from '../ui';
 import { invitado as copy } from '../../copy';
@@ -36,15 +36,10 @@ export function ModalInvitado({ plan, abierto, onCerrar }: { plan: PlanCuenta; a
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-fg">
-            <Sparkles size={17} aria-hidden />
-          </span>
-          <p className="font-ui text-14 leading-relaxed text-text-2">
-            {plan.agotado && <strong className="block font-medium text-text-1">{copy.agotado}</strong>}
-            {copy.detalle}
-          </p>
-        </div>
+        <p className="font-ui text-14 leading-relaxed text-text-2">
+          {plan.agotado && <strong className="block font-medium text-text-1">{copy.agotado}</strong>}
+          {copy.detalle}
+        </p>
 
         <div className="flex flex-col gap-1.5">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-tinta/[.07]">
@@ -53,7 +48,7 @@ export function ModalInvitado({ plan, abierto, onCerrar }: { plan: PlanCuenta; a
               style={{ width: `${Math.max(4, proporcion * 100)}%` }}
             />
           </div>
-          <p className="font-ui text-12 tabular-nums text-text-3">{copy.credito(dinero(plan.gastadoUsd), dinero(plan.limiteUsd))}</p>
+          <p className="font-ui text-13 tabular-nums text-text-2">{copy.credito(dinero(plan.gastadoUsd), dinero(plan.limiteUsd))}</p>
         </div>
 
         {plan.contacto ? (
@@ -92,7 +87,6 @@ export function PastillaInvitado({ plan, onAbrir }: { plan: PlanCuenta; onAbrir:
         (plan.agotado ? 'text-status-red' : 'text-text-2')
       }
     >
-      <Sparkles size={12} aria-hidden />
       {plan.agotado ? copy.agotado : copy.pastilla(dinero(resto))}
     </button>
   );
