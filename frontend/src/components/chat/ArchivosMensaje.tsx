@@ -149,7 +149,7 @@ function MiniaturaRemota({
         type="button"
         onClick={() => url && onAbrir({ src: url, alt: archivo.nombre })}
         disabled={!url}
-        title={`${archivo.nombre} · ${tamanoLegible(archivo.tamanoBytes)}`}
+        title={`${archivo.nombre}, ${tamanoLegible(archivo.tamanoBytes)}`}
         aria-label={copyLocal.abrirArchivo(archivo.nombre)}
         className="group/mini relative block aspect-[4/3] w-full overflow-hidden rounded-control bg-bg shadow-anillo outline-none transition-shadow duration-150 ease-umbral enabled:hover:shadow-menu focus-visible:ring-2 focus-visible:ring-accent"
       >
@@ -206,7 +206,7 @@ function TarjetaArchivo({ archivo, onAbrir }: { archivo: ArchivoCompartido; onAb
         <span className="min-w-0 flex-1">
           <span className="block truncate font-ui text-14 font-medium text-text-1">{archivo.nombre}</span>
           <span className="block truncate font-ui text-12 tabular-nums text-text-3">
-            {copyLocal.formatoArchivo[archivo.formato] ?? copyLocal.formatoArchivo.otro} · {tamanoLegible(archivo.tamanoBytes)} · {archivo.coleccion}
+            {copyLocal.formatoArchivo[archivo.formato] ?? copyLocal.formatoArchivo.otro}, {tamanoLegible(archivo.tamanoBytes)}, {archivo.coleccion}
           </span>
         </span>
       </motion.button>
@@ -297,7 +297,7 @@ export function VisorEmergente({
                   archivo.coleccion,
                 ]
                   .filter(Boolean)
-                  .join(' · ')}
+                  .join(', ')}
                 resaltar={resaltar}
                 pagina={pagina}
                 accion={

@@ -298,7 +298,7 @@ export function resumenProceso(items: ItemProceso[], pensoMs?: number | null): s
       : partes.length
         ? copyLocal.procesoTitulo
         : copyLocal.procesoSoloPensamiento;
-  return [cabeza, ...partes].join(' · ');
+  return [cabeza, ...partes].join(', ');
 }
 
 /**

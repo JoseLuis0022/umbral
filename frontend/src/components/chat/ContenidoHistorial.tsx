@@ -281,7 +281,7 @@ function FilaConversacion({
         aria-current={activa ? 'true' : undefined}
         // Una línea por fila (36 px): la antigüedad pasa al `title`. Con dos
         // renglones la lista se leía como una tabla, no como un índice.
-        title={`${conv.titulo} · ${haceCuanto(conv.ultimoMensajeEn, ahora)}`}
+        title={`${conv.titulo}, ${haceCuanto(conv.ultimoMensajeEn, ahora)}`}
         className={cn(
           'relative flex h-11 w-full items-center gap-2 rounded-celda pl-2.5 pr-9 text-left transition-colors duration-[120ms] lg:h-9',
           !activa && 'hover:bg-tinta/[.04]'

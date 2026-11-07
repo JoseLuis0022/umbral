@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CalendarOff, CircleDollarSign, MessagesSquare, Scale } from 'lucide-react';
+import { CalendarOff } from 'lucide-react';
 import {
   AnimatedNumber,
   Button,
@@ -164,25 +164,21 @@ export default function AdminTablero() {
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
-                icon={MessagesSquare}
                 label={copy.kpiConsultas}
                 value={<AnimatedNumber value={datos.periodo.consultas} />}
                 detail={copy.kpiPeriodo(datos.dias)}
               />
               <KpiCard
-                icon={CircleDollarSign}
                 label={copy.kpiCosto}
                 value={formatoUsd(datos.periodo.costoUsd)}
                 detail={copy.kpiHistorico(formatoEntero(datos.historico.consultas), formatoUsd(datos.historico.costoUsd))}
               />
               <KpiCard
-                icon={Scale}
                 label={copy.kpiPromedio}
                 value={formatoUsd(datos.periodo.consultas ? datos.periodo.costoUsd / datos.periodo.consultas : 0)}
                 detail={copy.kpiPeriodo(datos.dias)}
               />
               <KpiCard
-                icon={AlertTriangle}
                 label={copy.kpiErrores}
                 value={<AnimatedNumber value={(datos.porEstado.error ?? 0) + (datos.porEstado.cancelada ?? 0)} />}
                 detail={copy.kpiErroresDetalle(datos.porEstado.error ?? 0, datos.porEstado.cancelada ?? 0)}

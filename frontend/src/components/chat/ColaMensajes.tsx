@@ -31,7 +31,7 @@ export const ColaMensajes = memo(function ColaMensajes({
     >
       <header className="flex items-center gap-2 py-1 pl-3 pr-1">
         <p className="min-w-0 flex-1 truncate font-ui text-12 text-text-3">
-          <span className="font-medium text-text-2">{copy.enColaCuenta(cola.length)}</span> · {copy.enColaJuntos}
+          <span className="font-medium text-text-2">{copy.enColaCuenta(cola.length)}.</span> {copy.enColaJuntos}
         </p>
         {cola.length > 1 && (
           <button

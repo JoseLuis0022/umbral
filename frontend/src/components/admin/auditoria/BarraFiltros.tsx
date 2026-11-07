@@ -164,7 +164,7 @@ export function BarraFiltros({
                 </span>
                 <span className="truncate font-ui text-12 text-text-2">
                   {opcion.dato
-                    ? `${opcion.dato.usuario.correo ?? copy.cuentaEliminada} · ${copy.consultasDe(opcion.dato.consultas)}`
+                    ? `${opcion.dato.usuario.correo ?? copy.cuentaEliminada} (${copy.consultasDe(opcion.dato.consultas)})`
                     : copy.todasPersonasDetalle}
                 </span>
               </span>

@@ -253,7 +253,7 @@ export default function AdminCorpus() {
             </div>
 
             <footer className="shrink-0 border-t border-hairline px-4 py-2 font-ui text-12 leading-snug text-text-3">
-              {copy.archivos(visibles.length)} · {copy.soloLectura}
+              {copy.archivos(visibles.length)}. {copy.soloLectura}
             </footer>
           </section>
         </PanelPlegable>

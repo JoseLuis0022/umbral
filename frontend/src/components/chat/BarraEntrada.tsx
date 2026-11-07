@@ -489,7 +489,7 @@ export function MiniaturaImagen({
         type="button"
         onClick={onAbrir}
         disabled={!onAbrir || !src}
-        title={detalle ? `${nombre} · ${detalle}` : nombre}
+        title={detalle ? `${nombre}, ${detalle}` : nombre}
         aria-label={copyLocal.verImagen(nombre)}
         className="relative block h-full w-full overflow-hidden rounded-control bg-bg shadow-anillo transition-shadow duration-150 enabled:hover:shadow-2"
       >
@@ -541,7 +541,7 @@ export function FichaAdjunto({ adjunto, onQuitar }: { adjunto: Adjunto; onQuitar
       exit={{ opacity: 0, transition: { duration: dur.fast, ease } }}
       transition={springSnappy}
       className="group relative flex h-16 w-[208px] items-center gap-2.5 rounded-control bg-surface-1 p-2 shadow-anillo"
-      title={`${adjunto.nombre} · ${tamanoLegible(adjunto.tamanoBytes)}`}
+      title={`${adjunto.nombre}, ${tamanoLegible(adjunto.tamanoBytes)}`}
     >
       {/* Radios anidados: ficha 10 con 8 de aire → icono 6 (xs). */}
       <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-xs bg-accent-soft text-accent-fg">
@@ -550,7 +550,7 @@ export function FichaAdjunto({ adjunto, onQuitar }: { adjunto: Adjunto; onQuitar
       <span className="min-w-0 flex-1">
         <span className="block truncate font-ui text-13 font-medium text-text-1">{adjunto.nombre}</span>
         <span className="block truncate font-ui text-12 tabular-nums text-text-3">
-          {etiqueta} · {tamanoLegible(adjunto.tamanoBytes)}
+          {etiqueta}, {tamanoLegible(adjunto.tamanoBytes)}
         </span>
       </span>
       {onQuitar && (

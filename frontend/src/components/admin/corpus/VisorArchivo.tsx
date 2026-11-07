@@ -152,7 +152,7 @@ export function VisorArchivo({
                 {archivo.nombre}
               </p>
               <p className="mt-0.5 truncate font-ui text-12 tabular-nums text-text-3">
-                {subtitulo ?? `${tamanoLegible(archivo.tamanoBytes)} · ${copy.modificado(formatoFechaLarga(archivo.modificado))}`}
+                {subtitulo ?? `${tamanoLegible(archivo.tamanoBytes)}, ${copy.modificado(formatoFechaLarga(archivo.modificado))}`}
               </p>
             </div>
           ) : (

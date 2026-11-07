@@ -93,7 +93,7 @@ const TEXTO = {
   version: 'Versión',
   // Se escriben a mano mientras la maqueta no tenga pipeline de compilación:
   // cuando lo tenga, salen de variables inyectadas por Vite en tiempo de build.
-  versionValor: '0.1.0 · maqueta de demostración',
+  versionValor: '0.1.0 (maqueta de demostración)',
   compilacion: 'Compilación',
   compilacionValor: '2 de septiembre de 2026',
   entorno: 'Entorno',

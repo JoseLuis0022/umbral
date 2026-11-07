@@ -85,7 +85,8 @@ export function Logo({
 export function MarcaProducto({ className }: { className?: string }) {
   return (
     <span className={cn('flex items-center gap-2.5', className)}>
-      <Logo tamano="sm" alt="" />
+      {/* Marca plana, sin placa: el escalón en tinta y el umbral en azul. */}
+      <IsotipoUmbral acento className="h-6 w-6 text-text-1" />
       {/* El nombre sale de `copy.marca`, no escrito aquí: es la marca del
           producto y tiene que cambiar en un solo sitio. En teléfono basta el
           isotipo: el ancho hace falta para la navegación. */}

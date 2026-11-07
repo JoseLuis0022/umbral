@@ -103,7 +103,7 @@ function ContenidoDisparador({ nombreModelo, nombreEsfuerzo }: { nombreModelo: s
           <span className="text-text-1">{nombreModelo}</span>
           {/* El esfuerzo solo se nombra cuando se eligió uno: "Automático ·
               Automático" se leía como un error de la interfaz. */}
-          {nombreEsfuerzo && <span className="text-text-3"> · {nombreEsfuerzo}</span>}
+          {nombreEsfuerzo && <span className="text-text-2">, {nombreEsfuerzo.toLowerCase()}</span>}
         </motion.span>
       </AnimatePresence>
       <ChevronDown size={12} strokeWidth={2.25} className="shrink-0 text-text-3" aria-hidden />
@@ -378,7 +378,7 @@ function HojaModelo({ principales, mas, ajuste, onCambiar, nombreModelo, nombreE
 
               {pagina === 'principal' && (
                 <>
-                  <FilaHoja texto={nombrePredeterminado ? `${copyLocal.automatico} · ${nombrePredeterminado}` : copyLocal.automatico} activa={ajuste.modelo === PREDETERMINADO} onClick={() => elegir({ modelo: PREDETERMINADO })} />
+                  <FilaHoja texto={nombrePredeterminado ? `${copyLocal.automatico} (${nombrePredeterminado})` : copyLocal.automatico} activa={ajuste.modelo === PREDETERMINADO} onClick={() => elegir({ modelo: PREDETERMINADO })} />
                   {principales.map((m) => (
                     <FilaHoja key={m.id} texto={m.nombre} activa={ajuste.modelo === m.id} onClick={() => elegir({ modelo: m.id })} />
                   ))}
