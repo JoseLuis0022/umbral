@@ -26,8 +26,13 @@ const TAMANOS = {
   lg: 'h-14 w-14 rounded-control', // login
 } as const;
 
-/** El dibujo, sin placa. Rejilla de 24: extremos en (4,17) y (20,7), umbral en (12,12). */
-export function IsotipoUmbral({ className }: { className?: string }) {
+/**
+ * El dibujo, sin placa. Rejilla de 24: extremos en (4,17) y (20,7), umbral en (12,12).
+ * `acento`: el nodo del umbral (y su halo) en `--accent` y el resto en
+ * `currentColor`. Es la versión "plana" de la marca, para fondos claros.
+ */
+export function IsotipoUmbral({ className, acento = false }: { className?: string; acento?: boolean }) {
+  const umbral = acento ? 'var(--accent)' : 'currentColor';
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
       <path
@@ -38,10 +43,10 @@ export function IsotipoUmbral({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="12" r="4.6" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.38} />
+      <circle cx="12" cy="12" r="4.6" fill="none" stroke={umbral} strokeWidth={1.2} opacity={0.38} />
       <circle cx="4" cy="17" r="2.1" fill="currentColor" />
       <circle cx="20" cy="7" r="2.1" fill="currentColor" />
-      <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="2.5" fill={umbral} />
     </svg>
   );
 }
@@ -85,6 +90,20 @@ export function MarcaProducto({ className }: { className?: string }) {
           producto y tiene que cambiar en un solo sitio. En teléfono basta el
           isotipo: el ancho hace falta para la navegación. */}
       <span className="hidden whitespace-nowrap sm:inline font-ui text-14 font-semibold text-text-1">{marca.nombre}</span>
+    </span>
+  );
+}
+
+/**
+ * Marca sin placa ni degradado: el escalón en tinta y el umbral en azul. Para
+ * las pantallas de acceso, donde la marca vive en el detalle y no en un
+ * "ícono de app" centrado.
+ */
+export function MarcaPlana({ className }: { className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-2 text-text-1', className)}>
+      <IsotipoUmbral acento className="h-7 w-7" />
+      <span className="font-ui text-15 font-semibold tracking-[-0.01em]">{marca.nombre}</span>
     </span>
   );
 }

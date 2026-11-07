@@ -17,9 +17,14 @@ export const marca = {
   descriptor: 'Asistente interno',
 };
 
+export const acceso = {
+  leyendaGrafica:
+    'Una imagen en escala de grises se vuelve blanco y negro al cruzar el umbral T. Umbral responde tus dudas del curso citando la clase de donde sale cada dato.',
+};
+
 export const login = {
-  titulo: 'Umbral',
-  subtitulo: 'Asistente de estudio · Procesamiento Digital de Imágenes',
+  titulo: 'Inicia sesión',
+  subtitulo: 'El asistente de estudio de Procesamiento Digital de Imágenes.',
   correo: 'Correo',
   contrasena: 'Contraseña',
   entrar: 'Entrar',
@@ -27,16 +32,16 @@ export const login = {
   errorVacio: 'Escribe tu correo y tu contraseña para entrar.',
   errorCredenciales: 'Correo o contraseña incorrectos.',
   errorServidor: 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
-  pie: 'Las cuentas nuevas entran en modo invitado: gratis, con un crédito de prueba.',
+  pie: 'Las cuentas nuevas entran en modo invitado, sin costo y con un crédito de prueba.',
   sinCuenta: '¿No tienes cuenta?',
-  crearCuenta: 'Crea una gratis',
+  crearCuenta: 'Crear una cuenta',
   reenviar: 'Reenviar el enlace de confirmación',
-  reenviado: 'Listo: te mandamos otro enlace. Revisa también el spam.',
+  reenviado: 'Te mandamos otro enlace. Revisa también el spam.',
 };
 
 export const registro = {
   titulo: 'Crea tu cuenta',
-  subtitulo: 'Prueba Umbral gratis en modo invitado',
+  subtitulo: 'Entras en modo invitado, sin costo, para probar el asistente.',
   nombre: 'Tu nombre',
   correo: 'Correo',
   contrasena: 'Contraseña',
@@ -51,16 +56,16 @@ export const registro = {
   errorServidor: 'No pudimos conectar con el servidor. Intenta de nuevo.',
   errorVerificar: 'No pudimos confirmar tu correo. Intenta de nuevo.',
   revisaTitulo: 'Revisa tu correo',
-  revisaDetalle: (correo: string) =>
-    `Te enviamos un enlace a ${correo}. Ábrelo para activar tu cuenta (si no lo ves, revisa la carpeta de spam).`,
+  revisaEnviamos: 'Te enviamos un enlace de activación a',
+  revisaInstruccion: 'Ábrelo para activar tu cuenta. Si no aparece en unos minutos, revisa la carpeta de spam.',
   reenviar: 'Reenviar el enlace',
   reenviarEn: (s: number) => `Reenviar en ${s} s`,
   reenviado: 'Te mandamos otro enlace.',
-  irAEntrar: 'Ir a iniciar sesión →',
+  irAEntrar: 'Ir a iniciar sesión',
   volver: 'Volver a iniciar sesión',
   invitadoNota: 'Las cuentas nuevas usan Claude Haiku con un crédito de prueba de US$0.30.',
   verificando: 'Confirmando tu correo…',
-  verificadoTitulo: '¡Listo! Tu cuenta está activa',
+  verificadoTitulo: 'Tu cuenta está activa.',
   verificadoDetalle: 'Entrando a Umbral…',
   verificarFalloTitulo: 'No pudimos confirmar tu correo',
   sinToken: 'Este enlace está incompleto. Ábrelo directo desde el correo.',

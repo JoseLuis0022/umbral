@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion, useAnimation } from 'framer-motion';
-import { springSoft, stagger, dur, ease } from '../lib/motion';
+import { motion, useAnimation } from 'framer-motion';
+import { dur, ease } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
 import { ErrorApi } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Field, Input } from '../components/ui/Field';
-import { Logo } from '../components/brand/Logo';
+import { LayoutAcceso } from '../components/acceso/LayoutAcceso';
 import { login as copy } from '../copy';
 
 /**
@@ -43,14 +43,16 @@ export default function Login() {
   // protegida lo mandara aquí.
   const destino = (location.state as { from?: string } | null)?.from ?? '/chat';
 
-  // La tarjeta sale hacia arriba antes de navegar: la transición explica que se
-  // deja atrás la pantalla de acceso, en vez de cortar a negro.
+  // Antes de navegar, el nodo de la gráfica cruza el umbral y sube: la
+  // transición dice "entraste" en vez de cortar a negro. Con movimiento
+  // reducido el cruce es instantáneo y la espera, mínima.
   function salirHacia(ruta: string) {
     setSaliendo(true);
+    const espera = reducido ? 0.15 : 0.65;
     // El temporizador se guarda para poder cancelarlo: si algo desmonta el
     // login antes de que termine la salida, navegar desde un componente muerto
     // deja la app en un estado que nadie pidió.
-    relojSalida.current = setTimeout(() => navigate(ruta, { replace: true }), dur.reveal * 1000);
+    relojSalida.current = setTimeout(() => navigate(ruta, { replace: true }), espera * 1000);
   }
 
   function marcarError(mensaje: string) {
@@ -89,107 +91,66 @@ export default function Login() {
   }
 
   return (
-    <div
-      className="relative flex h-full w-full items-center justify-center overflow-y-auto px-6 py-10"
-      style={{ background: 'radial-gradient(120% 100% at 50% 0%, var(--accent-soft) 0%, var(--bg) 55%)' }}
-    >
-      <AnimatePresence>
-        {!saliendo && (
-          <motion.div
-            key="tarjeta-login"
-            initial={{ opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -24, transition: { duration: dur.reveal, ease } }}
-            transition={springSoft}
-            className="w-full max-w-[400px]"
-          >
-            <motion.div
-              animate={controlesTarjeta}
-              className="rounded-tarjeta border border-hairline bg-surface-1 p-8 shadow-3"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...springSoft, delay: stagger.base }}
-                className="flex flex-col items-center text-center"
+    <LayoutAcceso pie={copy.pie} cruzado={saliendo}>
+      {/* Un solo movimiento de entrada (opacidad, toda la columna junta): la
+          cascada bloque por bloque era el gesto más genérico de la pantalla.
+          El momento con carácter es el cruce del umbral al entrar. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: saliendo ? 0.4 : 1 }}
+        transition={{ duration: dur.reveal, ease }}
+      >
+        <h1 className="font-ui text-28 font-semibold tracking-[-0.02em] text-text-1">{copy.titulo}</h1>
+        <p className="mt-2 font-ui text-15 leading-relaxed text-text-2">{copy.subtitulo}</p>
+
+        <motion.form animate={controlesTarjeta} onSubmit={alEnviar} className="mt-8 flex flex-col gap-4" noValidate>
+          <Field label={copy.correo}>
+            <Input
+              type="email"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              autoComplete="username"
+              autoFocus
+              disabled={saliendo}
+            />
+          </Field>
+          <Field label={copy.contrasena} error={error}>
+            <Input
+              type="password"
+              value={contrasena}
+              onChange={(e) => setContrasena(e.target.value)}
+              autoComplete="current-password"
+              disabled={saliendo}
+            />
+          </Field>
+          <div className="mt-2">
+            <Button type="submit" className="w-full" loading={cargando || saliendo}>
+              {cargando || saliendo ? copy.entrando : copy.entrar}
+            </Button>
+            {porConfirmar && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-2 w-full"
+                disabled={reenviado}
+                onClick={() => {
+                  setReenviado(true);
+                  void authService.reenviarEnlace(correo).catch(() => undefined);
+                }}
               >
-                {/* Decorativo aquí: el h1 y el subtítulo que van debajo ya
-                    nombran al producto. */}
-                <Logo tamano="lg" alt="" />
-                <h1 className="mt-4 font-ui text-22 text-text-1">{copy.titulo}</h1>
-                <p className="mt-1 font-ui text-13 text-text-3">{copy.subtitulo}</p>
-              </motion.div>
+                {reenviado ? copy.reenviado : copy.reenviar}
+              </Button>
+            )}
+          </div>
+        </motion.form>
 
-              <form onSubmit={alEnviar} className="mt-7 flex flex-col gap-4" noValidate>
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...springSoft, delay: stagger.base * 2 }}
-                >
-                  <Field label={copy.correo}>
-                    <Input
-                      type="email"
-                      placeholder="tu.correo@ejemplo.mx"
-                      value={correo}
-                      onChange={(e) => setCorreo(e.target.value)}
-                      autoComplete="username"
-                      autoFocus
-                    />
-                  </Field>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...springSoft, delay: stagger.base * 3 }}
-                >
-                  <Field label={copy.contrasena} error={error}>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      value={contrasena}
-                      onChange={(e) => setContrasena(e.target.value)}
-                      autoComplete="current-password"
-                    />
-                  </Field>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...springSoft, delay: stagger.base * 4 }}
-                >
-                  <Button type="submit" className="w-full" loading={cargando}>
-                    {cargando ? copy.entrando : copy.entrar}
-                  </Button>
-                  {porConfirmar && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="mt-2 w-full"
-                      disabled={reenviado}
-                      onClick={() => {
-                        setReenviado(true);
-                        void authService.reenviarEnlace(correo).catch(() => undefined);
-                      }}
-                    >
-                      {reenviado ? copy.reenviado : copy.reenviar}
-                    </Button>
-                  )}
-                </motion.div>
-              </form>
-              <p className="mt-5 text-center font-ui text-13 text-text-2">
-                {copy.sinCuenta}{' '}
-                <Link to="/registro" className="font-medium text-accent-fg hover:underline">
-                  {copy.crearCuenta}
-                </Link>
-              </p>
-            </motion.div>
-
-            <p className="mt-5 text-center font-ui text-12 text-text-3">{copy.pie}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <p className="mt-6 font-ui text-14 text-text-2">
+          {copy.sinCuenta}{' '}
+          <Link to="/registro" className="font-medium text-accent-fg hover:underline">
+            {copy.crearCuenta}
+          </Link>
+        </p>
+      </motion.div>
+    </LayoutAcceso>
   );
 }

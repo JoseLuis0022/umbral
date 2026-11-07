@@ -6,6 +6,7 @@ import {
   Skeleton, StatusPill, Tabs, Textarea, useToast, type Column,
 } from '../components/ui';
 import { PageHeader } from '../components/shell/PageHeader';
+import { GraficaUmbral } from '../components/brand/GraficaUmbral';
 import { BurbujaTrabajando, IsotipoPensando, PensandoUmbral, ProcesoAgente } from '../components/chat/IndicadorPensando';
 import type { ItemProceso } from '../types';
 
@@ -178,6 +179,16 @@ export function SistemaDiseno() {
             <div className="max-w-[680px]">
               <ProcesoAgente items={PROCESO_EJEMPLO} modo="terminado" pensoMs={8200} />
             </div>
+          </Card>
+        </Seccion>
+
+        <Seccion
+          titulo="La gráfica del umbral"
+          descripcion="Las pantallas de acceso no usan tarjeta ni degradado: la otra mitad es la función umbral a escala real (histograma bimodal, escalón T(r), umbral de Otsu). Se traza una vez al montar; al entrar, el nodo del umbral sube al nivel alto. El azul es el único acento."
+        >
+          <Card className="grid gap-6 p-6 md:grid-cols-2">
+            <GraficaUmbral />
+            <GraficaUmbral cruzado />
           </Card>
         </Seccion>
 

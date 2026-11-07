@@ -113,6 +113,16 @@
     border-color: var(--hairline);
   }
 
+  /* El navegador también es parte de la interfaz: selección y cursor de
+     escritura con el color de marca, no el azul del sistema. */
+  ::selection {
+    background: rgba(47, 95, 228, 0.18);
+  }
+  input,
+  textarea {
+    caret-color: var(--accent);
+  }
+
   html,
   body,
   #root {

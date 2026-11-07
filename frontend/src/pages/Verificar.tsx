@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CircleCheck, CircleAlert, Loader2 } from 'lucide-react';
-import { springSoft } from '../lib/motion';
+import { dur, ease } from '../lib/motion';
+import { LayoutAcceso } from '../components/acceso/LayoutAcceso';
+import { IsotipoPensando } from '../components/chat/IndicadorPensando';
+import { Banner } from '../components/ui/Banner';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
 import { ErrorApi } from '../services/api';
@@ -41,42 +43,42 @@ export default function Verificar() {
   }, [token, entrarConSesion, navigate]);
 
   return (
-    <div
-      className="flex h-full w-full items-center justify-center px-6 py-10"
-      style={{ background: 'radial-gradient(120% 100% at 50% 0%, var(--accent-soft) 0%, var(--bg) 55%)' }}
-    >
+    <LayoutAcceso cruzado={estado.tipo === 'listo'}>
       <motion.div
-        initial={{ opacity: 0, y: 12, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={springSoft}
-        className="flex w-full max-w-[400px] flex-col items-center rounded-tarjeta border border-hairline bg-surface-1 p-8 text-center shadow-3"
+        key={estado.tipo}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: dur.base, ease }}
         role="status"
         aria-live="polite"
       >
         {estado.tipo === 'confirmando' && (
-          <>
-            <Loader2 size={28} className="animate-spin text-accent-fg motion-reduce:animate-none" aria-hidden />
-            <p className="mt-4 font-ui text-15 text-text-2">{copy.verificando}</p>
-          </>
+          <div className="flex items-center gap-3">
+            {/* La espera propia de la marca, la misma del chat: no un spinner genérico. */}
+            <IsotipoPensando tamano={28} />
+            <p className="font-ui text-15 text-text-2">{copy.verificando}</p>
+          </div>
         )}
         {estado.tipo === 'listo' && (
           <>
-            <CircleCheck size={32} className="text-status-green" aria-hidden />
-            <h1 className="mt-4 font-ui text-22 text-text-1">{copy.verificadoTitulo}</h1>
-            <p className="mt-1 font-ui text-14 text-text-2">{copy.verificadoDetalle}</p>
+            <h1 className="font-ui text-28 font-semibold tracking-[-0.02em] text-text-1">{copy.verificadoTitulo}</h1>
+            <p className="mt-2 font-ui text-15 text-text-2">{copy.verificadoDetalle}</p>
           </>
         )}
         {estado.tipo === 'error' && (
           <>
-            <CircleAlert size={32} className="text-status-red" aria-hidden />
-            <h1 className="mt-4 font-ui text-22 text-text-1">{copy.verificarFalloTitulo}</h1>
-            <p className="mt-2 font-ui text-14 leading-relaxed text-text-2">{estado.mensaje}</p>
-            <Link to="/login" className="mt-6 font-ui text-14 font-medium text-accent-fg hover:underline">
-              {copy.volver}
-            </Link>
+            <h1 className="font-ui text-28 font-semibold tracking-[-0.02em] text-text-1">{copy.verificarFalloTitulo}</h1>
+            <div className="mt-4">
+              <Banner tone="red">{estado.mensaje}</Banner>
+            </div>
+            <p className="mt-6 font-ui text-14">
+              <Link to="/login" className="font-medium text-accent-fg hover:underline">
+                {copy.volver}
+              </Link>
+            </p>
           </>
         )}
       </motion.div>
-    </div>
+    </LayoutAcceso>
   );
 }
