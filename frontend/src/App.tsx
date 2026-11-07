@@ -24,15 +24,15 @@ import { SistemaDiseno } from './pages/SistemaDiseno';
  * aquel reubica los archivos (el <script>, el CSS, las imágenes), y este
  * reubica las direcciones que el enrutador escribe y lee.
  *
- * Publicada en https://tu-dominio.com/Umbral/, la dirección real del chat
- * es /Umbral/chat. Sin basename, react-router compara contra "/chat", no
+ * Publicada en https://tu-dominio.com/umbral/, la dirección real del chat
+ * es /umbral/chat. Sin basename, react-router compara contra "/chat", no
  * reconoce ninguna ruta y toda la app cae en la pantalla de 404; y cada enlace
  * que escribiera apuntaría fuera de la carpeta.
  *
  * Se deriva de import.meta.env.BASE_URL, que Vite rellena con el mismo valor
  * de `base` — así el prefijo se declara UNA vez, en VITE_BASE_URL, y las dos
  * mitades no pueden desincronizarse. Se quita la barra final porque Vite
- * entrega '/Umbral/' y react-router espera '/Umbral' (en la raíz queda '', que
+ * entrega '/umbral/' y react-router espera '/umbral' (en la raíz queda '', que
  * el enrutador trata como sin prefijo).
  */
 const BASE_RUTAS = import.meta.env.BASE_URL.replace(/\/$/, '');

@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
      *
      * En la raíz de un dominio vale '/' y no hay nada que pensar. Pero esta app
      * también se publica dentro de una subcarpeta (por ejemplo
-     * https://tu-dominio.com/Umbral/), y ahí TODO cambia de sitio: el
+     * https://tu-dominio.com/umbral/), y ahí TODO cambia de sitio: el
      * <script> del index, el CSS, las fuentes, las imágenes. Compilado con base
      * '/', el navegador pediría /assets/index.js en la raíz del dominio —
      * fuera de la carpeta— y la página quedaría en blanco.

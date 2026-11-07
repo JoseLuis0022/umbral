@@ -12,7 +12,7 @@ Todo el proyecto está en **español**: variables, funciones, tipos, nombres de 
 npm run dev          # Vite dev server → http://localhost:5173
 npm run typecheck    # tsc -b  ← ÚNICA verificación del repositorio
 npm run build        # tsc -b && vite build           (app en la raíz del dominio)
-npm run build:umbral  # VITE_BASE_URL=/Umbral/ vite build (app en subcarpeta)
+npm run build:umbral  # VITE_BASE_URL=/umbral/ vite build (app en subcarpeta)
 npm run preview      # sirve dist/
 ```
 

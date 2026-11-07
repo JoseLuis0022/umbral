@@ -31,7 +31,7 @@ const transformarEnlace = (url: string) => transformarUrl(url, defaultUrlTransfo
  * El markdown —el que llega del agente y el del corpus— puede escribir sus
  * imágenes como `/…`, que es la forma correcta de nombrarlas y la única que el
  * autor de un contenido puede conocer. Pero publicada en
- * https://tu-dominio.com/Umbral/, esa ruta apunta a la raíz del dominio,
+ * https://tu-dominio.com/umbral/, esa ruta apunta a la raíz del dominio,
  * fuera de la carpeta de la app, y todas las capturas salen rotas. Vite reescribe
  * las rutas del HTML y de lo que se importa desde `src/`, pero no puede tocar
  * una cadena que vive dentro de un texto markdown, así que se resuelve aquí.

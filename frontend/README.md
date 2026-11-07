@@ -1,9 +1,8 @@
 # Umbral
 
 Frontend del **laboratorio de agentes**: la cara web del agente de estudio de
-*Procesamiento Digital de Imágenes*. Nació como la maqueta "Umbral" (un asistente
-interno universitario) y conserva su sistema de diseño y sus pantallas; el chat y
-el acceso ahora hablan con un backend real (`../backend`: FastAPI + Claude Agent
+*Procesamiento Digital de Imágenes*. Nació como una maqueta de interfaz y conserva
+su sistema de diseño y sus pantallas; el chat y el acceso ahora hablan con un backend real (`../backend`: FastAPI + Claude Agent
 SDK).
 
 **Qué es real hoy:** el inicio de sesión con roles, el chat con el agente y
@@ -26,7 +25,7 @@ npm install
 npm run dev        # http://localhost:5173
 npm run typecheck  # tsc -b
 npm run build      # tsc -b && vite build            → para la raíz de un dominio
-npm run build:umbral  # compila para /Umbral/            → ver "Publicar"
+npm run build:umbral  # compila para /umbral/            → ver "Publicar"
 npm run preview    # sirve el build de dist/
 ```
 
@@ -94,12 +93,12 @@ servidor que instalar. Solo dos cosas hay que acertar.
 ### 1. Dónde vive la app
 
 Si cuelga de la raíz del dominio (`https://ejemplo.mx/`), no hay nada que hacer.
-Si vive dentro de una subcarpeta (`https://tu-dominio.com/Umbral/`), hay que
+Si vive dentro de una subcarpeta (`https://tu-dominio.com/umbral/`), hay que
 decírselo al compilar, porque cambia de sitio TODO: el `<script>` del index, el
 CSS, las fuentes y lo que haya en `public/`.
 
 ```bash
-npm run build:umbral          # equivale a VITE_BASE_URL=/Umbral/ npm run build
+npm run build:umbral          # equivale a VITE_BASE_URL=/umbral/ npm run build
 ```
 
 `VITE_BASE_URL` alimenta las dos mitades del problema, que siempre van juntas:
@@ -107,7 +106,7 @@ npm run build:umbral          # equivale a VITE_BASE_URL=/Umbral/ npm run build
 | Mitad | Dónde | Qué pasa si falta |
 |---|---|---|
 | Prefijo de los **archivos** | `base` en `vite.config.ts` | El navegador pide `/assets/index.js` en la raíz del dominio, fuera de la carpeta: **página en blanco**. |
-| Prefijo de las **rutas** | `basename` del `BrowserRouter` en `App.tsx`, leído de `import.meta.env.BASE_URL` | El enrutador compara contra `/chat` cuando la dirección real es `/Umbral/chat`: **toda la app cae en el 404**. |
+| Prefijo de las **rutas** | `basename` del `BrowserRouter` en `App.tsx`, leído de `import.meta.env.BASE_URL` | El enrutador compara contra `/chat` cuando la dirección real es `/umbral/chat`: **toda la app cae en el 404**. |
 
 Se declara una sola vez para que no puedan desincronizarse. Las imágenes que el
 markdown referencia con ruta absoluta (`/…`) las reubica `resolverRutaPublica` en
@@ -126,7 +125,7 @@ sea la de entrada devuelve un 404 del servidor.
 - **Netlify / Cloudflare Pages** — `public/_redirects`, ya incluido.
 - **Apache** — un `.htaccess` con `RewriteBase` y el fallback al index.
 - **Vercel** — `vercel.json`, ya incluido.
-- **nginx** — `try_files $uri $uri/ /Umbral/index.html;`
+- **nginx** — `try_files $uri $uri/ /umbral/index.html;`
 
 ### Front y back en el mismo dominio
 
