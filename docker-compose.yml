@@ -33,6 +33,7 @@ services:
       context: ./frontend
       args:
         VITE_BASE_URL: ${VITE_BASE_URL:-/}
+        VITE_URL_PUBLICA: ${VITE_URL_PUBLICA:-}
     restart: unless-stopped
     depends_on:
       backend:

@@ -1,16 +1,28 @@
 <div align="center">
 
-<img src="frontend/public/favicon.svg" width="72" height="72" alt="Umbral">
+<img src="frontend/public/favicon.svg" width="76" height="76" alt="Umbral">
 
 # Umbral
 
 **Lleva un agente de Claude de tu laptop a la web.**
-Chat multiusuario con tareas que sobreviven a cerrar la página, control de gasto en vivo,
-registro con verificación por correo y despliegue con un solo `docker compose up`.
 
-Primer agente: un asistente de estudio de **Procesamiento Digital de Imágenes**.
+Chat multiusuario con tareas que sobreviven a cerrar la página, gasto en vivo, registro con verificación por correo y despliegue con un solo `docker compose up`.
 
-`FastAPI` · `Claude Agent SDK` · `React 18` · `Vite` · `Tailwind` · `SQLite` · `Docker Compose`
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-3b5bdb?style=flat-square" alt="Licencia MIT"></a>
+  <img src="https://img.shields.io/badge/Docker%20Compose-listo-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose-listo">
+  <img src="https://img.shields.io/badge/Claude%20Agent%20SDK-D97757?style=flat-square&logo=claude&logoColor=white" alt="Claude Agent SDK">
+  <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python-3.13">
+  <img src="https://img.shields.io/badge/React-18-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React-18">
+</p>
+
+<p><a href="#un-vistazo">Un vistazo</a> &nbsp;|&nbsp; <a href="#qué-hace">Qué hace</a> &nbsp;|&nbsp; <a href="#arquitectura">Arquitectura</a> &nbsp;|&nbsp; <a href="#despliegue-con-docker-compose">Despliegue</a> &nbsp;|&nbsp; <a href="#desarrollo-local">Desarrollo</a></p>
+
+<br><br>
+
+<img src="docs/img/chat.png" width="900" alt="Chat de Umbral: respuesta con citas a la clase y a la página del PDF, y el apunte adjunto">
+
+<sub>El agente responde con citas clicables a la clase y a la página exacta de las diapositivas, y manda el apunte del tema.</sub>
 
 </div>
 
@@ -24,9 +36,50 @@ ese paso es grande: usuarios, permisos, costos, tareas largas que no pueden
 depender de una pestaña abierta, y un servidor. Umbral es esa capa: toma la
 carpeta del agente tal cual y la sirve como una aplicación web.
 
-<p align="center">
-  <img src="docs/img/login.png" width="720" alt="Pantalla de inicio de Umbral">
-</p>
+El primer agente que corre en Umbral es un asistente de estudio de
+**Procesamiento Digital de Imágenes**.
+
+## Tecnologías
+
+| Capa | Tecnologías |
+|---|---|
+| **Agente** | <img src="https://img.shields.io/badge/Claude%20Agent%20SDK-D97757?style=flat-square&logo=claude&logoColor=white" alt="Claude Agent SDK"> <img src="https://img.shields.io/badge/Claude%20Code-191919?style=flat-square&logo=anthropic&logoColor=white" alt="Claude Code"> <img src="https://img.shields.io/badge/Opus%20%2F%20Sonnet%20%2F%20Haiku-D97757?style=flat-square&logo=anthropic&logoColor=white" alt="Opus / Sonnet / Haiku"> |
+| **Backend** | <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"> <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"> <img src="https://img.shields.io/badge/Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white" alt="Pydantic"> <img src="https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite"> <img src="https://img.shields.io/badge/SSE-475569?style=flat-square&logo=html5&logoColor=white" alt="SSE"> |
+| **Frontend** | <img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React"> <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"> <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite"> <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"> <img src="https://img.shields.io/badge/Framer%20Motion-0055FF?style=flat-square&logo=framer&logoColor=white" alt="Framer Motion"> |
+| **Infraestructura** | <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"> <img src="https://img.shields.io/badge/nginx-009639?style=flat-square&logo=nginx&logoColor=white" alt="nginx"> <img src="https://img.shields.io/badge/Gmail%20SMTP-EA4335?style=flat-square&logo=gmail&logoColor=white" alt="Gmail SMTP"> |
+
+## Un vistazo
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/img/tablero.png" alt="Tablero de costos">
+      <p align="center"><b>Tablero</b><br><sub>Consultas y costo por día, por persona y por modelo, con el gasto en vivo.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/img/auditoria.png" alt="Auditoría de consultas">
+      <p align="center"><b>Auditoría</b><br><sub>Cada pregunta y respuesta, con modelo, tokens, herramientas y lo que costó.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/img/corpus.png" alt="Explorador del corpus">
+      <p align="center"><b>Corpus</b><br><sub>El material del agente por colecciones: lo que el estudiante puede recibir y lo que solo el agente lee.</sub></p>
+    </td>
+    <td width="50%" valign="top" align="center">
+      <img src="docs/img/movil.png" width="190" alt="Umbral en el celular">
+      <p align="center"><b>En el celular</b><br><sub>La misma app, adaptada a pantallas chicas.</sub></p>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><b>Correo de verificación</b> (registro self-service)</summary>
+<br>
+<p align="center"><img src="docs/img/correo-verificacion.png" width="560" alt="Correo de verificación"></p>
+</details>
+
+<sub>Las capturas usan una instancia de demostración: cuentas y material ficticios.</sub>
 
 ## Qué hace
 
@@ -44,10 +97,6 @@ carpeta del agente tal cual y la sirve como una aplicación web.
 - **Gasto en vivo**: cada consulta se registra al empezar y su costo se actualiza mientras corre (estimado calibrado contra el costo real que reporta el agente).
 - **Resiliencia**: reintentos visibles (API, agente y red), "Continuar donde se quedó" tras un fallo, y tareas exclusivas que hacen fila en vez de fallar.
 - Panel de administración: tablero de costos, auditoría de cada consulta, explorador del corpus y laboratorio para probar modelos y prompts.
-
-<p align="center">
-  <img src="docs/img/correo-verificacion.png" width="560" alt="Correo de verificación">
-</p>
 
 ## Arquitectura
 
@@ -130,6 +179,7 @@ Después, desde la app: **Ajustes → Registro público → Configurar correo**
 | `JWT_HORAS` | no | Duración de la sesión (12). |
 | `MOTOR` | no | `sdk` (real) o `prueba` (respuestas fijas, sin gastar). |
 | `VITE_BASE_URL` | no | Subcarpeta del dominio, si la hay (`/`). |
+| `VITE_URL_PUBLICA` | no | Dirección pública (`https://…`), para la vista previa al compartir el enlace. |
 | `CARPETA_CLASES` · `CARPETA_TRANSCRIPCIONES` | no | Dónde están las diapositivas y las transcripciones dentro de la carpeta del agente (`Clases`, `Clases/Transcripciones`). |
 | `CARPETAS_PRIVADAS` | no | Carpetas que el modo Consulta nunca lee, separadas por coma (`Prácticas`). |
 

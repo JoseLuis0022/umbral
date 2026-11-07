@@ -22,7 +22,16 @@ export default defineConfig(({ mode }) => {
      * así que basta con poner la variable en un único lugar.
      */
     base: env.VITE_BASE_URL || '/',
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // Las etiquetas Open Graph de index.html necesitan la URL absoluta del
+        // sitio (WhatsApp y LinkedIn ignoran una imagen con ruta relativa).
+        name: 'url-publica',
+        transformIndexHtml: (html: string) =>
+          html.replaceAll('__URL_PUBLICA__', (env.VITE_URL_PUBLICA || '').replace(/\/$/, '')),
+      },
+    ],
     /*
      * En desarrollo, todo lo que empieza con /api se reenvía al backend
      * (FastAPI en el puerto 8000). Así el navegador cree que front y back son

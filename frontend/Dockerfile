@@ -9,6 +9,9 @@ COPY . .
 # Si la app vive en una subcarpeta del dominio (p. ej. /umbral/), compila con
 # --build-arg VITE_BASE_URL=/umbral/
 ARG VITE_BASE_URL=/
+# URL pública del sitio, para la vista previa al compartir el enlace (og:image).
+ARG VITE_URL_PUBLICA=
+ENV VITE_URL_PUBLICA=${VITE_URL_PUBLICA}
 ENV VITE_BASE_URL=${VITE_BASE_URL}
 RUN npm run build
 
