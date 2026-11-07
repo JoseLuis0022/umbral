@@ -14,8 +14,11 @@ ver planes.py; esto evita la avalancha de cuentas):
   - Una cuenta sin verificar no puede entrar ni gastar.
   - Máximo REGISTROS_POR_IP_DIA cuentas por IP al día.
   - Se rechazan dominios de correo desechable conocidos.
-  - Las respuestas de /registro y /reenviar son iguales exista o no la cuenta:
-    no sirven para averiguar qué correos están registrados.
+  - Una cuenta YA VERIFICADA se avisa tal cual ("ya tienes cuenta, inicia
+    sesión"): sin ese aviso, quien se registra dos veces se queda esperando un
+    correo que nunca llega. Es lo que hace casi cualquier sitio; a cambio, el
+    registro revela que ese correo tiene cuenta (no su contraseña ni sus datos).
+    Para cuentas inexistentes o sin verificar la respuesta sigue siendo la misma.
 
 Login: tras FALLOS_POR_CORREO intentos fallidos contra una cuenta, o
 FALLOS_POR_IP desde una misma red, se responde 429 durante VENTANA_FALLOS_S.
@@ -59,6 +62,7 @@ DOMINIOS_DESECHABLES = {
     "maildrop.cc", "fakeinbox.com", "throwawaymail.com", "mohmal.com", "emailondeck.com", "mintemail.com",
 }
 
+MENSAJE_YA_VERIFICADA = "Este correo ya tiene una cuenta verificada. Inicia sesión con tu contraseña."
 MENSAJE_ENVIADO = "Si el correo es válido, te enviamos un enlace para activar tu cuenta. Revisa también la carpeta de spam."
 
 
@@ -131,7 +135,8 @@ async def registrarse(datos: Registro, request: Request) -> dict[str, str]:
         elif not existente.verificado:
             # Se registró y no confirmó: otro enlace (sin cambiar su contraseña).
             await _mandar_enlace(existente)
-        # Ya verificada: no se hace nada, y la respuesta es la misma.
+        else:
+            raise HTTPException(status.HTTP_409_CONFLICT, MENSAJE_YA_VERIFICADA)
     except correo.FalloEnvio:
         log.exception("No se pudo mandar el correo de verificación a %s", direccion)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "No pudimos enviar el correo de verificación. Intenta en unos minutos.") from None
@@ -155,8 +160,10 @@ def verificar_correo(datos: TokenVerificacion) -> SesionIniciada:
 
 
 @router.post("/reenviar", status_code=status.HTTP_202_ACCEPTED)
-async def reenviar(datos: SoloCorreo) -> dict[str, str]:
+async def reenviar(datos: SoloCorreo) -> dict[str, str | bool]:
     usuario = db.usuario_por_correo(datos.correo.strip().lower())
+    if usuario and usuario.verificado:
+        return {"mensaje": MENSAJE_YA_VERIFICADA, "verificada": True}
     if usuario and not usuario.verificado and correo.leer_config().listo:
         ultima = db.ultima_verificacion(usuario.id)
         if ultima is None or (datetime.now(timezone.utc) - ultima).total_seconds() >= SEGUNDOS_ENTRE_REENVIOS:

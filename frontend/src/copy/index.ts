@@ -56,6 +56,7 @@ export const registro = {
   reenviar: 'Reenviar el enlace',
   reenviarEn: (s: number) => `Reenviar en ${s} s`,
   reenviado: 'Te mandamos otro enlace.',
+  irAEntrar: 'Ir a iniciar sesión →',
   volver: 'Volver a iniciar sesión',
   invitadoNota: 'Las cuentas nuevas usan Claude Haiku con un crédito de prueba de US$0.30.',
   verificando: 'Confirmando tu correo…',

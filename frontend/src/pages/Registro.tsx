@@ -29,6 +29,8 @@ export default function Registro() {
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
   const [espera, setEspera] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
+  // El correo ya tenía una cuenta activa: no hay enlace que esperar, toca entrar.
+  const [yaVerificada, setYaVerificada] = useState(false);
   const reducido = useReducedMotion();
   const sacudir = useAnimation();
 
@@ -50,11 +52,13 @@ export default function Registro() {
       return;
     }
     setCargando(true);
+    setYaVerificada(false);
     try {
       await authService.registrarse(nombre, correo, contrasena);
       setEnviadoA(correo.trim().toLowerCase());
       setEspera(ESPERA_REENVIO_S);
     } catch (fallo) {
+      setYaVerificada(fallo instanceof ErrorApi && fallo.estado === 409);
       setErrores({ general: fallo instanceof ErrorApi ? fallo.message : copy.errorServidor });
       if (!reducido) void sacudir.start({ x: [0, -8, 8, -8, 8, 0], transition: { duration: dur.slow, ease } });
     } finally {
@@ -66,8 +70,9 @@ export default function Registro() {
     if (!enviadoA || espera > 0) return;
     setEspera(ESPERA_REENVIO_S);
     try {
-      await authService.reenviarEnlace(enviadoA);
-      setAviso(copy.reenviado);
+      const r = await authService.reenviarEnlace(enviadoA);
+      setYaVerificada(r.verificada);
+      setAviso(r.verificada ? r.mensaje : copy.reenviado);
     } catch (fallo) {
       setAviso(fallo instanceof ErrorApi ? fallo.message : copy.errorServidor);
     }
@@ -105,6 +110,11 @@ export default function Registro() {
                   {espera > 0 ? copy.reenviarEn(espera) : copy.reenviar}
                 </Button>
                 {aviso && <p className="mt-3 font-ui text-13 text-text-2">{aviso}</p>}
+                {yaVerificada && (
+                  <Link to="/login" className="mt-2 font-ui text-14 font-medium text-accent-fg hover:underline">
+                    {copy.irAEntrar}
+                  </Link>
+                )}
                 <Link to="/login" className="mt-5 font-ui text-13 font-medium text-accent-fg hover:underline">
                   {copy.volver}
                 </Link>
@@ -139,8 +149,13 @@ export default function Registro() {
                     />
                   </Field>
                   {errores.general && (
-                    <p role="alert" className="font-ui text-13 text-status-red">
-                      {errores.general}
+                    <p role="alert" className={yaVerificada ? 'font-ui text-13 text-text-2' : 'font-ui text-13 text-status-red'}>
+                      {errores.general}{' '}
+                      {yaVerificada && (
+                        <Link to="/login" className="font-medium text-accent-fg hover:underline">
+                          {copy.irAEntrar}
+                        </Link>
+                      )}
                     </p>
                   )}
                   <Button type="submit" className="w-full" loading={cargando}>

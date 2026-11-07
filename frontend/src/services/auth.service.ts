@@ -42,7 +42,8 @@ export const authService = {
 
   /**
    * Registro público: crea la cuenta (sin verificar) y el servidor manda el
-   * correo con el enlace. La respuesta es la misma exista o no el correo.
+   * correo con el enlace. Si el correo ya tiene una cuenta verificada responde
+   * 409 (ErrorApi con estado 409): la pantalla manda a iniciar sesión.
    */
   async registrarse(nombre: string, correo: string, contrasena: string): Promise<string> {
     const r = await pedirJson<{ mensaje: string }>(
@@ -63,13 +64,14 @@ export const authService = {
     return guardarSesion(respuesta);
   },
 
-  async reenviarEnlace(correo: string): Promise<string> {
-    const r = await pedirJson<{ mensaje: string }>(
+  /** `verificada`: la cuenta ya estaba activa (no se mandó nada; toca iniciar sesión). */
+  async reenviarEnlace(correo: string): Promise<{ mensaje: string; verificada: boolean }> {
+    const r = await pedirJson<{ mensaje: string; verificada?: boolean }>(
       '/auth/reenviar',
       { method: 'POST', json: { correo: correo.trim() } },
       copyRegistro.errorServidor
     );
-    return r.mensaje;
+    return { mensaje: r.mensaje, verificada: r.verificada === true };
   },
 
   /**
