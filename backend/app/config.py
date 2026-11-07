@@ -36,6 +36,15 @@ class Ajustes(BaseSettings):
     # El `cwd` del agente: la copia completa del agente de Imágenes.
     agente_cwd: Path = RAIZ_BACKEND.parent / "agente-imagenes"
 
+    # Cómo se llaman las carpetas del material DENTRO de la carpeta del agente
+    # (relativas a ella). Cada curso las nombra a su manera; el código no
+    # asume nombres de nadie. Ver también `<agente>/.umbral/prompts/`.
+    carpeta_clases: str = "Clases"  # diapositivas en PDF (con subcarpetas)
+    carpeta_transcripciones: str = "Clases/Transcripciones"  # "Clase N - <fecha>.txt"
+    # Material que NINGÚN perfil de consulta puede leer (p. ej. entregas
+    # calificadas). Separadas por coma.
+    carpetas_privadas: str = "Prácticas"
+
     db_ruta: Path = RAIZ_BACKEND / "lab.db"
 
     # Directorio de configuración PROPIO del subproceso `claude`. Sin esto, el

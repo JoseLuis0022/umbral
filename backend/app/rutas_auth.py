@@ -16,12 +16,18 @@ ver planes.py; esto evita la avalancha de cuentas):
   - Se rechazan dominios de correo desechable conocidos.
   - Las respuestas de /registro y /reenviar son iguales exista o no la cuenta:
     no sirven para averiguar qué correos están registrados.
+
+Login: tras FALLOS_POR_CORREO intentos fallidos contra una cuenta, o
+FALLOS_POR_IP desde una misma red, se responde 429 durante VENTANA_FALLOS_S.
+Así adivinar contraseñas por fuerza bruta deja de ser práctico.
 """
 
 import hashlib
 import logging
 import re
 import secrets
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -38,6 +44,13 @@ HORAS_VALIDEZ_ENLACE = 24
 SEGUNDOS_ENTRE_REENVIOS = 60
 REGISTROS_POR_IP_DIA = 3
 
+FALLOS_POR_CORREO = 5
+FALLOS_POR_IP = 20
+VENTANA_FALLOS_S = 15 * 60
+# En memoria: el backend corre en un solo proceso (ver trabajos.py). Un
+# reinicio borra la cuenta de fallos, lo cual es aceptable para este tope.
+_fallos: defaultdict[str, deque[float]] = defaultdict(deque)
+
 _RX_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
 # Los más comunes; no pretende ser exhaustiva (el tope mensual es la defensa real).
 DOMINIOS_DESECHABLES = {
@@ -52,6 +65,35 @@ MENSAJE_ENVIADO = "Si el correo es válido, te enviamos un enlace para activar t
 def _ip(request: Request) -> str:
     # Detrás de Cloudflare la IP real viene en CF-Connecting-IP.
     return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "desconocida")
+
+
+def _recientes(llave: str, ahora: float) -> deque[float]:
+    marcas = _fallos[llave]
+    while marcas and ahora - marcas[0] > VENTANA_FALLOS_S:
+        marcas.popleft()
+    if not marcas:
+        _fallos.pop(llave, None)  # que el dict no crezca con llaves viejas
+        return deque()
+    return marcas
+
+
+def _frenar_si_abusa(ip: str, direccion: str) -> None:
+    ahora = time.monotonic()
+    for llave, tope in ((f"ip:{ip}", FALLOS_POR_IP), (f"correo:{direccion}", FALLOS_POR_CORREO)):
+        marcas = _recientes(llave, ahora)
+        if len(marcas) >= tope:
+            espera = int(VENTANA_FALLOS_S - (ahora - marcas[0])) + 1
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                f"Demasiados intentos fallidos. Espera {max(1, round(espera / 60))} min e intenta de nuevo.",
+                headers={"Retry-After": str(espera)},
+            )
+
+
+def _anotar_fallo(ip: str, direccion: str) -> None:
+    ahora = time.monotonic()
+    _fallos[f"ip:{ip}"].append(ahora)
+    _fallos[f"correo:{direccion}"].append(ahora)
 
 
 def _hash_token(token: str) -> str:
@@ -126,13 +168,18 @@ async def reenviar(datos: SoloCorreo) -> dict[str, str]:
 
 
 @router.post("/login", response_model=SesionIniciada)
-def iniciar_sesion(credenciales: Credenciales) -> SesionIniciada:
-    usuario = db.usuario_por_correo(credenciales.correo.strip().lower())
+def iniciar_sesion(credenciales: Credenciales, request: Request) -> SesionIniciada:
+    direccion = credenciales.correo.strip().lower()
+    ip = _ip(request)
+    _frenar_si_abusa(ip, direccion)
+    usuario = db.usuario_por_correo(direccion)
     # Se verifica SIEMPRE (contra un hash señuelo si el correo no existe), y el
     # mensaje es el mismo en los dos casos: ni por el tiempo ni por el texto se
     # puede saber qué correos tienen cuenta.
     valida = verificar(usuario.hash if usuario else None, credenciales.contrasena)
     if usuario is None or not valida:
+        _anotar_fallo(ip, direccion)
+        log.info("login fallido · %s · ip %s", direccion, ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Correo o contraseña incorrectos.")
     # Solo DESPUÉS de comprobar la contraseña se dice que falta verificar: así
     # este aviso no delata qué correos se registraron.
@@ -140,6 +187,7 @@ def iniciar_sesion(credenciales: Credenciales) -> SesionIniciada:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "Confirma tu correo antes de entrar: abre el enlace que te enviamos (revisa el spam)."
         )
+    _fallos.pop(f"correo:{direccion}", None)
     return SesionIniciada(token=emitir_token(usuario), **publico(usuario).model_dump())
 
 

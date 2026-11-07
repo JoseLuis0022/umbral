@@ -3,8 +3,8 @@
 # Laboratorio de agentes
 
 Cómo pasa un agente de Claude Code en una laptop a una app web multiusuario.
-El agente es el de los apuntes de **Procesamiento Digital de Imágenes**
-(profesor, Aurora, otoño 2026).
+El agente de ejemplo es un asistente de estudio para una materia de
+**Procesamiento Digital de Imágenes**.
 
 ```
 Agente Prod/
@@ -35,9 +35,8 @@ Los **modos** del agente son datos, no `if`: ver `backend/app/perfiles.py`.
 **Una vez:**
 
 ```bash
-# Datos: copia del agente sin videos (desde OneDrive)
-rsync -a --exclude '*.mp4' --exclude .DS_Store \
-  "/ruta/a/tu/agente/" agente-imagenes/
+# Datos: copia de la carpeta de tu agente, sin videos
+rsync -a --exclude '*.mp4' --exclude .DS_Store "/ruta/a/tu/agente/" agente-imagenes/
 
 # Backend
 cd backend

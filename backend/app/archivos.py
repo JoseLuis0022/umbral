@@ -13,8 +13,8 @@ Dos piezas, una por capa:
   control: la descarga vuelve a pasar por la lista blanca.
 
 Qué se puede compartir lo decide `corpus.COLECCIONES` (las marcadas
-`compartible`: apuntes, diapositivas y transcripciones). Las prácticas del
-equipo y los archivos internos del agente (estado/) nunca salen, aunque el
+`compartible`: apuntes, diapositivas y transcripciones). Las entregas
+privadas y los archivos internos del agente (estado/) nunca salen, aunque el
 modelo lo intente: la regla vive en código, no en el prompt.
 """
 

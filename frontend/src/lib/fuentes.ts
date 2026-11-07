@@ -7,7 +7,7 @@ import type { ArchivoCompartido } from '../types';
  * backend/app/prompts/consulta.md):
  *
  *     [Clase 12](<fuente:Clases/Transcripciones/Clase 12 - ….txt> "frase exacta")
- *     [Morfología, p. 12](<fuente:Clases/Morfología  Otoño 2026.pdf#page=12>)
+ *     [Morfología, p. 12](<fuente:Clases/Morfología.pdf#page=12>)
  *
  * Los `<…>` son obligatorios: las rutas llevan espacios y sin ellos el markdown
  * no reconoce el enlace. El título (entre comillas) es un fragmento textual del

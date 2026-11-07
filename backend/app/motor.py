@@ -337,7 +337,7 @@ def construir_opciones(
 _RX_CLASE = re.compile(r"inventario/clase-0*(\d+)\.md$")
 _RX_PRACTICA = re.compile(r"inventario/practica-(\d+)\.md$")
 _RX_TEMA = re.compile(r"^Apuntes/Tema 0*(\d+)")
-_RX_GRABACION = re.compile(r"Transcripciones/Clase (\d+)")
+_RX_GRABACION = re.compile(re.escape(ajustes.carpeta_transcripciones) + r"/Clase (\d+)")
 
 
 def describir(herramienta: str, entrada: dict[str, Any], cwd: Path, nombre: str) -> str:

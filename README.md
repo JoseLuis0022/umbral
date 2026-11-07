@@ -130,6 +130,16 @@ Después, desde la app: **Ajustes → Registro público → Configurar correo**
 | `JWT_HORAS` | no | Duración de la sesión (12). |
 | `MOTOR` | no | `sdk` (real) o `prueba` (respuestas fijas, sin gastar). |
 | `VITE_BASE_URL` | no | Subcarpeta del dominio, si la hay (`/`). |
+| `CARPETA_CLASES` · `CARPETA_TRANSCRIPCIONES` | no | Dónde están las diapositivas y las transcripciones dentro de la carpeta del agente (`Clases`, `Clases/Transcripciones`). |
+| `CARPETAS_PRIVADAS` | no | Carpetas que el modo Consulta nunca lee, separadas por coma (`Prácticas`). |
+
+### Adaptarlo a tu curso
+
+El prompt del modo Consulta que trae el repo es genérico. Para darle el nombre
+de tu materia y sus reglas (qué se puede resolver, qué no), crea
+`.umbral/prompts/consulta.md` dentro de la carpeta del agente: gana sobre el
+genérico, vive con tu material y no se publica con el código. El modo Consulta
+no puede leer esa carpeta.
 
 ## Desarrollo local
 
@@ -156,6 +166,7 @@ frontend: `npm run typecheck`.
 - **La identidad sale del token, nunca del cuerpo**; el rol se lee de la base en cada petición.
 - **El modo Consulta no puede leer fuera de la carpeta del agente**: un hook revisa cada llamada a herramienta (rutas absolutas, `../`, patrones de búsqueda).
 - Las cuentas del registro **no entran sin verificar** el correo; los enlaces son de un solo uso y se guardan como hash; límite de cuentas por IP y correos desechables rechazados.
+- **Límite de intentos en el inicio de sesión**: tras 5 fallos contra una cuenta (o 20 desde una red) se bloquea 15 minutos.
 - La contraseña de aplicación de Gmail se guarda **cifrada** y nunca sale de la API.
 - Cada consulta tiene un tope de gasto que corta el propio agente; los invitados, además, su crédito y el tope mensual global.
 - El backend corre sin root y solo es accesible a través de nginx.
@@ -188,11 +199,11 @@ umbral/
 ## Hoja de ruta
 
 - Sesión en cookie `httpOnly` en lugar de `localStorage`.
-- Límite de intentos en el inicio de sesión y recuperación de contraseña.
+- Recuperación de contraseña.
 - Sandbox del sistema operativo para el modo Generador (Bash).
 - Búsqueda semántica (embeddings) como herramienta del agente, comparada contra la búsqueda agéntica con un banco de evaluaciones.
 - Observabilidad con OpenTelemetry.
 
 ---
 
-<sub>Hecho por José Luis Macedo Escamilla.</sub>
+<sub>Hecho por José Luis Macedo Escamilla · Licencia [MIT](LICENSE). La fuente Google Sans se distribuye bajo la [SIL Open Font License 1.1](frontend/src/assets/fuentes/OFL.txt).</sub>

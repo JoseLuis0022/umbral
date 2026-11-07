@@ -1,5 +1,5 @@
-# Datos: copia del agente de Imágenes desde OneDrive (PDFs, entregas del equipo,
-# transcripciones con nombres de compañeros). Son datos, no código: no van al repo.
+# La carpeta del agente: material del curso y su prompt propio (.umbral/).
+# Son datos, no código: no van al repo.
 /agente-imagenes/
 
 # Producción (Docker Compose): secretos y la carpeta del agente montada.
@@ -24,3 +24,9 @@ frontend/.env.local
 
 # Artefactos de pruebas con Playwright
 .playwright-cli/
+
+# Archivos personales que viven junto al proyecto: nunca al repo.
+APP_Password.txt
+*password*.txt
+/Agente Wh/
+/Respaldo*/

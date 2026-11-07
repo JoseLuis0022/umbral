@@ -12,7 +12,13 @@ perfil que pidió?". La capa 3 nunca sabe qué es un rol: solo recibe un Perfil.
 from dataclasses import dataclass
 from pathlib import Path
 
+from .config import ajustes
+
 DIR_PROMPTS = Path(__file__).parent / "prompts"
+# Prompts propios de un curso: viven con el material, en la carpeta del agente
+# (que no está en el repo), y ganan sobre los genéricos de DIR_PROMPTS. Así las
+# reglas y nombres de una materia concreta nunca se publican con el código.
+DIR_PROMPTS_AGENTE = Path(".umbral") / "prompts"
 
 
 @dataclass(frozen=True)
@@ -53,9 +59,9 @@ PERFILES: dict[str, Perfil] = {
         cargar_proyecto=False,
         max_vueltas=12,
         presupuesto_usd=0.75,
-        # La carpeta ya no está en el corpus publicado (tenía nombres del equipo);
-        # el bloqueo se queda por si alguien la vuelve a copiar.
-        rutas_bloqueadas=("Prácticas",),
+        # Entregas calificadas (aunque se copien a la carpeta) y la configuración
+        # del curso (.umbral: sus prompts no son material para el estudiante).
+        rutas_bloqueadas=(".umbral", *(c.strip() for c in ajustes.carpetas_privadas.split(",") if c.strip())),
         # Sonnet: en las pruebas costó ~3× menos que Opus por pregunta
         # ($0.035 contra $0.11) con respuestas de buena calidad para consulta.
         modelo="claude-sonnet-5-5",
@@ -128,7 +134,9 @@ def tiene_permiso(nombre_rol: str, permiso: str) -> bool:
 def leer_prompt(perfil: Perfil) -> str | None:
     if perfil.prompt is None:
         return None
-    return (DIR_PROMPTS / perfil.prompt).read_text(encoding="utf-8")
+    propio = ajustes.agente_cwd / DIR_PROMPTS_AGENTE / perfil.prompt
+    archivo = propio if propio.is_file() else DIR_PROMPTS / perfil.prompt
+    return archivo.read_text(encoding="utf-8")
 
 
 # Rol con el que nace una cuenta del registro público.
