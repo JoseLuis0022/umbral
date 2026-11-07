@@ -30,3 +30,6 @@ APP_Password.txt
 *password*.txt
 /Agente Wh/
 /Respaldo*/
+
+# Estado local del CLI de Cloudflare (cf)
+.cloudflare/
