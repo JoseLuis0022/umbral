@@ -19,6 +19,7 @@ import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { Skeleton, StatusPill } from '../../ui';
 import type { ColeccionCorpus } from '../../../services/corpus.service';
 import { corpus as copy } from '../../../copy';
+import { usePrimeraVez } from '../../../lib/memoria';
 
 /**
  * Portada del Corpus: las carpetas del agente como tarjetas, agrupadas por lo
@@ -96,13 +97,14 @@ const TarjetaCarpeta = memo(function TarjetaCarpeta({
   onAbrir: (id: string) => void;
 }) {
   const reducido = useReducedMotion();
+  const primera = usePrimeraVez('corpus-carpetas');
   const Icono = grupo.tono === 'riesgo' ? Lock : (ICONO_COLECCION[coleccion.id] ?? Folder);
   const total = coleccion.archivos.reduce((n, a) => n + a.tamanoBytes, 0);
   const ultima = coleccion.archivos.reduce<string | null>((m, a) => (!m || a.modificado > m ? a.modificado : m), null);
 
   return (
     <motion.li
-      initial={reducido ? false : { opacity: 0, y: 10, scale: 0.98 }}
+      initial={reducido || !primera ? false : { opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.04 * orden }}
     >

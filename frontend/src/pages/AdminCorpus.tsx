@@ -17,6 +17,8 @@ import { cn } from '../lib/cn';
 import { springSnappy } from '../lib/motion';
 import { listarColecciones, type ArchivoCorpus, type ColeccionCorpus } from '../services/corpus.service';
 import { corpus as copy } from '../copy';
+import { recordar, recuerdo } from '../lib/memoria';
+import { igualProfundo } from '../lib/igual';
 
 /** Clave propia de esta pantalla: plegar aquí no pliega Auditoría ni el Laboratorio. */
 const CLAVE_PLEGADO = 'panel-plegado:corpus';
@@ -44,8 +46,10 @@ const normalizar = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
  * agente procesó.
  */
 export default function AdminCorpus() {
-  const [colecciones, setColecciones] = useState<ColeccionCorpus[]>([]);
-  const [estado, setEstado] = useState<EstadoCarga>('cargando');
+  // Arranca con lo último que se vio (memoria de la sesión): volver a Corpus
+  // no pasa por vacío → esqueleto → contenido, que era el parpadeo.
+  const [colecciones, setColecciones] = useState<ColeccionCorpus[]>(() => recuerdo<ColeccionCorpus[]>('corpus') ?? []);
+  const [estado, setEstado] = useState<EstadoCarga>(() => (recuerdo('corpus') ? 'listo' : 'cargando'));
   const [intento, setIntento] = useState(0);
   const [params, setParams] = useSearchParams();
   const coleccionId = params.get('c') ?? '';
@@ -55,11 +59,13 @@ export default function AdminCorpus() {
 
   useEffect(() => {
     let vigente = true;
-    setEstado('cargando');
+    if (!recuerdo('corpus')) setEstado('cargando');
     listarColecciones()
       .then((lista) => {
         if (!vigente) return;
-        setColecciones(lista);
+        recordar('corpus', lista);
+        // Igual a lo que ya se pinta: el mismo objeto, y React no repinta nada.
+        setColecciones((previas) => (igualProfundo(previas, lista) ? previas : lista));
         setEstado('listo');
       })
       .catch(() => {

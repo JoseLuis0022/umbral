@@ -6,6 +6,7 @@ import { useReducedMotion } from '../../../lib/useReducedMotion';
 import { tablero as copy } from '../../../copy';
 import { formatoEntero, formatoUsd } from '../laboratorio/formato';
 import type { ResumenDia } from '../../../services/auditoria.service';
+import { usePrimeraVez } from '../../../lib/memoria';
 
 const ALTO = 220;
 
@@ -21,6 +22,7 @@ const etiquetaDia = (dia: string) => FECHA_DIA.format(new Date(`${dia}T00:00:00Z
  * inventaría valores entre un día y otro.
  */
 export function GraficaCostoDia({ serie }: { serie: ResumenDia[] }) {
+  const primera = usePrimeraVez('grafica-costo-dia');
   const reducido = useReducedMotion();
   const [activo, setActivo] = useState<number | null>(null);
   const maximo = Math.max(...serie.map((d) => d.costoUsd), 0);
@@ -65,7 +67,8 @@ export function GraficaCostoDia({ serie }: { serie: ResumenDia[] }) {
                   activo === i ? 'bg-accent' : d.consultas > 0 ? 'bg-accent opacity-50' : 'bg-hairline'
                 )}
                 style={{ height: d.consultas > 0 ? `${Math.max(proporcion * 100, 2)}%` : 2 }}
-                initial={reducido ? false : { scaleY: 0 }}
+                // Crecen solo la primera vez en la sesión; al volver al tablero ya están.
+                initial={reducido || !primera ? false : { scaleY: 0 }}
                 animate={{ scaleY: 1 }}
                 transition={spring}
               />

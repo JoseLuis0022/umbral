@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { PanelLeft, PanelLeftClose, PanelRight, PanelRightClose } from 'lucide-react';
 import { cn } from '../../lib/cn';
@@ -114,6 +114,7 @@ export function PanelPlegable({
   children: ReactNode;
 }) {
   const reducido = useReducedMotion();
+  const tocado = useRef(false);
   const escritorio = usarConsultaMedia(CONSULTA_ESCRITORIO);
   const ancha = usarConsultaMedia(CONSULTA_ANCHA);
   const [plegado, setPlegado] = useLocalStorage<boolean>(clave, false);
@@ -189,14 +190,19 @@ export function PanelPlegable({
             aria-label={etiquetaBoton}
             aria-expanded={!plegado}
             aria-controls={idContenido}
-            onClick={() => setPlegado(!plegado)}
+            onClick={() => {
+              tocado.current = true;
+              setPlegado(!plegado);
+            }}
           >
             <motion.span
               // El icono no salta: se cruza consigo mismo con un giro corto, el
               // mismo feedback de microinteracción que dan los demás controles
               // del sistema. Con movimiento reducido, solo el cruce.
               key={plegado ? 'plegado' : 'abierto'}
-              initial={reducido ? { opacity: 0 } : { opacity: 0, rotate: esIzquierda ? -20 : 20 }}
+              // Solo después de tocarlo: al montar la pantalla el ícono ya está
+              // en su sitio (si giraba al entrar, era parpadeo, no respuesta).
+              initial={!tocado.current ? false : reducido ? { opacity: 0 } : { opacity: 0, rotate: esIzquierda ? -20 : 20 }}
               animate={{ opacity: 1, rotate: 0 }}
               transition={reducido ? { duration: dur.fast, ease } : springSnappy}
               className="flex items-center justify-center"

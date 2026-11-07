@@ -1,22 +1,13 @@
 import { Children, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
-import { screenEnter, screenEnterReducido } from '../../lib/motion';
-import { useReducedMotion } from '../../lib/useReducedMotion';
 
 /**
- * Coreografía de entrada de pantalla: envuelve los bloques de nivel superior
- * de CUALQUIER pantalla (encabezado, filtros, tabla, tarjetas) para que entren
- * en cascada de 40 ms en vez de aparecer todos de golpe.
- *
- * `initial`/`animate` van explícitos en CADA hijo en lugar de depender de la
- * propagación de variants desde el padre: la propagación por contexto dejaba
- * el contenido atascado en estado "hidden" de forma intermitente.
+ * Contenedor de los bloques de nivel superior de una pantalla (encabezado,
+ * filtros, tabla, tarjetas). Antes los hacía entrar en cascada; ya no anima
+ * (ver la nota del render): la pantalla aparece completa en un cuadro.
  *
  * Uso: <PageEnter><PageHeader/><Banner/><DataTable/></PageEnter>
  */
 export function PageEnter({ children, className }: { children?: ReactNode; className?: string }) {
-  const reducido = useReducedMotion();
-
   /*
    * `Children.toArray` y no `Children.map`, y esto arregla un fallo visual de
    * los feos.
@@ -38,18 +29,12 @@ export function PageEnter({ children, className }: { children?: ReactNode; class
   return (
     <div className={className}>
       {bloques.map((child, i) => (
-        <motion.div
-          key={i}
-          custom={i}
-          initial="hidden"
-          animate="visible"
-          // Con movimiento reducido la cascada se conserva —sigue explicando el
-          // orden de lectura— pero sin desplazamiento: solo opacidad. Esta era
-          // la animación más grande de la app que ignoraba la preferencia.
-          variants={reducido ? screenEnterReducido : screenEnter}
-        >
-          {child}
-        </motion.div>
+        // Sin cascada de entrada: la pantalla aparece completa en el mismo
+        // cuadro. La cascada se repetía en cada visita y se sumaba a las demás
+        // apariciones (era una de las "olas" del parpadeo al navegar). Se
+        // conserva el envoltorio por bloque porque varias pantallas lo usan
+        // para repartir el alto (`[&>*:last-child]:flex-1`).
+        <div key={i}>{child}</div>
       ))}
     </div>
   );

@@ -6,6 +6,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { chat as copy } from '../../copy';
 import { copyLocal } from './copyLocal';
 import { cn } from '../../lib/cn';
+import { usePrimeraVez } from '../../lib/memoria';
 
 /** Cuántas sugerencias se muestran. Fijas: un objetivo de clic no rota. */
 const SUGERENCIAS = 4;
@@ -35,11 +36,15 @@ export const EstadoVacio = memo(function EstadoVacio({
   composer?: ReactNode;
 }) {
   const reducido = useReducedMotion();
+  // Las apariciones solo la primera vez en la sesión: volver a Inicio desde
+  // otra pantalla no debe hacer parpadear el título ni las sugerencias.
+  const primera = usePrimeraVez('estado-vacio');
+  const animarEntrada = primera && !reducido;
   const sugerencias = copy.chips.slice(0, SUGERENCIAS);
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={animarEntrada ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: dur.reveal, ease }}
       className={cn('flex w-full flex-col text-left', !composer && 'h-full justify-center px-4 py-10')}
@@ -57,7 +62,7 @@ export const EstadoVacio = memo(function EstadoVacio({
           {sugerencias.map((chip, i) => (
             <motion.li
               key={chip}
-              initial={reducido ? false : { opacity: 0, y: 8 }}
+              initial={animarEntrada ? { opacity: 0, y: 8 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={reducido ? { duration: 0 } : { ...springRebote, delay: 0.12 + i * 0.05 }}
             >

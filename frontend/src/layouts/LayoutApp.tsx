@@ -1,9 +1,8 @@
-import { forwardRef, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType, useOutlet } from 'react-router-dom';
-import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Loader2, SquarePen, Settings } from 'lucide-react';
 import { cn } from '../lib/cn';
-import { pageTransitionVariants } from '../lib/routeTransition';
 import { MarcaProducto } from '../components/brand/Logo';
 import { MenuUsuario } from '../components/shell/MenuUsuario';
 import { NavAdmin } from '../components/shell/NavAdmin';
@@ -160,20 +159,20 @@ export function LayoutApp() {
           layoutScroll
           className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
         >
-          {/* `mode="wait"` y no "popLayout": este <main> ES el contenedor de
-              scroll de la aplicación. Con "popLayout" la pantalla saliente
-              convive con la entrante y, aunque quede en posición absoluta,
-              sigue contando para el `scrollHeight` del contenedor — así que
-              venir de una pantalla larga (el tablero) dejaba cientos de píxeles
-              de scroll vacío en la siguiente. Esperando a que salga, en el
-              <main> nunca hay más de una pantalla y el alto no puede mentir. */}
-          <AnimatePresence mode="wait" initial={false}>
-            <TransicionPagina key={location.pathname}>
-              {/* Un límite por pantalla, con `key` = ruta: si una pantalla falla,
-                  la cabecera sigue viva y navegar a otra la reinicia limpia. */}
-              <LimiteError key={location.pathname}>{contenidoRuta}</LimiteError>
-            </TransicionPagina>
-          </AnimatePresence>
+          {/* SIN transición entre pantallas, a propósito. Con la salida de
+              100 ms + entrada de 220 ms (AnimatePresence mode="wait"), al
+              navegar había unos cuadros con el <main> casi vacío entre una
+              pantalla y otra, y luego cada pantalla volvía a aparecer por
+              capas: medido cuadro por cuadro, Tablero → Corpus daba 5 olas de
+              opacidad y Tablero → Inicio 6. Eso era el parpadeo que se veía en
+              Brave. Ahora la pantalla nueva sustituye a la vieja en el mismo
+              cuadro, como las pestañas de una app nativa; el movimiento queda
+              para lo que responde a la persona (presionar, pasar el cursor). */}
+          <div className="mx-auto flex h-full max-w-[1400px] flex-col px-4 py-5 lg:px-8 lg:py-6">
+            {/* Un límite por pantalla, con `key` = ruta: si una pantalla falla,
+                la cabecera sigue viva y navegar a otra la reinicia limpia. */}
+            <LimiteError key={location.pathname}>{contenidoRuta}</LimiteError>
+          </div>
         </motion.main>
       )}
     </div>
@@ -195,40 +194,3 @@ function EnlaceNav({ to, children }: { to: string; children: ReactNode }) {
     </NavLink>
   );
 }
-
-// forwardRef es obligatorio: AnimatePresence necesita el nodo real para saber
-// cuándo termina de salir. Sin él, Framer Motion falla en silencio y la
-// pantalla entrante no llega a montarse.
-const TransicionPagina = forwardRef<HTMLDivElement, { children?: ReactNode }>(
-  function TransicionPagina({ children }, ref) {
-    const isPresent = useIsPresent();
-    return (
-      <motion.div
-        ref={ref}
-        variants={pageTransitionVariants}
-        initial="enter"
-        animate="center"
-        /*
-         * La SALIDA es un tween de 100 ms (va en las variantes).
-         *
-         * Con `mode="wait"` las dos fases van en serie, así que la salida se
-         * paga entera antes de ver nada nuevo; una salida no necesita física
-         * —nadie está mirando lo que se va—. Lo que tiene que sentirse vivo es
-         * lo que llega: 220 ms subiendo 6 px.
-         */
-        exit="exit"
-        style={{ pointerEvents: isPresent ? 'auto' : 'none' }}
-        /*
-         * `h-full` + padding: el envoltorio ocupa exactamente el alto que le
-         * da el <main>, y las pantallas que quieren pantalla completa piden
-         * `h-full` en vez de calcular `100dvh` menos números mágicos. Ese
-         * cálculo a mano es lo que se rompía en cuanto la barra cambiaba de
-         * altura, y ahora la barra tiene dos.
-         */
-        className="mx-auto flex h-full max-w-[1400px] flex-col px-4 py-5 lg:px-8 lg:py-6"
-      >
-        {children}
-      </motion.div>
-    );
-  }
-);

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { spring, springRebote } from '../../lib/motion';
+import { usePrimeraVez } from '../../lib/memoria';
 
 export function Card({
   className,
@@ -50,12 +51,15 @@ export function KpiCard({
   active?: boolean;
 }) {
   const Comp = onClick ? motion.button : motion.div;
+  // Rebote de entrada solo la primera vez en la sesión: al volver al tablero
+  // las tarjetas ya están, no vuelven a aparecer.
+  const primera = usePrimeraVez('kpi');
   return (
     <Comp
       onClick={onClick}
       // Entra con un rebote corto, y la cifra cuenta hasta su valor
       // (AnimatedNumber): el tablero se siente vivo al abrirlo.
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      initial={primera ? { opacity: 0, y: 10, scale: 0.97 } : false}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       whileTap={onClick ? { scale: 0.97 } : undefined}
       transition={springRebote}
