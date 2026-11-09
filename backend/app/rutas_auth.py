@@ -4,9 +4,20 @@ Registro (self-service):
 
     POST /registro  {nombre, correo, contrasena}
         → crea la cuenta SIN verificar (rol invitado) y manda un correo con
-          un enlace de un solo uso: {url_publica}/verificar?token=…
+          un enlace ({url_publica}/verificar?token=…) y un código de 6 dígitos
     POST /verificar {token}  → activa la cuenta y entra (devuelve la sesión)
-    POST /reenviar  {correo} → otro enlace (como mucho uno por minuto)
+    POST /verificar-codigo {correo, codigo} → lo mismo, escribiendo el código
+          (sirve si el correo se abre en el teléfono y el registro en la compu)
+    POST /reenviar  {correo} → otro enlace y código (como mucho uno por minuto)
+
+Reabrir un enlace ya usado NO es un error: responde `verificada` sin sesión.
+Los lectores de enlaces de Gmail (y las apps de correo que precargan) abren el
+enlace antes que la persona; antes eso le mostraba "el enlace ya se usó" con
+la cuenta ya activa (visto en los registros de producción, nov 2026).
+
+El código: hasta MAX_INTENTOS_CODIGO fallos por correo enviado, y además el
+freno de fallos por correo/IP del login; con 6 dígitos eso deja la adivinanza
+muy por debajo de una probabilidad práctica.
 
 Defensas contra el abuso (el gasto real lo acota el tope mensual de invitados,
 ver planes.py; esto evita la avalancha de cuentas):
@@ -26,6 +37,7 @@ Así adivinar contraseñas por fuerza bruta deja de ser práctico.
 """
 
 import hashlib
+import hmac
 import logging
 import re
 import secrets
@@ -36,7 +48,17 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from . import correo, db
-from .esquemas import Credenciales, Registro, SesionIniciada, SoloCorreo, TokenVerificacion, Yo, publico
+from .esquemas import (
+    CodigoVerificacion,
+    Credenciales,
+    Registro,
+    ResultadoVerificacion,
+    SesionIniciada,
+    SoloCorreo,
+    TokenVerificacion,
+    Yo,
+    publico,
+)
 from .perfiles import ROL_REGISTRO
 from .seguridad import emitir_token, hashear, usuario_actual, verificar
 
@@ -45,6 +67,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 HORAS_VALIDEZ_ENLACE = 24
 SEGUNDOS_ENTRE_REENVIOS = 60
+MAX_INTENTOS_CODIGO = 5
 REGISTROS_POR_IP_DIA = 3
 
 FALLOS_POR_CORREO = 5
@@ -104,11 +127,19 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _hash_codigo(usuario_id: str, codigo: str) -> str:
+    # Con el id como sal: el mismo código de dos cuentas no da el mismo hash.
+    return hashlib.sha256(f"{usuario_id}:{codigo}".encode()).hexdigest()
+
+
 async def _mandar_enlace(usuario: db.Usuario) -> None:
     token = secrets.token_urlsafe(32)
-    db.guardar_verificacion(_hash_token(token), usuario.id, datetime.now(timezone.utc) + timedelta(hours=HORAS_VALIDEZ_ENLACE))
+    codigo = f"{secrets.randbelow(10**6):06d}"
+    db.guardar_verificacion(
+        _hash_token(token), _hash_codigo(usuario.id, codigo), usuario.id, datetime.now(timezone.utc) + timedelta(hours=HORAS_VALIDEZ_ENLACE)
+    )
     url = f"{correo.leer_config().url_publica}/verificar?token={token}"
-    asunto, cuerpo_html, cuerpo_texto = correo.correo_verificacion(usuario.nombre, usuario.correo, url, HORAS_VALIDEZ_ENLACE)
+    asunto, cuerpo_html, cuerpo_texto = correo.correo_verificacion(usuario.nombre, usuario.correo, url, codigo, HORAS_VALIDEZ_ENLACE)
     await correo.enviar(usuario.correo, asunto, cuerpo_html, cuerpo_texto)
 
 
@@ -143,20 +174,50 @@ async def registrarse(datos: Registro, request: Request) -> dict[str, str]:
     return {"mensaje": MENSAJE_ENVIADO}
 
 
-@router.post("/verificar", response_model=SesionIniciada)
-def verificar_correo(datos: TokenVerificacion) -> SesionIniciada:
+def _activar(usuario: db.Usuario) -> SesionIniciada:
+    """Marca la cuenta como verificada y abre su sesión (con la fila ya actualizada)."""
+    db.marcar_verificado(usuario.id)
+    usuario = db.usuario_por_id(usuario.id) or usuario
+    return SesionIniciada(token=emitir_token(usuario), **publico(usuario).model_dump())
+
+
+@router.post("/verificar", response_model=ResultadoVerificacion)
+def verificar_correo(datos: TokenVerificacion) -> ResultadoVerificacion:
     encontrado = db.verificacion(_hash_token(datos.token))
     if encontrado is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El enlace no es válido o ya se usó. Si ya confirmaste, inicia sesión.")
-    usuario_id, expira = encontrado
-    if expira < datetime.now(timezone.utc):
-        raise HTTPException(status.HTTP_410_GONE, "El enlace venció. Pide uno nuevo desde la pantalla de inicio de sesión.")
-    db.marcar_verificado(usuario_id)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este enlace no es válido. Ábrelo directo desde el correo más reciente.")
+    usuario_id, expira, usado = encontrado
     usuario = db.usuario_por_id(usuario_id)
     if usuario is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Esa cuenta ya no existe.")
-    log.info("verificado · %s", usuario.correo)
-    return SesionIniciada(token=emitir_token(usuario), **publico(usuario).model_dump())
+    if usado or usuario.verificado:
+        # Segunda apertura (la persona, después del lector de enlaces del correo).
+        return ResultadoVerificacion(verificada=True)
+    if expira < datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_410_GONE, "El enlace venció. Pide uno nuevo desde la pantalla de inicio de sesión.")
+    log.info("verificado (enlace) · %s", usuario.correo)
+    return ResultadoVerificacion(verificada=True, sesion=_activar(usuario))
+
+
+@router.post("/verificar-codigo", response_model=ResultadoVerificacion)
+def verificar_codigo(datos: CodigoVerificacion, request: Request) -> ResultadoVerificacion:
+    direccion = datos.correo.strip().lower()
+    ip = _ip(request)
+    _frenar_si_abusa(ip, f"codigo:{direccion}")
+    usuario = db.usuario_por_correo(direccion)
+    if usuario is not None and usuario.verificado:
+        return ResultadoVerificacion(verificada=True)
+    vigentes = db.codigos_vigentes(usuario.id, MAX_INTENTOS_CODIGO) if usuario else []
+    if usuario is not None and not vigentes:
+        raise HTTPException(status.HTTP_410_GONE, "Este código venció o se intentó demasiadas veces. Pide uno nuevo.")
+    esperado = _hash_codigo(usuario.id, datos.codigo) if usuario else ""
+    if usuario is None or not any(hmac.compare_digest(esperado, h) for _, h in vigentes):
+        if usuario is not None:
+            db.sumar_intento_codigo(usuario.id)
+        _anotar_fallo(ip, f"codigo:{direccion}")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El código no es correcto. Revisa el correo más reciente.")
+    log.info("verificado (código) · %s", usuario.correo)
+    return ResultadoVerificacion(verificada=True, sesion=_activar(usuario))
 
 
 @router.post("/reenviar", status_code=status.HTTP_202_ACCEPTED)
@@ -192,7 +253,7 @@ def iniciar_sesion(credenciales: Credenciales, request: Request) -> SesionInicia
     # este aviso no delata qué correos se registraron.
     if not usuario.verificado:
         raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "Confirma tu correo antes de entrar: abre el enlace que te enviamos (revisa el spam)."
+            status.HTTP_403_FORBIDDEN, "Confirma tu correo antes de entrar: abre el enlace o escribe el código que te enviamos (revisa el spam)."
         )
     _fallos.pop(f"correo:{direccion}", None)
     return SesionIniciada(token=emitir_token(usuario), **publico(usuario).model_dump())

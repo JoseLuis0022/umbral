@@ -36,7 +36,7 @@ Este front es la capa 1 del laboratorio de agentes; el backend vive en `../backe
 | `corpus.service.ts` | `GET /api/admin/corpus`, `/corpus/archivo?ruta=` · `GET /api/archivos?ruta=` (origen `chat`) | Corpus · tarjetas de archivo del chat |
 | `modelos.service.ts` | `GET /api/modelos` | Laboratorio |
 | `conversaciones.service.ts` | `GET/PUT/DELETE /api/conversaciones` | Historial del chat |
-| `auth.service.ts` (registro) | `POST /api/auth/registro`, `/verificar`, `/reenviar` | Registro, Verificar, Login |
+| `auth.service.ts` (registro) | `POST /api/auth/registro`, `/verificar`, `/verificar-codigo`, `/reenviar` | Registro, Verificar, Login |
 | `correo.service.ts` | `GET/PUT /api/admin/correo`, `POST /api/admin/correo/prueba` | Ajustes → Registro público (permiso `usuarios`) |
 | `trabajos.service.ts` | `GET /api/trabajos`, `POST /api/trabajos/{id}/detener` | Chat (tareas en segundo plano) |
 

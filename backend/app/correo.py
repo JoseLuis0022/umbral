@@ -183,15 +183,25 @@ def _plantilla(*, previa: str, titulo: str, caja: str, pie: str) -> str:
 </body></html>"""
 
 
-def correo_verificacion(nombre: str, para: str, url: str, horas: int) -> tuple[str, str, str]:
+def _codigo(codigo: str) -> str:
+    """El código en grande, espaciado y monoespaciado: se copia a mano desde el teléfono."""
+    return (
+        f'<p style="margin:0 0 8px;font-size:13px;line-height:20px;color:{TEXTO_2};">O escribe este código en Umbral:</p>'
+        f'<p style="margin:0 0 24px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;line-height:38px;'
+        f'font-weight:700;letter-spacing:8px;color:{TEXTO};">{html.escape(codigo)}</p>'
+    )
+
+
+def correo_verificacion(nombre: str, para: str, url: str, codigo: str, horas: int) -> tuple[str, str, str]:
     """(asunto, html, texto) del correo para confirmar la cuenta."""
     primer = nombre.split()[0] if nombre.strip() else ""
     saludo = f"Hola, {html.escape(primer)}:" if primer else "Hola:"
-    asunto = "Confirma tu correo para Umbral"
+    asunto = f"{codigo} es tu código de Umbral"
     caja = (
         _p(saludo)
         + _p(f"Para terminar de crear tu cuenta de Umbral, confirma que <strong>{html.escape(para)}</strong> es tu correo.")
         + _boton("Confirmar correo", url)
+        + _codigo(codigo)
         + _p("Al confirmarlo podrás usar Umbral en modo invitado.", color=TEXTO_2, margen="0 0 16px")
         + _p(
             f'¿El botón no funciona? Copia este enlace en tu navegador:<br>'
@@ -203,15 +213,16 @@ def correo_verificacion(nombre: str, para: str, url: str, horas: int) -> tuple[s
         )
     )
     pie = (
-        f"Recibes este correo porque se creó una cuenta de Umbral con esta dirección. El enlace vence en {horas} horas. "
+        f"Recibes este correo porque se creó una cuenta de Umbral con esta dirección. El enlace y el código vencen en {horas} horas. "
         "Si no fuiste tú, ignóralo: sin confirmar, nadie puede usar la cuenta."
     )
-    cuerpo = _plantilla(previa="Confirma tu correo para terminar de crear tu cuenta de Umbral.", titulo="Confirma tu correo", caja=caja, pie=pie)
+    cuerpo = _plantilla(previa=f"Tu código de Umbral: {codigo}. O confirma con el botón.", titulo="Confirma tu correo", caja=caja, pie=pie)
     texto = (
         f"{'Hola, ' + primer + ':' if primer else 'Hola:'}\n\n"
         f"Para terminar de crear tu cuenta de Umbral, confirma que {para} es tu correo abriendo este enlace:\n\n"
         f"{url}\n\n"
-        f"El enlace vence en {horas} horas. Si no fuiste tú, ignora este correo: sin confirmar, nadie puede usar la cuenta.\n\n"
+        f"O escribe este código en Umbral: {codigo}\n\n"
+        f"El enlace y el código vencen en {horas} horas. Si no fuiste tú, ignora este correo: sin confirmar, nadie puede usar la cuenta.\n\n"
         "— Umbral · Asistente de estudio de Procesamiento Digital de Imágenes"
     )
     return asunto, cuerpo, texto

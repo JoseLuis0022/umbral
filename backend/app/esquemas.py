@@ -47,6 +47,11 @@ class TokenVerificacion(Modelo):
     token: str = Field(min_length=20, max_length=200)
 
 
+class CodigoVerificacion(Modelo):
+    correo: str = Field(min_length=3, max_length=200)
+    codigo: str = Field(pattern=r"^\d{6}$")
+
+
 class SoloCorreo(Modelo):
     correo: str = Field(min_length=3, max_length=200)
 
@@ -112,6 +117,15 @@ class Yo(Modelo):
 
 class SesionIniciada(Yo):
     token: str
+
+
+class ResultadoVerificacion(Modelo):
+    """`sesion` es None cuando el enlace ya se había usado: la cuenta está
+    activa, pero un enlace reabierto no abre sesión (pudo abrirlo otro, p. ej.
+    el lector de enlaces del correo); la persona entra con su contraseña."""
+
+    verificada: bool
+    sesion: SesionIniciada | None = None
 
 
 Esfuerzo = Literal["low", "medium", "high", "xhigh", "max"]

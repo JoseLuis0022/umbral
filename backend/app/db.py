@@ -109,6 +109,12 @@ _COLUMNAS_NUEVAS: dict[str, dict[str, str]] = {
     # Las cuentas creadas a mano (CLI) nacen verificadas; las del registro
     # público, no, hasta que abren el enlace del correo.
     "usuarios": {"verificado": "INTEGER NOT NULL DEFAULT 1", "registro_ip": "TEXT"},
+    # Cada correo de verificación trae enlace Y código de 6 dígitos (hash).
+    # `usado_en`: el enlace ya activó la cuenta. Ya no se borra al usarse:
+    # los lectores de enlaces de Gmail y las vistas previas lo abren antes que
+    # la persona, y al abrirlo ella veía "el enlace ya se usó" con la cuenta
+    # activa. Ahora la segunda apertura se reconoce y dice "ya verificado".
+    "verificaciones": {"codigo_hash": "TEXT", "intentos": "INTEGER NOT NULL DEFAULT 0", "usado_en": "TEXT"},
 }
 
 
@@ -205,22 +211,41 @@ def registros_desde_ip(ip: str, desde: datetime) -> int:
 def marcar_verificado(usuario_id: str) -> None:
     with conexion() as con:
         con.execute("UPDATE usuarios SET verificado = 1 WHERE id = ?", (usuario_id,))
-        con.execute("DELETE FROM verificaciones WHERE usuario_id = ?", (usuario_id,))
+        con.execute("UPDATE verificaciones SET usado_en = ? WHERE usuario_id = ? AND usado_en IS NULL", (ahora(), usuario_id))
 
 
-def guardar_verificacion(token_hash: str, usuario_id: str, expira: datetime) -> None:
+def guardar_verificacion(token_hash: str, codigo_hash: str, usuario_id: str, expira: datetime) -> None:
     with conexion() as con:
         con.execute(
-            "INSERT INTO verificaciones (token_hash, usuario_id, creado_en, expira_en) VALUES (?, ?, ?, ?)",
-            (token_hash, usuario_id, ahora(), expira.isoformat()),
+            "INSERT INTO verificaciones (token_hash, codigo_hash, usuario_id, creado_en, expira_en) VALUES (?, ?, ?, ?, ?)",
+            (token_hash, codigo_hash, usuario_id, ahora(), expira.isoformat()),
         )
 
 
-def verificacion(token_hash: str) -> tuple[str, datetime] | None:
-    """(usuario_id, expira) del enlace, o None si no existe o ya se usó."""
+def verificacion(token_hash: str) -> tuple[str, datetime, bool] | None:
+    """(usuario_id, expira, ya_usado) del enlace, o None si no existe."""
     with conexion() as con:
-        fila = con.execute("SELECT usuario_id, expira_en FROM verificaciones WHERE token_hash = ?", (token_hash,)).fetchone()
-    return (fila["usuario_id"], datetime.fromisoformat(fila["expira_en"])) if fila else None
+        fila = con.execute(
+            "SELECT usuario_id, expira_en, usado_en FROM verificaciones WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+    return (fila["usuario_id"], datetime.fromisoformat(fila["expira_en"]), fila["usado_en"] is not None) if fila else None
+
+
+def codigos_vigentes(usuario_id: str, max_intentos: int) -> list[tuple[str, str]]:
+    """(token_hash, codigo_hash) de los códigos sin usar, sin vencer y con intentos disponibles."""
+    with conexion() as con:
+        filas = con.execute(
+            "SELECT token_hash, codigo_hash, expira_en FROM verificaciones "
+            "WHERE usuario_id = ? AND usado_en IS NULL AND codigo_hash IS NOT NULL AND intentos < ?",
+            (usuario_id, max_intentos),
+        ).fetchall()
+    momento = datetime.now(timezone.utc)
+    return [(f["token_hash"], f["codigo_hash"]) for f in filas if datetime.fromisoformat(f["expira_en"]) > momento]
+
+
+def sumar_intento_codigo(usuario_id: str) -> None:
+    with conexion() as con:
+        con.execute("UPDATE verificaciones SET intentos = intentos + 1 WHERE usuario_id = ? AND usado_en IS NULL", (usuario_id,))
 
 
 def ultima_verificacion(usuario_id: str) -> datetime | None:

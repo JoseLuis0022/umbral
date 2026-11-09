@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useAnimation } from 'framer-motion';
 import { dur, ease } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -8,6 +8,9 @@ import { ErrorApi } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Field, Input } from '../components/ui/Field';
 import { LayoutAcceso } from '../components/acceso/LayoutAcceso';
+import { CampoCodigo } from '../components/acceso/CampoCodigo';
+import { Verificado } from '../components/acceso/Verificado';
+import { useAuth } from '../context/AuthContext';
 import { registro as copy } from '../copy';
 
 const RX_CORREO = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
@@ -30,8 +33,35 @@ export default function Registro() {
   const [aviso, setAviso] = useState<string | null>(null);
   // El correo ya tenía una cuenta activa: no hay enlace que esperar, toca entrar.
   const [yaVerificada, setYaVerificada] = useState(false);
+  // Código del correo: sirve si el correo se abre en el teléfono y el
+  // registro sigue abierto en la compu.
+  const [codigo, setCodigo] = useState('');
+  const [errorCodigo, setErrorCodigo] = useState<string | undefined>();
+  const [confirmando, setConfirmando] = useState(false);
+  const [verificado, setVerificado] = useState<{ conSesion: boolean } | null>(null);
+  const { entrarConSesion } = useAuth();
+  const navigate = useNavigate();
   const reducido = useReducedMotion();
   const sacudir = useAnimation();
+
+  async function confirmarCodigo(valor = codigo) {
+    if (!enviadoA) return;
+    if (valor.length !== 6) return setErrorCodigo(copy.errorCodigoIncompleto);
+    setErrorCodigo(undefined);
+    setConfirmando(true);
+    try {
+      const { sesion } = await authService.verificarCodigo(enviadoA, valor);
+      if (sesion) entrarConSesion(sesion);
+      setVerificado({ conSesion: sesion !== null });
+      if (sesion) setTimeout(() => navigate('/chat', { replace: true }), 1600);
+    } catch (fallo) {
+      setErrorCodigo(fallo instanceof ErrorApi ? fallo.message : copy.errorServidor);
+      setCodigo('');
+      if (!reducido) void sacudir.start({ x: [0, -8, 8, -8, 8, 0], transition: { duration: dur.slow, ease } });
+    } finally {
+      setConfirmando(false);
+    }
+  }
 
   useEffect(() => {
     if (espera <= 0) return;
@@ -80,11 +110,16 @@ export default function Registro() {
   return (
     <LayoutAcceso
       pie={copy.invitadoNota}
+      cruzado={verificado !== null}
       progreso={enviadoA ? 1 : ((nombre.trim().length >= 2 ? 1 : 0) + (RX_CORREO.test(correo.trim()) ? 1 : 0) + (contrasena.length >= 8 ? 1 : 0)) / 3}
     >
       <motion.div animate={sacudir}>
         <AnimatePresence mode="wait" initial={false}>
-          {enviadoA ? (
+          {verificado ? (
+            <motion.div key="verificado" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: dur.base, ease }} role="status">
+              <Verificado conSesion={verificado.conSesion} />
+            </motion.div>
+          ) : enviadoA ? (
             <motion.div
               key="revisa"
               initial={{ opacity: 0 }}
@@ -99,7 +134,28 @@ export default function Registro() {
                   único que la persona tiene que comprobar. */}
               <p className="mt-1 break-all font-ui text-22 font-medium text-text-1">{enviadoA}</p>
               <p className="mt-4 font-ui text-14 leading-relaxed text-text-2">{copy.revisaInstruccion}</p>
-              <Button variant="secondary" className="mt-8 w-full" disabled={espera > 0} onClick={reenviar}>
+              <form
+                className="mt-6 flex flex-col gap-3"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void confirmarCodigo();
+                }}
+              >
+                <Field label={copy.codigo} error={errorCodigo}>
+                  <CampoCodigo
+                    valor={codigo}
+                    alCambiar={setCodigo}
+                    alCompletar={(v) => void confirmarCodigo(v)}
+                    invalido={Boolean(errorCodigo)}
+                    deshabilitado={confirmando}
+                  />
+                </Field>
+                <Button type="submit" className="w-full" loading={confirmando}>
+                  {confirmando ? copy.confirmandoCodigo : copy.confirmarCodigo}
+                </Button>
+              </form>
+              <Button variant="secondary" className="mt-3 w-full" disabled={espera > 0} onClick={reenviar}>
                 {espera > 0 ? copy.reenviarEn(espera) : copy.reenviar}
               </Button>
               {aviso && <p className="mt-3 font-ui text-13 text-text-2">{aviso}</p>}

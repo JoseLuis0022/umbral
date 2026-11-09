@@ -9,7 +9,7 @@ import { ErrorApi } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Field, Input } from '../components/ui/Field';
 import { LayoutAcceso } from '../components/acceso/LayoutAcceso';
-import { login as copy } from '../copy';
+import { login as copy, registro as copyRegistro } from '../copy';
 
 /**
  * Punto de entrada de la app.
@@ -140,6 +140,14 @@ export default function Login() {
               >
                 {reenviado ? copy.reenviado : copy.reenviar}
               </Button>
+            )}
+            {porConfirmar && (
+              <Link
+                to={`/verificar?correo=${encodeURIComponent(correo.trim())}`}
+                className="mt-3 inline-block font-ui text-14 font-medium text-accent-fg hover:underline"
+              >
+                {copyRegistro.tengoCodigo}
+              </Link>
             )}
           </div>
         </motion.form>

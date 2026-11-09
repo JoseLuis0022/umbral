@@ -54,14 +54,29 @@ export const authService = {
     return r.mensaje;
   },
 
-  /** El enlace del correo: activa la cuenta y deja la sesión iniciada. */
-  async verificarCorreo(token: string): Promise<Sesion> {
-    const respuesta = await pedirJson<SesionIniciada>(
+  /**
+   * El enlace del correo: activa la cuenta y deja la sesión iniciada.
+   * `sesion` es null si el enlace ya se había abierto antes (lo suele abrir
+   * primero el lector de enlaces del correo): la cuenta SÍ está activa, solo
+   * que un enlace reabierto no inicia sesión.
+   */
+  async verificarCorreo(token: string): Promise<{ sesion: Sesion | null }> {
+    const r = await pedirJson<{ verificada: boolean; sesion: SesionIniciada | null }>(
       '/auth/verificar',
       { method: 'POST', json: { token } },
       copyRegistro.errorVerificar
     );
-    return guardarSesion(respuesta);
+    return { sesion: r.sesion ? guardarSesion(r.sesion) : null };
+  },
+
+  /** El código de 6 dígitos del correo. Igual que el enlace: `sesion` null = ya estaba verificada. */
+  async verificarCodigo(correo: string, codigo: string): Promise<{ sesion: Sesion | null }> {
+    const r = await pedirJson<{ verificada: boolean; sesion: SesionIniciada | null }>(
+      '/auth/verificar-codigo',
+      { method: 'POST', json: { correo: correo.trim(), codigo } },
+      copyRegistro.errorVerificar
+    );
+    return { sesion: r.sesion ? guardarSesion(r.sesion) : null };
   },
 
   /** `verificada`: la cuenta ya estaba activa (no se mandó nada; toca iniciar sesión). */
