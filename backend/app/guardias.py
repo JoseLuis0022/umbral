@@ -17,6 +17,15 @@ from claude_agent_sdk import HookContext, HookMatcher
 
 # Llaves donde las herramientas integradas reciben rutas.
 LLAVES_RUTA = ("file_path", "path", "notebook_path")
+# Llaves con patrones de archivos: `pattern` de Glob y `glob` de Grep. (El
+# `pattern` de Grep es una expresión regular sobre el CONTENIDO, no una ruta;
+# se revisa igual porque tratarlo como ruta solo puede negar de más.)
+LLAVES_PATRON = ("pattern", "glob")
+
+
+def _sube_de_carpeta(patron: str) -> bool:
+    """¿El patrón tiene un segmento `..`? (p. ej. `**/../../backend/.env`)."""
+    return any(segmento == ".." for segmento in patron.replace("\\", "/").split("/"))
 
 
 def _rutas_de(entrada: dict[str, Any], cwd: Path) -> list[Path]:
@@ -27,14 +36,21 @@ def _rutas_de(entrada: dict[str, Any], cwd: Path) -> list[Path]:
             p = Path(valor)
             rutas.append((p if p.is_absolute() else cwd / p).resolve())
     # Glob/Grep: el patrón puede traer la carpeta ("Prácticas/**/*.pdf")
-    # o ser absoluto ("/Users/…/backend/*.env").
-    patron = entrada.get("pattern")
-    if isinstance(patron, str) and ("/" in patron or patron.startswith("~")):
-        base = patron.split("*", 1)[0]
-        if base:
-            p = Path(base).expanduser()
-            rutas.append((p if p.is_absolute() else cwd / p).resolve())
+    # o ser absoluto ("/Users/…/backend/*.env"). Solo se puede resolver lo que
+    # va antes del primer comodín; lo que viene después (un `..` escondido tras
+    # `**/`) lo revisa `_sube_de_carpeta`.
+    for llave in LLAVES_PATRON:
+        patron = entrada.get(llave)
+        if isinstance(patron, str) and ("/" in patron or patron.startswith("~")):
+            base = patron.split("*", 1)[0]
+            if base:
+                p = Path(base).expanduser()
+                rutas.append((p if p.is_absolute() else cwd / p).resolve())
     return rutas
+
+
+def _patrones_de(entrada: dict[str, Any]) -> list[str]:
+    return [v for llave in LLAVES_PATRON if isinstance(v := entrada.get(llave), str)]
 
 
 def _dentro(ruta: Path, carpeta: Path) -> bool:
@@ -63,6 +79,10 @@ def hook_rutas_bloqueadas(cwd: Path, bloqueadas: tuple[str, ...], solo_dentro: b
 
     async def revisar(entrada_hook: Any, _tool_use_id: str | None, _ctx: HookContext) -> dict[str, Any]:
         entrada = entrada_hook.get("tool_input") or {}
+        # Sin Bash no hay razón legítima para un `..` en un patrón: se niega
+        # siempre, aunque el comodín impida saber a dónde llegaría.
+        if solo_dentro and any(_sube_de_carpeta(p) for p in _patrones_de(entrada)):
+            return _negar("Solo puedes leer el material del curso, dentro de su carpeta.")
         for ruta in _rutas_de(entrada, cwd):
             if solo_dentro and not _dentro(ruta, cwd):
                 return _negar("Solo puedes leer el material del curso, dentro de su carpeta.")

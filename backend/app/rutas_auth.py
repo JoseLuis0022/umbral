@@ -48,6 +48,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from . import correo, db
+from .config import ajustes
 from .esquemas import (
     CodigoVerificacion,
     Credenciales,
@@ -90,8 +91,12 @@ MENSAJE_ENVIADO = "Si el correo es válido, te enviamos un enlace para activar t
 
 
 def _ip(request: Request) -> str:
-    # Detrás de Cloudflare la IP real viene en CF-Connecting-IP.
-    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "desconocida")
+    # CF-Connecting-IP solo si se configuró que todo entra por Cloudflare (ver
+    # `confiar_cloudflare`); si no, es un encabezado que cualquiera inventa.
+    # X-Real-IP lo pone nginx con la IP que vio, y sobrescribe el del cliente.
+    if ajustes.confiar_cloudflare and (cf := request.headers.get("cf-connecting-ip")):
+        return cf
+    return request.headers.get("x-real-ip") or (request.client.host if request.client else "desconocida")
 
 
 def _recientes(llave: str, ahora: float) -> deque[float]:
@@ -149,9 +154,9 @@ async def registrarse(datos: Registro, request: Request) -> dict[str, str]:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "El registro está cerrado por ahora. Intenta más tarde.")
     direccion = datos.correo.strip().lower()
     if not _RX_CORREO.match(direccion):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Escribe un correo válido.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Escribe un correo válido.")
     if direccion.rsplit("@", 1)[1] in DOMINIOS_DESECHABLES:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Usa un correo permanente; los desechables no se aceptan.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Usa un correo permanente; los desechables no se aceptan.")
 
     ip = _ip(request)
     if db.registros_desde_ip(ip, datetime.now(timezone.utc) - timedelta(days=1)) >= REGISTROS_POR_IP_DIA:

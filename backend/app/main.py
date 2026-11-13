@@ -36,10 +36,12 @@ async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Laboratorio de agentes",
+    title="Umbral",
     lifespan=ciclo_de_vida,
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json",
+    # Apagados salvo DOCS_API=true (ver config.py).
+    docs_url="/api/docs" if ajustes.docs_api else None,
+    redoc_url=None,
+    openapi_url="/api/openapi.json" if ajustes.docs_api else None,
 )
 app.include_router(rutas_auth.router, prefix="/api")
 app.include_router(rutas_chat.router, prefix="/api")
@@ -51,9 +53,6 @@ app.include_router(rutas_config.router, prefix="/api")
 
 @app.get("/api/salud", tags=["salud"])
 def salud() -> dict[str, object]:
-    return {
-        "ok": True,
-        "motor": ajustes.motor,
-        "agenteDisponible": ajustes.agente_cwd.is_dir(),
-        "apiKeyConfigurada": bool(ajustes.anthropic_api_key),
-    }
+    # Solo "estoy vivo" (lo usa el healthcheck de Docker). Antes decía también
+    # el motor y si había API key: información de configuración para cualquiera.
+    return {"ok": True}

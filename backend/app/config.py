@@ -53,6 +53,17 @@ class Ajustes(BaseSettings):
     # sesión (lo que `resume` vuelve a cargar).
     config_claude: Path = RAIZ_BACKEND / ".claude-runtime"
 
+    # IP del cliente. Con True se usa `CF-Connecting-IP` (la pone Cloudflare).
+    # Solo es seguro si NADIE puede llegar a nginx sin pasar por Cloudflare
+    # (túnel + puerto publicado en 127.0.0.1, ver ENLACE en .env.example): si
+    # no, cualquiera inventa ese encabezado y se salta los límites por IP.
+    # Con False se usa la IP que vio nginx (`X-Real-IP`).
+    confiar_cloudflare: bool = False
+
+    # /api/docs y /api/openapi.json. Apagados por defecto: en producción no
+    # hace falta publicar el mapa completo de la API.
+    docs_api: bool = False
+
     # Cuántos agentes pueden correr a la vez. Cada uno es un subproceso con su
     # propia memoria; en la laptop-VPS, 3 es un número prudente.
     agentes_simultaneos: int = 3

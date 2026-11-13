@@ -39,7 +39,9 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${PUERTO:-8080}:80"
+      # ENLACE=127.0.0.1 publica el puerto solo para esta máquina (detrás de
+      # un túnel de Cloudflare en el mismo servidor). Ver .env.example.
+      - "${ENLACE:-0.0.0.0}:${PUERTO:-8080}:80"
 
 volumes:
   datos:
