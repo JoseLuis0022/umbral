@@ -9,6 +9,7 @@
 Chat multiusuario con tareas que sobreviven a cerrar la página, gasto en vivo, registro con verificación por correo y despliegue con un solo `docker compose up`.
 
 <p>
+  <a href="https://github.com/JoseLuis0022/umbral/actions/workflows/pruebas.yml"><img src="https://img.shields.io/github/actions/workflow/status/JoseLuis0022/umbral/pruebas.yml?branch=main&style=flat-square&label=pruebas" alt="Pruebas"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-3b5bdb?style=flat-square" alt="Licencia MIT"></a>
   <img src="https://img.shields.io/badge/Docker%20Compose-listo-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose-listo">
   <img src="https://img.shields.io/badge/Claude%20Agent%20SDK-D97757?style=flat-square&logo=claude&logoColor=white" alt="Claude Agent SDK">
@@ -99,6 +100,22 @@ El primer agente que corre en Umbral es un asistente de estudio de
 - **Resiliencia**: reintentos visibles (API, agente y red), "Continuar donde se quedó" tras un fallo, y tareas exclusivas que hacen fila en vez de fallar.
 - Panel de administración: tablero de costos, auditoría de cada consulta, explorador del corpus y laboratorio para probar modelos y prompts.
 
+## En producción
+
+Umbral corre en [umbral.imperioon.com](https://umbral.imperioon.com) desde el 4
+de noviembre de 2026. Cifras del registro de consultas al 13 de noviembre: 99
+consultas reales al agente (82 en Consulta, 17 en Generador), la mayoría del
+autor probando y midiendo, por US$19.24 en total.
+
+| Modo Consulta, por modelo | Costo por pregunta (mediana) | Tiempo por respuesta (mediana) |
+|---|---|---|
+| Opus 5.5 | US$0.114 | 6.5 s |
+| **Sonnet 5.5** | **US$0.033** | **8.0 s** |
+| Haiku 5.5 (invitados) | US$0.0035 | 11.2 s |
+
+Por esa comparación el modo Consulta usa **Sonnet**: cuesta 3.4 veces menos que
+Opus por pregunta con tiempos parecidos. Las cuentas de invitado usan Haiku.
+
 ## Arquitectura
 
 ```mermaid
@@ -126,6 +143,14 @@ Los **modos** del agente son datos, no código (`backend/app/perfiles.py`):
 |---|---|---|
 | Consulta | Read, Grep, Glob (confinadas a la carpeta del agente) | invitado, usuario, especialista, admin |
 | Generador | + Bash, Write, Edit, Skills | especialista, admin |
+
+## Decisiones de diseño
+
+- **Modos como datos, no como código.** Un modo del agente (prompt, herramientas, modelo, presupuesto, carpetas vedadas) es una entrada en `perfiles.py`, y un rol es la lista de modos que puede usar. Agregar un modo no toca ningún `if`; la puerta solo pregunta "¿este rol incluye este modo?" y el motor solo recibe un perfil.
+- **La consulta vive separada de la conexión.** `POST /api/chat` crea un trabajo en el servidor y la respuesta HTTP solo lo observa. Cerrar la pestaña no cancela nada; reconectar repite los eventos desde el principio; detener es una acción explícita.
+- **Defensa en capas.** La identidad sale del token y el rol de la base en cada petición. El modo Consulta no tiene Bash ni escritura, sus herramientas pasan por reglas de permiso y además por un hook que revisa cada llamada (rutas absolutas, `..`, patrones). El gasto se corta en el servidor: tope por consulta, crédito por cuenta y tope mensual global; la interfaz solo lo muestra.
+- **Búsqueda agéntica en lugar de RAG.** El agente busca en su carpeta con Grep y Read, como en la laptop: sin índice que mantener ni fragmentos que se desactualicen. La comparación contra un RAG bien armado está en curso (ver la hoja de ruta).
+- **El mismo protocolo para el motor real y el de prueba.** `MOTOR=prueba` emite los mismos eventos SSE sin llamar a Claude: sirve para la interfaz y para las pruebas automáticas, que corren sin API key ni costo.
 
 ## Despliegue con Docker Compose
 
@@ -164,6 +189,12 @@ Después, desde la app: **Ajustes → Registro público → Configurar correo**
 | Respaldar datos | `docker compose exec backend python -c "import sqlite3; sqlite3.connect('/datos/umbral.db').backup(sqlite3.connect('/datos/respaldo.db'))"` y copia `respaldo.db` fuera del volumen |
 | Cuentas | `docker compose exec backend python -m app.cli_usuarios listar` |
 
+### Respaldos
+
+`scripts/respaldo.sh [destino]` copia la base con la API de backup de SQLite
+(consistente aunque el backend esté escribiendo) y conserva los últimos 14. El
+encabezado del script trae la línea de cron para correrlo a diario.
+
 > **Un solo proceso.** Las tareas en curso viven en la memoria del backend; por
 > eso no se escala con varios workers. Al desplegar, el contenedor espera hasta
 > 45 s a que terminen las respuestas en curso.
@@ -175,6 +206,9 @@ Después, desde la app: **Ajustes → Registro público → Configurar correo**
 | `ANTHROPIC_API_KEY` | sí | La cuenta de Anthropic que paga las consultas. Pon también un tope de gasto en la consola. |
 | `JWT_SECRETO` | sí | Firma de las sesiones (≥ 32 caracteres). |
 | `PUERTO` | no | Puerto publicado (8080). |
+| `ENLACE` | no | Interfaz donde se publica el puerto (`0.0.0.0`). Detrás de un túnel de Cloudflare en el mismo servidor: `127.0.0.1`. |
+| `CONFIAR_CLOUDFLARE` | no | Usar `CF-Connecting-IP` para los límites por IP (`false`). Solo con `ENLACE=127.0.0.1` y túnel: si nginx es alcanzable directo, ese encabezado se puede inventar. |
+| `DOCS_API` | no | Publicar la documentación interactiva en `/api/docs` (`false`). |
 | `AGENTE_DIR` | no | Carpeta del agente en el servidor (`./agente`). |
 | `AGENTES_SIMULTANEOS` | no | Consultas a la vez; las demás esperan turno (3). |
 | `JWT_HORAS` | no | Duración de la sesión (12). |
@@ -208,19 +242,35 @@ cd frontend && npm ci && npm run dev     # http://localhost:5173
 ```
 
 `MOTOR=prueba` responde sin llamar a Claude y habla el mismo protocolo: sirve
-para trabajar la interfaz sin gastar. La API documentada está en
-`http://localhost:8000/api/docs`. Antes de dar por terminado un cambio del
-frontend: `npm run typecheck`.
+para trabajar la interfaz sin gastar. Con `DOCS_API=true`, la API documentada
+está en `http://localhost:8000/api/docs`.
+
+### Pruebas
+
+```bash
+cd backend
+uv pip install --python .venv/bin/python -e ".[dev]"
+.venv/bin/python -m pytest          # base temporal + MOTOR=prueba: sin API key ni costo
+cd ../frontend && npm run typecheck && npm run build
+```
+
+Cubren las guardias de rutas (que el modo Consulta no salga de su carpeta ni
+lea las privadas), los tokens (`alg: none`, vencidos, otra firma, rol leído de
+la base), el login y el registro (bloqueo tras 5 fallos, código y enlace de
+verificación, límite por IP sin confiar en encabezados inventados), los topes
+de gasto de invitados y un chat completo por SSE. GitHub Actions corre todo en
+cada push.
 
 ## Seguridad
 
 - **La identidad sale del token, nunca del cuerpo**; el rol se lee de la base en cada petición.
 - **El modo Consulta no puede leer fuera de la carpeta del agente**: un hook revisa cada llamada a herramienta (rutas absolutas, `../`, patrones de búsqueda).
-- Las cuentas del registro **no entran sin verificar** el correo; los enlaces son de un solo uso y se guardan como hash; límite de cuentas por IP y correos desechables rechazados.
+- Las cuentas del registro **no entran sin verificar** el correo, con enlace o con un código de 6 dígitos; los dos se guardan como hash y el código admite 5 intentos. Límite de cuentas por IP y correos desechables rechazados.
+- **La IP del cliente no se toma de un encabezado que cualquiera pueda inventar**: `CF-Connecting-IP` solo cuenta con `CONFIAR_CLOUDFLARE=true`, que exige que nginx solo sea alcanzable por el túnel.
 - **Límite de intentos en el inicio de sesión**: tras 5 fallos contra una cuenta (o 20 desde una red) se bloquea 15 minutos.
 - La contraseña de aplicación de Gmail se guarda **cifrada** y nunca sale de la API.
 - Cada consulta tiene un tope de gasto que corta el propio agente; los invitados, además, su crédito y el tope mensual global.
-- El backend corre sin root y solo es accesible a través de nginx.
+- El backend corre sin root y solo es accesible a través de nginx. `/api/docs` está apagado en producción y `/api/salud` no revela la configuración.
 
 ## Estructura
 
@@ -238,23 +288,26 @@ umbral/
 │   │   ├── correo.py            Gmail + plantillas HTML
 │   │   ├── guardias.py          qué rutas puede tocar el agente
 │   │   └── prompts/             system prompt del modo Consulta
+│   ├── tests/                   pytest (guardias, tokens, auth, planes, chat SSE)
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/                     React: pantallas, contexto del chat, servicios
 │   ├── nginx.conf               app + /api (SSE sin búfer)
 │   └── Dockerfile
+├── scripts/respaldo.sh          respaldo de la base
+├── .github/workflows/           CI: pytest, typecheck y build en cada push
 ├── docker-compose.yml
 └── .env.example
 ```
 
 ## Hoja de ruta
 
-- **Pruebas automáticas en cada commit**: pruebas del backend (pytest: auth, límites, planes, guardias de rutas, protocolo SSE con el motor de prueba) y del frontend (typecheck + pruebas de componentes y un recorrido end-to-end con Playwright), corriendo en GitHub Actions para que un cambio que rompe algo no llegue a `main`.
+- **Pruebas de punta a punta**: un recorrido con Playwright (registro → código → chat → respuesta con cita) y pruebas de componentes del frontend, sumadas a la CI que ya corre pytest, typecheck y build.
 - **Ejemplos interactivos en el chat**: que el agente pueda generar HTML (simulaciones, gráficas, un filtro aplicado sobre una imagen con controles) y que se renderice dentro de la conversación, como los artefactos de Claude, en un iframe aislado (`sandbox`) para que se pueda explorar sin riesgo.
 - Sesión en cookie `httpOnly` en lugar de `localStorage`.
 - Recuperación de contraseña.
 - Sandbox del sistema operativo para el modo Generador (Bash).
-- Búsqueda semántica (embeddings) como herramienta del agente, comparada contra la búsqueda agéntica con un banco de evaluaciones.
+- **Búsqueda agéntica contra RAG**: un banco de 202 preguntas sobre el mismo material, comparando calidad, tiempo y costo de la búsqueda con Grep/Read contra un RAG con embeddings, BM25 y reranker (en curso).
 - Observabilidad con OpenTelemetry.
 
 ---

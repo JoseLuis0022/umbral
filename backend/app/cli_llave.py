@@ -32,7 +32,7 @@ DIALOGO = (
     'display dialog "Pega tu API key de Anthropic.\\n\\n'
     "Se valida contra Anthropic y se guarda en backend/.env, que solo tu usuario puede leer. "
     'No se muestra en ningún lado." '
-    'default answer "" with hidden answer with title "Laboratorio de agentes" '
+    'default answer "" with hidden answer with title "Umbral" '
     'buttons {"Cancelar", "Guardar"} default button "Guardar" cancel button "Cancelar" '
     "with icon note giving up after 600"
 )

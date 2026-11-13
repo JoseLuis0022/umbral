@@ -33,3 +33,10 @@ APP_Password.txt
 
 # Estado local del CLI de Cloudflare (cf)
 .cloudflare/
+
+# Respaldos e informes privados que a veces viven junto al proyecto.
+*.bundle
+/*.html
+
+# Respaldos de la base (scripts/respaldo.sh): tienen correos y conversaciones.
+/respaldos/
