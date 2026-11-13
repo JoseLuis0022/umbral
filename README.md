@@ -186,14 +186,24 @@ Después, desde la app: **Ajustes → Registro público → Configurar correo**
 |---|---|
 | Actualizar | `git pull && docker compose up -d --build` |
 | Ver registros | `docker compose logs -f backend` |
-| Respaldar datos | `docker compose exec backend python -c "import sqlite3; sqlite3.connect('/datos/umbral.db').backup(sqlite3.connect('/datos/respaldo.db'))"` y copia `respaldo.db` fuera del volumen |
+| Respaldar datos | Automático cada día (servicio `respaldo`); uno ya: `docker compose exec respaldo python -m app.respaldo --ahora` |
 | Cuentas | `docker compose exec backend python -m app.cli_usuarios listar` |
 
 ### Respaldos
 
-`scripts/respaldo.sh [destino]` copia la base con la API de backup de SQLite
-(consistente aunque el backend esté escribiendo) y conserva los últimos 14. El
-encabezado del script trae la línea de cron para correrlo a diario.
+El servicio `respaldo` de Docker Compose copia la base cada día (10:00 UTC) al
+volumen `respaldos` con la API de backup de SQLite, que da una copia consistente
+aunque el backend esté escribiendo. Revisa la integridad de cada copia y
+conserva las últimas 14 (`HORA_RESPALDO`, `CONSERVAR_RESPALDOS`). No necesita
+cron del servidor.
+
+```bash
+docker compose exec respaldo python -m app.respaldo --ahora   # uno ya
+docker compose cp respaldo:/respaldos ./respaldos              # sacarlos del servidor
+```
+
+El volumen vive en el mismo disco: para un respaldo a prueba de que muera el
+servidor, copia esa carpeta a otro disco o a un almacenamiento externo.
 
 > **Un solo proceso.** Las tareas en curso viven en la memoria del backend; por
 > eso no se escala con varios workers. Al desplegar, el contenedor espera hasta
@@ -287,6 +297,7 @@ umbral/
 │   │   ├── precios.py           estimado de costo que se calibra solo
 │   │   ├── correo.py            Gmail + plantillas HTML
 │   │   ├── guardias.py          qué rutas puede tocar el agente
+│   │   ├── respaldo.py          copia diaria de la base (servicio `respaldo`)
 │   │   └── prompts/             system prompt del modo Consulta
 │   ├── tests/                   pytest (guardias, tokens, auth, planes, chat SSE)
 │   └── Dockerfile
@@ -294,7 +305,6 @@ umbral/
 │   ├── src/                     React: pantallas, contexto del chat, servicios
 │   ├── nginx.conf               app + /api (SSE sin búfer)
 │   └── Dockerfile
-├── scripts/respaldo.sh          respaldo de la base
 ├── .github/workflows/           CI: pytest, typecheck y build en cada push
 ├── docker-compose.yml
 └── .env.example

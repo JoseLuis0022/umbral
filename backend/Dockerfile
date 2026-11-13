@@ -27,8 +27,8 @@ COPY app ./app
 # tocar el sistema. UID 1000 = el usuario normal de casi cualquier servidor
 # Linux, para que pueda escribir en la carpeta del agente montada.
 RUN useradd --create-home --uid 1000 umbral \
- && mkdir -p /datos /agente \
- && chown umbral:umbral /datos /agente
+ && mkdir -p /datos /agente /respaldos \
+ && chown umbral:umbral /datos /agente /respaldos
 USER umbral
 
 EXPOSE 8000

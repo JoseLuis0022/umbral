@@ -38,5 +38,5 @@ APP_Password.txt
 *.bundle
 /*.html
 
-# Respaldos de la base (scripts/respaldo.sh): tienen correos y conversaciones.
+# Respaldos de la base sacados del servidor: tienen correos y conversaciones.
 /respaldos/

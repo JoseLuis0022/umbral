@@ -1,7 +1,8 @@
 # Umbral en producción: `docker compose up -d` y listo.
 #
-#   web      nginx: sirve la app y pasa /api al backend (único puerto expuesto)
-#   backend  FastAPI + Claude Agent SDK (solo accesible desde `web`)
+#   web       nginx: sirve la app y pasa /api al backend (único puerto expuesto)
+#   backend   FastAPI + Claude Agent SDK (solo accesible desde `web`)
+#   respaldo  copia diaria de la base al volumen `respaldos` (sin cron del servidor)
 #
 # Configuración: copia .env.example a .env y llénalo. El material del agente
 # se monta desde AGENTE_DIR (por defecto ./agente).
@@ -11,6 +12,7 @@ name: umbral
 services:
   backend:
     build: ./backend
+    image: umbral-backend:local
     restart: unless-stopped
     env_file: .env
     environment:
@@ -43,5 +45,28 @@ services:
       # un túnel de Cloudflare en el mismo servidor). Ver .env.example.
       - "${ENLACE:-0.0.0.0}:${PUERTO:-8080}:80"
 
+  # Respaldo diario de la base (app/respaldo.py) con la misma imagen del
+  # backend. Copia manual: docker compose exec respaldo python -m app.respaldo --ahora
+  # Sacarlos del servidor: docker compose cp respaldo:/respaldos ./respaldos
+  respaldo:
+    image: umbral-backend:local
+    restart: unless-stopped
+    command: ["python", "-m", "app.respaldo"]
+    environment:
+      DB_RUTA: /datos/umbral.db
+      CARPETA_RESPALDOS: /respaldos
+      CONSERVAR_RESPALDOS: ${CONSERVAR_RESPALDOS:-14}
+      HORA_RESPALDO: ${HORA_RESPALDO:-10}
+    volumes:
+      - datos:/datos
+      - respaldos:/respaldos
+    depends_on:
+      backend:
+        condition: service_healthy
+    # La imagen trae el healthcheck de la API; este servicio no la sirve.
+    healthcheck:
+      disable: true
+
 volumes:
   datos:
+  respaldos:
