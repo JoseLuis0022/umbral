@@ -1,7 +1,7 @@
 [project]
-name = "lab-agentes-backend"
+name = "umbral-backend"
 version = "0.1.0"
-description = "Capas 2 y 3 del laboratorio: FastAPI + Claude Agent SDK"
+description = "Umbral: FastAPI + Claude Agent SDK"
 requires-python = ">=3.13"
 dependencies = [
     "claude-agent-sdk>=0.2.178",
@@ -14,3 +14,11 @@ dependencies = [
     # Cifra la contraseña de aplicación de Gmail guardada en la base (correo.py).
     "cryptography>=46",
 ]
+
+[project.optional-dependencies]
+# Pruebas: `uv pip install -e ".[dev]"` y luego `pytest` desde backend/.
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
