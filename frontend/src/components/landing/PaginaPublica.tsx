@@ -162,7 +162,20 @@ function PiePagina() {
             </ColumnaPie>
           </div>
         </div>
-        <p className="mt-12 border-t border-hairline pt-6 font-ui text-13 text-text-2">{p.derechos}</p>
+        <div className="mt-12 flex flex-col gap-2 border-t border-hairline pt-6 font-ui text-13 text-text-2 sm:flex-row sm:items-center sm:justify-between">
+          <p>{p.derechos}</p>
+          <p>
+            {p.productoDe}{' '}
+            <a
+              href={p.urlImperioon}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-text-1 underline-offset-4 hover:underline"
+            >
+              {p.imperioon}
+            </a>
+          </p>
+        </div>
       </Contenedor>
     </footer>
   );

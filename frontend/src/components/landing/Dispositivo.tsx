@@ -17,6 +17,8 @@ export const IMAGENES = {
   'mac-tablero': { ancho: 2820, alto: 1957 },
   'mac-auditoria': { ancho: 2820, alto: 1957 },
   'mac-corpus': { ancho: 2820, alto: 1957 },
+  'ipad-tablero': { ancho: 2348, alto: 1775 },
+  'ipad-chat': { ancho: 2348, alto: 1775 },
 } as const;
 
 export type NombreImagen = keyof typeof IMAGENES;
@@ -55,9 +57,9 @@ export function Dispositivo({
 }
 
 /**
- * Entrada de la portada: el ÚNICO momento de movimiento al cargar. La Mac
- * aparece con un fundido y sube un poco; el iPhone llega un instante después,
- * desde un poco más abajo, como si se apoyara delante. Espera a que la imagen
+ * Entrada de la portada: el ÚNICO momento de movimiento al cargar. Cada
+ * dispositivo sube un poco, crece de 0.96 a 1 y se funde; llegan escalonados
+ * (~120 ms) como si se fueran apoyando uno delante de otro. Espera a que la imagen
  * esté decodificada: animar un hueco vacío y que la foto aparezca de golpe al
  * final es justo lo que la entrada quería evitar.
  *
@@ -102,12 +104,16 @@ export function EntradaDispositivo({
     <motion.div
       ref={caja}
       className={className}
-      initial={sinEntrada ? false : reducido ? { opacity: 0 } : { opacity: 0, y: desplazamiento }}
-      animate={lista && !sinEntrada ? { opacity: 1, y: 0 } : undefined}
+      initial={sinEntrada ? false : reducido ? { opacity: 0 } : { opacity: 0, y: desplazamiento, scale: 0.96 }}
+      animate={lista && !sinEntrada ? { opacity: 1, y: 0, scale: 1 } : undefined}
       transition={
         reducido
           ? { duration: 0.3, ease }
-          : { y: { ...springEscena, delay: retraso }, opacity: { duration: 0.6, ease, delay: retraso } }
+          : {
+              y: { ...springEscena, delay: retraso },
+              scale: { ...springEscena, delay: retraso },
+              opacity: { duration: 0.6, ease, delay: retraso },
+            }
       }
     >
       {children}

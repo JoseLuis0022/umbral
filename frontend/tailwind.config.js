@@ -99,11 +99,11 @@ export default {
       40: ['40px', { lineHeight: '44px', fontWeight: '600' }],
       // Único tamaño fluido: portadas y titulares de marca, fuera del chrome.
       display: ['clamp(2rem, 1.2rem + 3.2vw, 3.25rem)', { lineHeight: '1.05', letterSpacing: '-0.022em' }],
-      // EXCEPCIÓN DOCUMENTADA: titular de la portada de la landing (40 → 72 px).
-      // Solo para el <h1> de `/`; una página de producto necesita un titular que
-      // pese más que la composición de dispositivos que lleva debajo. No se usa
-      // en ninguna pantalla de la app.
-      portada: ['clamp(2.5rem, 1.5rem + 4vw, 4.5rem)', { lineHeight: '1.04', letterSpacing: '-0.03em', fontWeight: '600' }],
+      // EXCEPCIÓN DOCUMENTADA: titular de la portada de la landing (36 → 52 px).
+      // Solo para el <h1> de `/`, que comparte la primera pantalla con los
+      // dispositivos: tiene que pesar más que un titular de sección sin
+      // comerse el espacio del producto. No se usa en ninguna pantalla de la app.
+      portada: ['clamp(2.25rem, 1.5rem + 2vw, 3.25rem)', { lineHeight: '1.05', letterSpacing: '-0.028em', fontWeight: '600' }],
     },
 
     // Radios ANIDADOS (docs/especificacion-diseno.md §2). La regla es
