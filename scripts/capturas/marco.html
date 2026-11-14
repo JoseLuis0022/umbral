@@ -1,0 +1,96 @@
+<!doctype html>
+<!--
+  Plantilla de los marcos: capturar.mjs reemplaza __DISPOSITIVO__ (mac | iphone)
+  __PANTALLA__ (la captura de la app) y __FONDO__
+  (el color de la cabecera de la app, para la barra de estado del iPhone) y fotografía #lienzo con fondo
+  transparente. El margen de #lienzo es más grande que la sombra: así la sombra
+  se desvanece a cero antes de la orilla (a_webp.py lo comprueba y recorta).
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/devices.css@0.2.0/dist/devices.min.css">
+<style>
+  html, body { margin: 0; background: transparent; }
+  #lienzo { display: inline-block; }
+  .sombra { display: inline-block; }
+
+  /* ── MacBook ── */
+  [data-dispositivo="mac"] #lienzo { padding: 120px; }
+  [data-dispositivo="mac"] .sombra {
+    filter: drop-shadow(0 30px 36px rgba(15, 23, 42, 0.2)) drop-shadow(0 6px 10px rgba(15, 23, 42, 0.1));
+  }
+  [data-dispositivo="mac"] .iphone { display: none; }
+  .mac .device-screen { object-position: top center; }
+
+  /* ── iPhone ── */
+  [data-dispositivo="iphone"] #lienzo { padding: 90px; }
+  [data-dispositivo="iphone"] .sombra {
+    filter: drop-shadow(0 18px 22px rgba(15, 23, 42, 0.22)) drop-shadow(0 4px 8px rgba(15, 23, 42, 0.1));
+  }
+  [data-dispositivo="iphone"] .mac { display: none; }
+  .iphone .device-screen {
+    background: __FONDO__;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .estado {
+    height: 48px;
+    flex: none;
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 30px 0 40px;
+    font: 600 16px/1 -apple-system, "SF Pro Text", system-ui, sans-serif;
+    color: #111;
+  }
+  .estado .iconos { display: flex !important; gap: 6px; align-items: center; }
+  .iphone .app { width: 390px; height: 760px; flex: none; object-fit: cover; object-position: top; }
+  .inicio { height: 22px; flex: none; position: relative; }
+  .inicio::after {
+    content: ""; position: absolute; left: 50%; bottom: 8px; width: 134px; height: 5px;
+    margin-left: -67px; border-radius: 3px; background: #111;
+  }
+</style>
+</head>
+<body data-dispositivo="__DISPOSITIVO__">
+<div id="lienzo">
+  <div class="sombra">
+    <div class="mac device device-macbook-pro device-spacegray">
+      <div class="device-frame">
+        <img class="device-screen" src="__PANTALLA__" alt="">
+      </div>
+      <div class="device-stripe"></div>
+      <div class="device-header"></div>
+      <div class="device-sensors"></div>
+      <div class="device-btns"></div>
+      <div class="device-power"></div>
+    </div>
+
+    <div class="iphone device device-iphone-14-pro device-silver">
+      <div class="device-frame">
+        <div class="device-screen">
+          <div class="estado">
+            <span>9:41</span>
+            <span class="iconos">
+              <svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1" fill="#111"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="#111"/><rect x="10" y="3" width="3" height="9" rx="1" fill="#111"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#111"/></svg>
+              <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M8 11.5l2.3-2.6a3.3 3.3 0 0 0-4.6 0L8 11.5zM3.9 7.2a5.8 5.8 0 0 1 8.2 0l1.5-1.7a8.1 8.1 0 0 0-11.2 0l1.5 1.7zM.6 3.5a10.4 10.4 0 0 1 14.8 0L16 2.8A11.6 11.6 0 0 0 0 2.8l.6.7z" fill="#111"/></svg>
+              <svg width="27" height="13" viewBox="0 0 27 13" aria-hidden="true"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="#111" stroke-opacity=".4"/><rect x="2" y="2" width="18" height="9" rx="2" fill="#111"/><path d="M25 4.5v4a2 2 0 0 0 0-4z" fill="#111" fill-opacity=".4"/></svg>
+            </span>
+          </div>
+          <img class="app" src="__PANTALLA__" alt="">
+          <div class="inicio"></div>
+        </div>
+      </div>
+      <div class="device-stripe"></div>
+      <div class="device-header"></div>
+      <div class="device-sensors"></div>
+      <div class="device-btns"></div>
+      <div class="device-power"></div>
+      <div class="device-home"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

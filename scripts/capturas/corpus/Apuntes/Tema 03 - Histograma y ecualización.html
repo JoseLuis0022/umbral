@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tema 03 · Histograma y ecualización</title>
+<style>
+  body { font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; color: #1d2433; line-height: 1.65; max-width: 760px; margin: 40px auto; padding: 0 28px; font-size: 15px; }
+  h1 { font-size: 27px; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .sub { color: #667085; margin: 0 0 30px; }
+  h2 { font-size: 19px; border-bottom: 1px solid #e4e7ec; padding-bottom: 6px; margin-top: 34px; }
+  .formula { font-family: "SF Mono", Menlo, monospace; background: #eef2fb; border-left: 3px solid #3b5bdb; padding: 12px 14px; border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { border: 1px solid #e4e7ec; padding: 8px 10px; text-align: left; }
+  th { background: #f6f7f9; }
+  .nota { background: #fff8e6; border: 1px solid #f5dfa3; border-radius: 8px; padding: 10px 14px; }
+</style>
+</head>
+<body>
+<h1>Tema 03 · Histograma y ecualización</h1>
+<p class="sub">Apuntes generados a partir de las clases, las diapositivas y las transcripciones.</p>
+<h2>1. Idea central</h2>
+<p>El <strong>histograma</strong> cuenta cuántos pixeles hay de cada nivel de gris. Una imagen con poco contraste concentra su histograma en una franja angosta; la <strong>ecualización</strong> lo reparte en todo el rango.</p>
+<p class="formula">s<sub>k</sub> = (L − 1) · Σ<sub>j=0..k</sub> p(r<sub>j</sub>)</p>
+<h2>2. Cómo leerlo</h2>
+<table><tr><th>Forma del histograma</th><th>Qué dice de la imagen</th></tr>
+<tr><td>Cargado a la izquierda</td><td>Oscura</td></tr>
+<tr><td>Cargado a la derecha</td><td>Clara</td></tr>
+<tr><td>Angosto y al centro</td><td>Bajo contraste</td></tr>
+<tr><td>Bimodal</td><td>Objeto y fondo separables: buen caso para Otsu</td></tr></table>
+</body>
+</html>
