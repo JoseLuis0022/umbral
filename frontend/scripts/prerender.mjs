@@ -6,7 +6,7 @@
  * solo el HTML. Este script toma el index.html compilado como plantilla y
  * escribe en la carpeta de salida:
  *
- *   index.html       `/`            la landing con su contenido y metadatos
+ *   index.html       `/`            la landing con su contenido, metadatos y JSON-LD
  *   privacidad.html  `/privacidad`  la política de privacidad
  *   terminos.html    `/terminos`    los términos de uso
  *   app.html         todo lo demás  el shell vacío de la app, con noindex
@@ -32,7 +32,7 @@ const env = { ...loadEnv('production', process.cwd(), ''), ...process.env };
 // URL pública de la app (con la subcarpeta, si la hay), sin barra final.
 const URL_PUBLICA = (env.VITE_URL_PUBLICA || DOMINIO).replace(/\/$/, '');
 
-const { paginas, seo } = await import(pathToFileURL(moduloSsr).href);
+const { paginas, seo, datosEstructurados } = await import(pathToFileURL(moduloSsr).href);
 
 const plantilla = await readFile(path.join(salida, 'index.html'), 'utf8');
 const INICIO = plantilla.indexOf('<!-- seo:inicio');
@@ -44,6 +44,8 @@ if (INICIO < 0 || FIN < 0 || !plantilla.includes('<!--app-->')) {
 
 const atr = (texto) =>
   String(texto).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+// JSON dentro de <script>: un "</script>" en el texto cerraría la etiqueta.
+const jsonEnScript = (datos) => JSON.stringify(datos).replaceAll('<', '\\u003c');
 
 const imagen = `${URL_PUBLICA}${seo.imagen.ruta}`;
 
@@ -98,6 +100,9 @@ for (const pagina of paginas) {
     `<link rel="canonical" href="${atr(url)}" />`,
     `<meta name="author" content="${atr(seo.autor)}" />`,
     ...vistaPrevia({ url, titulo: pagina.tituloSocial, descripcion: pagina.descripcion }),
+    ...(pagina.clave === 'inicio'
+      ? [`<script type="application/ld+json">${jsonEnScript(datosEstructurados(URL_PUBLICA))}</script>`]
+      : []),
   ];
   await writeFile(path.join(salida, pagina.archivo), armar(cabeza, pagina.renderizar()));
   console.log(`prerender: ${pagina.ruta} → ${pagina.archivo}`);

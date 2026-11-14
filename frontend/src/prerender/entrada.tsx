@@ -4,6 +4,7 @@ import { StaticRouter } from 'react-router-dom';
 import Landing from '../pages/Landing';
 import { Privacidad, Terminos } from '../pages/Legal';
 import { seo } from '../copy';
+import { datosEstructurados } from './datosEstructurados';
 
 /**
  * Entrada del prerender: `vite build --ssr` la compila para Node y
@@ -32,4 +33,4 @@ export const paginas = PAGINAS.map(({ clave, archivo, elemento }) => ({
     ),
 }));
 
-export { seo };
+export { seo, datosEstructurados };

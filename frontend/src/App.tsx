@@ -25,6 +25,7 @@ import { SistemaDiseno } from './pages/SistemaDiseno';
 import { PantallaArranque } from './components/brand/PantallaArranque';
 import { tokenGuardado } from './services/api';
 import { terminarArranque } from './lib/prerender';
+import { useTituloDocumento } from './lib/tituloDocumento';
 
 /*
  * Prefijo de las RUTAS, hermano del `base` de vite.config.ts pero distinto:
@@ -58,6 +59,12 @@ function Inicio() {
   return sesion ? <Navigate to="/chat" replace /> : <Landing />;
 }
 
+/** `document.title` según la pantalla (src/lib/tituloDocumento.ts). */
+function TituloDocumento() {
+  useTituloDocumento();
+  return null;
+}
+
 /**
  * Orden de los proveedores, de fuera hacia dentro:
  *
@@ -73,6 +80,7 @@ export default function App() {
   useEffect(terminarArranque, []);
   return (
     <BrowserRouter basename={BASE_RUTAS}>
+      <TituloDocumento />
       <PreferenciasProvider>
         {/* Encima de todo y fuera de las rutas: se ve una sola vez al abrir. */}
         <PantallaArranque />

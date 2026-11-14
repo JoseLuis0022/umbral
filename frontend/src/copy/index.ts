@@ -413,7 +413,8 @@ export const legal = {
 /**
  * Metadatos de las páginas públicas (título, descripción y vista previa al
  * compartir) y títulos de pestaña de la app. Los lee el prerender
- * (src/prerender/) para el <head> de cada HTML estático. Títulos de ≤ 60
+ * (src/prerender/) para el <head> de cada HTML estático, y el cliente para
+ * `document.title` al navegar (src/lib/tituloDocumento.ts). Títulos de ≤ 60
  * caracteres y descripciones de ≤ 160: lo que Google y las redes muestran
  * completo.
  */
