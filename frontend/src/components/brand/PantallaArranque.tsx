@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { easeOutExpo, springRebote } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { marca } from '../../copy';
+import { tokenGuardado } from '../../services/api';
 
 /**
  * Animación de arranque: el isotipo se arma y "cruza el umbral".
@@ -33,6 +34,9 @@ function debeMostrarse(): boolean {
 function decidir(): boolean {
   const instalada = window.matchMedia?.('(display-mode: standalone)').matches;
   if (instalada) return true;
+  // Quien llega a la landing (raíz, sin sesión) viene de un enlace y no sabe
+  // qué es Umbral: el contenido primero, no 1.6 s de animación.
+  if (window.location.pathname === import.meta.env.BASE_URL && !tokenGuardado()) return false;
   try {
     if (sessionStorage.getItem(CLAVE)) return false;
     sessionStorage.setItem(CLAVE, '1');

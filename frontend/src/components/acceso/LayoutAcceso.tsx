@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { MarcaPlana } from '../brand/Logo';
 import { GraficaUmbral } from '../brand/GraficaUmbral';
 import { acceso as copy } from '../../copy';
@@ -28,7 +29,10 @@ export function LayoutAcceso({
   return (
     <div className="grid h-full w-full overflow-y-auto bg-bg lg:grid-cols-[minmax(400px,520px)_1fr]">
       <div className="flex min-h-full flex-col px-6 py-8 sm:px-12 lg:px-16">
-        <MarcaPlana />
+        {/* La marca regresa a la landing (quien llegó al login sin saber qué es Umbral). */}
+        <Link to="/" className="self-start rounded-control" aria-label="Umbral, inicio">
+          <MarcaPlana />
+        </Link>
         <main className="flex flex-1 flex-col justify-center py-12">
           <div className="w-full max-w-[360px]">{children}</div>
         </main>

@@ -9,6 +9,8 @@ import { LayoutApp } from './layouts/LayoutApp';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Verificar from './pages/Verificar';
+import Landing from './pages/Landing';
+import { useAuth } from './context/AuthContext';
 import Chat from './pages/Chat';
 import Ajustes from './pages/Ajustes';
 import Perfil from './pages/Perfil';
@@ -39,6 +41,18 @@ import { PantallaArranque } from './components/brand/PantallaArranque';
 const BASE_RUTAS = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 /**
+ * `/`: sin sesión, la landing (para quien llega desde un enlace y no sabe qué
+ * es Umbral); con sesión, directo al chat. Mientras se valida el token no se
+ * pinta ninguna de las dos, para no mostrar la landing un instante a quien ya
+ * tiene cuenta.
+ */
+function Inicio() {
+  const { sesion, cargando } = useAuth();
+  if (cargando) return <div className="h-full w-full bg-bg" />;
+  return sesion ? <Navigate to="/chat" replace /> : <Landing />;
+}
+
+/**
  * Orden de los proveedores, de fuera hacia dentro:
  *
  *  - `PreferenciasProvider` va primero porque escribe atributos `data-*` en el
@@ -65,6 +79,8 @@ export default function App() {
                   {/* Registro público y el enlace del correo: sin sesión. */}
                   <Route path="/registro" element={<Registro />} />
                   <Route path="/verificar" element={<Verificar />} />
+                  {/* La raíz: landing para quien no ha entrado, chat para quien sí. */}
+                  <Route path="/" element={<Inicio />} />
 
                   {/* Referencia viva del sistema de diseño. Fuera del shell y sin
                       sesión: es documentación del equipo, no una pantalla de producto. */}
@@ -77,7 +93,6 @@ export default function App() {
                   <Route element={<RutaProtegida><LayoutApp /></RutaProtegida>}>
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/chat/:conversacionId" element={<Chat />} />
-                    <Route path="/" element={<Navigate to="/chat" replace />} />
                     <Route path="/ajustes" element={<Ajustes />} />
                     <Route path="/perfil" element={<Perfil />} />
 
