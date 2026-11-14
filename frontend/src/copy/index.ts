@@ -23,14 +23,28 @@ export const acceso = {
 };
 
 /**
- * Landing pública (`/` sin sesión). Para reclutadores, desarrolladores y
- * equipos que buscan llevar un agente a producción. Cifras con fecha y fuente:
- * nada que no se pueda comprobar en el repo o en el registro de consultas.
+ * Landing pública (`/` sin sesión) y su encabezado y pie, que comparten las
+ * páginas legales. Para reclutadores, desarrolladores y equipos que buscan
+ * llevar un agente a producción. Cifras con fecha y fuente: nada que no se
+ * pueda comprobar en el repo o en el registro de consultas. Las respuestas de
+ * las preguntas frecuentes son concretas a propósito: se citan solas.
  */
+const REPO = 'https://github.com/JoseLuis0022/umbral';
+
 export const landing = {
-  github: 'https://github.com/JoseLuis0022/umbral',
+  github: REPO,
+  readme: `${REPO}#readme`,
+  licencia: `${REPO}/blob/main/LICENSE`,
   contacto: 'joseluismacedo@imperioon.com',
-  nav: { codigo: 'Código', entrar: 'Entrar' },
+  nav: {
+    inicio: 'Umbral, inicio',
+    principal: 'Secciones',
+    funciones: 'Funciones',
+    comoFunciona: 'Cómo funciona',
+    preguntas: 'Preguntas',
+    codigo: 'Código',
+    entrar: 'Entrar',
+  },
   hero: {
     titulo: 'Tu agente de Claude, de la laptop a una app web para tu equipo.',
     subtitulo:
@@ -38,72 +52,84 @@ export const landing = {
     probar: 'Probar la demo',
     codigo: 'Ver en GitHub',
     nota: 'Código abierto con licencia MIT. Se despliega con un solo docker compose up.',
-    alt: 'Umbral en una laptop y un celular: una respuesta que cita la clase y la página del PDF de donde sale.',
+    altMac: 'Umbral en una laptop: una respuesta del asistente que cita la clase de donde sale.',
+    altIphone: 'La misma conversación en un celular.',
   },
   problema: {
     etiqueta: 'El problema',
     titulo: 'En tu computadora, un agente es una carpeta. Para tu equipo tiene que ser un producto.',
-    texto: 'El agente funciona en Claude Code, pero solo para quien lo corre. Para que lo use alguien más faltan cuatro piezas:',
+    texto: 'El agente funciona en Claude Code, pero solo para quien lo corre. Para que lo use alguien más faltan cuatro piezas.',
     piezas: [
-      ['Cuentas y permisos', 'Registro con verificación, roles y modos que cada rol puede usar.'],
-      ['Un gasto con techo', 'Tope por consulta, por cuenta y por mes, aplicado en el servidor.'],
-      ['Tareas que no dependen de la pestaña', 'Una respuesta de varios minutos no puede morir al cerrar el navegador.'],
+      ['Cuentas y permisos', 'Registro con verificación por correo, roles y los modos que cada rol puede usar.'],
+      ['Un gasto con techo', 'Tope por consulta, por cuenta y por mes, aplicado en el servidor y no en el navegador.'],
+      ['Tareas que no dependen de la pestaña', 'Una respuesta de varios minutos no puede morir porque alguien cerró el navegador.'],
       ['Un servidor', 'Docker Compose, nginx y un túnel de Cloudflare. Sin servicios administrados.'],
     ] as const,
   },
-  resuelve: {
-    etiqueta: 'Qué resuelve',
+  funciones: {
+    etiqueta: 'Funciones',
     titulo: 'Lo que el agente ya sabía hacer, ahora para más personas.',
     puntos: [
-      [
-        'Respuestas con fuente',
-        'Cada dato enlaza la clase, el apunte o la página exacta del PDF, con la frase marcada. Se puede comprobar en un clic.',
-      ],
-      [
-        'La consulta vive en el servidor',
-        'Cerrar la pestaña, recargar o cambiar de pantalla no la cancela. Al volver, la respuesta está ahí.',
-      ],
-      [
-        'Gasto medido en vivo',
-        'Cada consulta guarda modelo, tokens y costo desde que empieza. Las cuentas de invitado tienen crédito propio y un tope mensual compartido.',
-      ],
-      [
-        'Seguro por defecto',
-        'El modo de consulta no tiene Bash ni escritura, y un hook revisa cada llamada a herramienta para que no salga de su carpeta.',
-      ],
+      ['Respuestas con fuente', 'Cada dato enlaza la clase, el apunte o la página exacta del PDF, con la frase marcada.'],
+      ['La consulta vive en el servidor', 'Cerrar la pestaña o recargar no la cancela. Al volver, la respuesta está ahí.'],
+      ['Gasto medido en vivo', 'Cada consulta guarda modelo, tokens y costo desde que empieza.'],
+      ['Seguro por defecto', 'El modo Consulta no tiene Bash ni escritura, y un hook revisa cada llamada a herramienta.'],
     ] as const,
-  },
-  opera: {
-    etiqueta: 'Para quien lo opera',
     vistas: [
       {
-        imagen: 'tablero',
-        titulo: 'Tablero de costos',
-        texto: 'Consultas y gasto por día, por persona y por modelo, con las consultas en curso sumando en vivo.',
+        imagen: 'mac-tablero',
+        etiqueta: 'Tablero',
+        titulo: 'Sabes cuánto cuesta cada día.',
+        texto: 'Consultas y gasto por día, por persona y por modelo. Las consultas en curso suman en vivo, antes de terminar.',
+        detalles: ['Crédito propio por cuenta de invitado', 'Tope mensual compartido', 'Costo por modelo para decidir con datos'],
         alt: 'Tablero de Umbral con el costo por día, por persona y por modelo.',
       },
       {
-        imagen: 'auditoria',
-        titulo: 'Auditoría de cada consulta',
+        imagen: 'mac-auditoria',
+        etiqueta: 'Auditoría',
+        titulo: 'Cada respuesta se puede revisar.',
         texto: 'La pregunta, la respuesta que vio la persona, el modelo, los tokens, las herramientas que usó el agente y lo que costó.',
+        detalles: ['Búsqueda por texto y por persona', 'Herramientas usadas en orden', 'Errores y reintentos registrados'],
         alt: 'Auditoría de Umbral con el detalle de una consulta.',
       },
       {
-        imagen: 'corpus',
-        titulo: 'El material, tal como está',
-        texto: 'El agente busca en su carpeta como en la laptop. Sin índice que mantener ni fragmentos que se desactualicen.',
+        imagen: 'mac-corpus',
+        etiqueta: 'Material',
+        titulo: 'El material, tal como está.',
+        texto: 'El agente busca en su carpeta igual que en la laptop. No hay índice que mantener ni fragmentos que se desactualicen.',
+        detalles: ['PDF, Markdown y transcripciones', 'Carpetas privadas que el agente no lee', 'Solo lectura desde la web'],
         alt: 'Explorador del material del agente en Umbral.',
       },
     ] as const,
   },
+  caso: {
+    etiqueta: 'El caso real',
+    titulo: 'Un asistente de estudio para un curso universitario.',
+    texto:
+      'El primer agente que corre en Umbral acompaña un curso de Procesamiento Digital de Imágenes. Los alumnos preguntan como le preguntarían a un compañero, y el agente responde con el material del curso: las clases, sus transcripciones y los PDF.',
+    puntos: [
+      ['Cita la clase y la página', 'Cada respuesta dice de qué clase sale el dato y en qué página del PDF está. Un clic abre el documento ahí.'],
+      ['Busca antes de responder', 'Lee el material con Grep y Read antes de escribir, como lo haría quien estudia con los apuntes abiertos.'],
+      ['Abierto para probar', 'Cualquiera puede crear una cuenta de invitado con Claude Haiku y un crédito de US$0.30.'],
+    ] as const,
+    ejemplo: {
+      leyenda: 'Una respuesta del asistente, tal como se ve en el chat.',
+      pregunta: '¿Por qué el filtro de mediana quita mejor el ruido sal y pimienta que el promedio?',
+      proceso: 'Pensó 6 s: 1 búsqueda, 2 lecturas',
+      respuesta:
+        'El ruido sal y pimienta son pixeles aislados que valen 0 o 255. El filtro de promedio los mezcla con sus vecinos y los reparte; la mediana los descarta. Un pixel de ruido queda en un extremo de la lista ordenada, así que casi nunca es el valor central',
+      cita: 'Clase 5',
+    },
+  },
   cifras: {
     etiqueta: 'En producción',
-    nota: 'Medianas del registro de consultas en umbral.imperioon.com, noviembre de 2026. Modo Consulta.',
+    titulo: 'Lo que cuesta y lo que tarda, medido.',
+    nota: 'Medianas del registro de consultas en producción, noviembre de 2026, modo Consulta.',
     datos: [
-      ['US$0.033', 'por pregunta con Claude Sonnet 5.5'],
-      ['8 s', 'por respuesta, con búsqueda en el material'],
-      ['3.4×', 'más barato que con Opus 5.5 (US$0.114)'],
-      ['53', 'pruebas automáticas en cada push'],
+      { valor: 0.033, decimales: 3, prefijo: 'US$', sufijo: '', etiqueta: 'por pregunta con Claude Sonnet 5.5' },
+      { valor: 8, decimales: 0, prefijo: '', sufijo: ' s', etiqueta: 'por respuesta, con búsqueda en el material' },
+      { valor: 3.4, decimales: 1, prefijo: '', sufijo: '×', etiqueta: 'más barato que Opus 5.5, que cuesta US$0.114 por pregunta' },
+      { valor: 53, decimales: 0, prefijo: '', sufijo: '', etiqueta: 'pruebas automáticas en cada push' },
     ] as const,
   },
   funciona: {
@@ -116,11 +142,66 @@ export const landing = {
       ['El motor', 'Claude Agent SDK: corre el agente y traduce sus pasos a eventos.'],
       ['El agente', 'La misma carpeta de la laptop: CLAUDE.md, skills y material.'],
     ] as const,
+    stackTitulo: 'Con qué está hecho',
     stack: [
       ['Agente', 'Claude Agent SDK, Claude Code'],
       ['Backend', 'Python, FastAPI, SQLite, SSE'],
       ['Frontend', 'React, TypeScript, Tailwind CSS'],
       ['Infraestructura', 'Docker Compose, nginx, Cloudflare Tunnel'],
+    ] as const,
+  },
+  desplegar: {
+    etiqueta: 'Despliégalo en tu servidor',
+    titulo: 'Tres pasos en un servidor con Docker.',
+    pasos: [
+      ['Clona el repositorio', 'En cualquier servidor Linux con Docker y Docker Compose v2.'],
+      ['Llena el .env', 'Tu API key de Anthropic y una clave para firmar las sesiones. Lo demás trae valores por defecto.'],
+      ['Levántalo', 'nginx, el backend y el respaldo diario de la base arrancan juntos. Umbral queda en el puerto 8080.'],
+    ] as const,
+    codigo: [
+      { texto: 'git clone https://github.com/JoseLuis0022/umbral.git' },
+      { texto: 'cd umbral' },
+      { texto: 'cp .env.example .env', comentario: 'ANTHROPIC_API_KEY y JWT_SECRETO' },
+      { texto: 'docker compose up -d' },
+    ] as const,
+    etiquetaCodigo: 'Comandos para desplegar Umbral',
+    copiar: 'Copiar',
+    copiado: 'Copiado',
+    nota: 'La guía completa, con HTTPS, la carpeta del agente y la cuenta de administrador, está en el README.',
+    leerGuia: 'Leer la guía',
+  },
+  preguntas: {
+    etiqueta: 'Preguntas',
+    titulo: 'Preguntas frecuentes',
+    lista: [
+      [
+        '¿Qué modelos usa?',
+        'Claude, de Anthropic. El modo Consulta usa Claude Sonnet 5.5; el Generador de apuntes, solo para especialistas y administradores, usa Claude Opus 5.5. Las cuentas de invitado usan siempre Claude Haiku 5.5. El modelo lo decide el rol de cada cuenta, no la persona.',
+      ],
+      [
+        '¿Necesito RAG o embeddings?',
+        'No. El agente busca en su carpeta con Grep y Read, como lo hace en tu laptop con Claude Code: no hay índice vectorial que construir ni fragmentos que se desactualicen al cambiar un archivo. Esta búsqueda agéntica se está midiendo contra un RAG con embeddings, BM25 y reranker sobre un banco de 202 preguntas del mismo material; los resultados se publicarán en el repositorio.',
+      ],
+      [
+        '¿Cuánto cuesta operarlo?',
+        'El software es gratuito. Pagas el servidor y el uso de la API de Anthropic. En producción, la mediana es de US$0.033 por pregunta con Sonnet 5.5 y de US$0.0035 con Haiku 5.5. Umbral corta el gasto en el servidor con tres topes: por consulta, por cuenta y uno mensual para todas las cuentas de invitado.',
+      ],
+      [
+        '¿Dónde viven los datos?',
+        'En tu servidor. Las cuentas, el historial y el registro de consultas se guardan en una base SQLite dentro del propio despliegue, con un respaldo diario. Lo que sale del servidor es lo que el agente manda a la API de Anthropic para responder: la pregunta, los adjuntos y los fragmentos del material que lee.',
+      ],
+      [
+        '¿Puedo usar mi propio material?',
+        'Sí. Umbral sirve cualquier carpeta de agente de Claude Code: un CLAUDE.md con las instrucciones, tus skills y tu material en PDF, Markdown o texto. Montas la carpeta en el servidor y la variable AGENTE_DIR apunta a ella. Puedes marcar carpetas privadas que el modo Consulta nunca lee.',
+      ],
+      [
+        '¿Qué pasa si cierro la pestaña a mitad de una respuesta?',
+        'La consulta sigue. Cada pregunta es una tarea en el servidor y el navegador solo la observa; al volver, la respuesta está completa en el historial, también desde otro dispositivo.',
+      ],
+      [
+        '¿Es código abierto?',
+        'Sí, con licencia MIT: puedes usarlo, modificarlo y desplegarlo, también con fines comerciales. El código está en GitHub. El material de cada agente o curso no forma parte del repositorio y pertenece a sus autores.',
+      ],
     ] as const,
   },
   equipo: {
@@ -129,10 +210,21 @@ export const landing = {
     texto:
       'Puedo ayudarte a montarlo con tu material: documentación interna, manuales o un curso. Cuéntame qué tienes y qué quieres que responda.',
     escribir: 'Escríbeme',
+    asunto: 'Umbral para mi equipo',
   },
   pie: {
-    hecho: 'Hecho por José Luis Macedo',
+    descripcion: 'Una app web para poner un agente de Claude Code en manos de tu equipo, con cuentas, control de gasto y respuestas con fuente.',
+    producto: 'Producto',
+    recursos: 'Recursos',
+    legal: 'Legal',
+    contacto: 'Contacto',
+    probar: 'Probar la demo',
+    github: 'GitHub',
+    documentacion: 'Documentación',
     licencia: 'Licencia MIT',
+    privacidad: 'Privacidad',
+    terminos: 'Términos',
+    derechos: '© 2026 José Luis Macedo Escamilla. Hecho en México.',
   },
 };
 

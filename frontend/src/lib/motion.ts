@@ -66,6 +66,10 @@ export const springRebote: Transition = { type: 'spring', stiffness: 420, dampin
 export const springMensaje: Transition = { type: 'spring', stiffness: 320, damping: 32, mass: 1 };
 export const springPanel: Transition = { type: 'spring', stiffness: 420, damping: 36, mass: 0.8 };
 export const springLayout: Transition = { type: 'spring', stiffness: 380, damping: 38 };
+/** Entrada de la composición de dispositivos de la landing. ζ ≈ 1.1: sin
+ *  rebote y más lento que los demás (~700 ms), porque mueve una superficie
+ *  enorme una sola vez al cargar y no responde a ningún input. Solo para eso. */
+export const springEscena: Transition = { type: 'spring', stiffness: 120, damping: 24 };
 
 /** Salida de menús y popovers: corta y acelerando, sin resorte. */
 export const salidaPanel: Transition = { duration: 0.12, ease: [0.4, 0, 1, 1] };

@@ -29,7 +29,7 @@
      métricas de golpe. */
   --umbral-fuente-principal: 'Google Sans Variable', -apple-system, BlinkMacSystemFont,
     'SF Pro Text', system-ui, sans-serif;
-  --umbral-fuente-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  --umbral-fuente-mono: ui-monospace, 'SF Mono', Menlo, 'JetBrains Mono', Consolas, monospace;
 
   /* Superficies — neutra FRÍA (escala pizarra), con un punto de azul para que
      el lienzo y el acento cobalto se lean como una sola familia. */
