@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { ease, springPress, springSoft } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { desplazamientoPrevio, esServidor, llegoPrerenderizada } from '../../lib/prerender';
+
+// useLayoutEffect avisa (y no hace nada) en el servidor del prerender.
+const useEfectoAntesDePintar = esServidor ? useEffect : useLayoutEffect;
 
 /**
  * Piezas comunes de la landing y de las páginas legales.
@@ -61,6 +65,14 @@ export function Accion(props: PropsAccion) {
  * Aparición al entrar en vista, una sola vez. La opacidad va con tween y el
  * desplazamiento con resorte: con un resorte la opacidad se queda en 0 casi
  * todo el recorrido y luego "salta" (ver `springRebote` en lib/motion.ts).
+ *
+ * Con prerender (src/lib/prerender.ts) hay dos casos que NO animan:
+ *  - En el servidor se pinta visible: un rastreador no ejecuta animaciones, y
+ *    un `opacity: 0` en el HTML esconde el texto a quien sí lee estilos.
+ *  - En el primer render del cliente sobre el HTML prerenderizado, se mide
+ *    antes de pintar: lo que ya estaba en pantalla se queda quieto (no
+ *    desaparece para volver a aparecer); lo que está más abajo se oculta y
+ *    aparece al llegar a él, como siempre.
  */
 export function Revelar({
   children,
@@ -75,10 +87,26 @@ export function Revelar({
 }) {
   const reducido = useReducedMotion();
   const Componente = motion[como];
+  const ref = useRef<HTMLElement>(null);
+  const [modo, setModo] = useState<'animar' | 'quieto' | 'medir'>(() =>
+    esServidor ? 'quieto' : llegoPrerenderizada() ? 'medir' : 'animar'
+  );
+
+  useEfectoAntesDePintar(() => {
+    if (modo !== 'medir' || !ref.current) return;
+    // El contenedor recién creado aún no recupera el scroll (lo hace
+    // PaginaPublica después): se mide como estaba la página prerenderizada.
+    const arriba = ref.current.getBoundingClientRect().top - desplazamientoPrevio();
+    setModo(arriba < window.innerHeight ? 'quieto' : 'animar');
+  }, [modo]);
+
   return (
     <Componente
+      // Pasar de medir a animar re-monta, antes del pintado, con el estado inicial oculto.
+      key={modo === 'animar' ? 'animar' : 'quieto'}
+      ref={ref as never}
       className={className}
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: 14 }}
+      initial={modo !== 'animar' ? false : reducido ? { opacity: 0 } : { opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -12% 0px' }}
       transition={

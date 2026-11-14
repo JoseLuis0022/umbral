@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ease, springLayout } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { esServidor } from '../../lib/prerender';
 
 /**
  * Acordeón de preguntas frecuentes. Cada pregunta es un <button> con
@@ -11,6 +12,10 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
  * DOM, así que tampoco recibe foco ni la lee un lector de pantalla. Se pueden
  * abrir varias a la vez: quien compara respuestas no quiere que se cierre la
  * anterior.
+ *
+ * En el prerender (servidor) cada respuesta va en el HTML con `hidden`: el
+ * acordeón se ve cerrado igual, pero el texto existe para los rastreadores y
+ * coincide con el FAQPage del JSON-LD (src/prerender/datosEstructurados.ts).
  */
 export function Preguntas({ lista }: { lista: readonly (readonly [string, string])[] }) {
   return (
@@ -52,6 +57,11 @@ function Pregunta({ pregunta, respuesta }: { pregunta: string; respuesta: string
           />
         </button>
       </h3>
+      {esServidor && (
+        <div id={`${id}-respuesta`} role="region" aria-labelledby={`${id}-boton`} hidden>
+          <p className="max-w-[680px] pb-6 pr-10 font-ui text-16 text-text-2">{respuesta}</p>
+        </div>
+      )}
       <AnimatePresence initial={false}>
         {abierta && (
           <motion.div

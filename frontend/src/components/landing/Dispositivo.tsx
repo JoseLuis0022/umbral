@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
 import { ease, springEscena } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { esServidor, llegoPrerenderizada } from '../../lib/prerender';
 
 /**
  * Capturas reales de Umbral dentro de su dispositivo (PNG transparente a 2×,
@@ -44,7 +45,8 @@ export function Dispositivo({
       height={alto}
       sizes={sizes}
       loading={prioridad ? 'eager' : 'lazy'}
-      fetchPriority={prioridad ? 'high' : 'auto'}
+      // En minúsculas: React 18 no conoce `fetchPriority` y avisa en consola.
+      {...{ fetchpriority: prioridad ? 'high' : 'auto' }}
       decoding="async"
       draggable={false}
       className={cn('block h-auto w-full select-none', className)}
@@ -58,6 +60,10 @@ export function Dispositivo({
  * desde un poco más abajo, como si se apoyara delante. Espera a que la imagen
  * esté decodificada: animar un hueco vacío y que la foto aparezca de golpe al
  * final es justo lo que la entrada quería evitar.
+ *
+ * Sin entrada cuando el HTML vino prerenderizado: la Mac ya estaba en
+ * pantalla, y hacerla desaparecer para volver a entrar sería un parpadeo. En
+ * el servidor, visible (ver src/lib/prerender.ts).
  */
 export function EntradaDispositivo({
   children,
@@ -73,8 +79,10 @@ export function EntradaDispositivo({
   const reducido = useReducedMotion();
   const caja = useRef<HTMLDivElement>(null);
   const [lista, setLista] = useState(false);
+  const [sinEntrada] = useState(() => esServidor || llegoPrerenderizada());
 
   useEffect(() => {
+    if (sinEntrada) return;
     const img = caja.current?.querySelector('img');
     if (!img) return setLista(true);
     if (img.complete) return setLista(true);
@@ -88,14 +96,14 @@ export function EntradaDispositivo({
       img.removeEventListener('error', listo);
       clearTimeout(t);
     };
-  }, []);
+  }, [sinEntrada]);
 
   return (
     <motion.div
       ref={caja}
       className={className}
-      initial={reducido ? { opacity: 0 } : { opacity: 0, y: desplazamiento }}
-      animate={lista ? { opacity: 1, y: 0 } : undefined}
+      initial={sinEntrada ? false : reducido ? { opacity: 0 } : { opacity: 0, y: desplazamiento }}
+      animate={lista && !sinEntrada ? { opacity: 1, y: 0 } : undefined}
       transition={
         reducido
           ? { duration: 0.3, ease }

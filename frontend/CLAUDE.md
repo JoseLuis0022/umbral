@@ -11,7 +11,8 @@ Todo el proyecto está en **español**: variables, funciones, tipos, nombres de 
 ```bash
 npm run dev          # Vite dev server → http://localhost:5173
 npm run typecheck    # tsc -b  ← ÚNICA verificación del repositorio
-npm run build        # tsc -b && vite build           (app en la raíz del dominio)
+npm run build        # tsc -b && vite build && prerender (app en la raíz del dominio)
+npm run prerender    # solo el prerender sobre dist/ (vite build --ssr + scripts/prerender.mjs)
 npm run build:umbral  # VITE_BASE_URL=/umbral/ vite build (app en subcarpeta)
 npm run preview      # sirve dist/
 ```
@@ -116,6 +117,7 @@ El azul de marca `#2F5FE4` (`bg-accent`, y `text-accent-fg` #1D41A3 como tinta, 
 
 ## Trampas conocidas
 
+- **`/`, `/privacidad` y `/terminos` se PRERENDERIZAN al compilar** (`src/prerender/` + `scripts/prerender.mjs`): HTML con contenido, metadatos (`seo` en `src/copy`) y JSON-LD para buscadores y motores de IA. El resto de rutas recibe `app.html`, el shell vacío con `noindex` (nginx.conf, `_redirects`, `public/sw.js`). React NO hidrata: reemplaza el markup con `createRoot` (`src/lib/prerender.ts` explica por qué y cómo `Revelar`/`EntradaDispositivo` evitan el parpadeo). Todo lo que renderizan esas páginas debe poder correr en Node: nada de `window`/`document` durante el render (sí en efectos). Un script inline en el `<head>` de `/` oculta la landing a quien tiene token guardado (`umbral:token`); si cambia esa clave, cambia también `scripts/prerender.mjs`.
 - **`DataTable` no soporta ordenamiento nativo.** El backend entrega las filas ya ordenadas.
 - **El HTML de los apuntes va en `<iframe sandbox="" srcdoc>`**: sin scripts ni mismo origen (se quitan antes los `<script>` y `on*` para no ensuciar la consola). No le agregues `allow-scripts` ni `allow-same-origin`: juntos anulan el sandbox.
 - **`/api/admin/corpus/archivo` sirve por lista blanca**: solo rutas que aparecen en `GET /api/admin/corpus`. Las rutas son relativas a la carpeta del agente y en NFC.

@@ -2,4 +2,7 @@
 # Sin esto, recargar el navegador en /al-dia o /admin/corpus devuelve 404:
 # el hosting busca un archivo con ese nombre y no existe, porque el
 # enrutamiento vive en el cliente. Lo leen Netlify y Cloudflare Pages.
-/*    /index.html   200
+# Cae en el shell vacío (app.html), no en index.html, que es la landing
+# prerenderizada: `/`, `/privacidad` y `/terminos` existen como archivos
+# (index.html, privacidad.html, terminos.html) y se sirven antes que esta regla.
+/*    /app.html   200

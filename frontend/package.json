@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:umbral": "tsc -b && VITE_BASE_URL=/umbral/ vite build",
+    "build": "tsc -b && vite build && npm run prerender",
+    "build:umbral": "tsc -b && VITE_BASE_URL=/umbral/ vite build && VITE_BASE_URL=/umbral/ npm run prerender",
+    "prerender": "vite build --ssr src/prerender/entrada.tsx --outDir node_modules/.prerender && node scripts/prerender.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty"
   },

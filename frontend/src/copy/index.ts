@@ -410,6 +410,67 @@ export const legal = {
   },
 };
 
+/**
+ * Metadatos de las páginas públicas (título, descripción y vista previa al
+ * compartir) y títulos de pestaña de la app. Los lee el prerender
+ * (src/prerender/) para el <head> de cada HTML estático. Títulos de ≤ 60
+ * caracteres y descripciones de ≤ 160: lo que Google y las redes muestran
+ * completo.
+ */
+export const seo = {
+  sitio: 'Umbral',
+  autor: 'José Luis Macedo Escamilla',
+  urlAutor: 'https://github.com/JoseLuis0022',
+  paginas: {
+    inicio: {
+      ruta: '/',
+      titulo: 'Umbral · Tu agente de Claude, de la laptop a la web',
+      tituloSocial: 'Umbral: tu agente de Claude, de la laptop a una app web para tu equipo',
+      descripcion:
+        'Umbral sirve la carpeta de un agente de Claude Code como app web: cuentas, control de gasto y respuestas que citan su fuente. Código abierto, MIT.',
+    },
+    privacidad: {
+      ruta: '/privacidad',
+      titulo: 'Política de privacidad · Umbral',
+      tituloSocial: 'Política de privacidad de Umbral',
+      descripcion:
+        'Qué datos personales recaba Umbral, para qué los usa, con quién los comparte y cómo ejercer tus derechos de acceso, rectificación, cancelación y oposición.',
+    },
+    terminos: {
+      ruta: '/terminos',
+      titulo: 'Términos de uso · Umbral',
+      tituloSocial: 'Términos de uso de Umbral',
+      descripcion:
+        'Las condiciones para usar Umbral: cuentas, modo invitado, uso aceptable del asistente, propiedad de tus preguntas y límites de responsabilidad.',
+    },
+  },
+  /** El shell de la app (rutas privadas): genérico y fuera del índice. */
+  app: {
+    titulo: 'Umbral',
+    descripcion: 'Pregúntale a tu agente de Claude: cada respuesta cita la fuente de donde sale.',
+  },
+  imagen: {
+    ruta: '/og.png?v=3',
+    ancho: 1200,
+    alto: 630,
+    alt: 'Umbral: tu agente de Claude, de la laptop a una app web para tu equipo. Una MacBook con el chat de Umbral.',
+  },
+  /** Título de la pestaña en cada pantalla de la app: «Chat · Umbral». */
+  pantallas: {
+    '/login': 'Entrar',
+    '/registro': 'Crear cuenta',
+    '/verificar': 'Verificar correo',
+    '/chat': 'Chat',
+    '/ajustes': 'Ajustes',
+    '/perfil': 'Perfil',
+    '/admin/tablero': 'Tablero',
+    '/admin/corpus': 'Corpus',
+    '/admin/conversaciones': 'Auditoría',
+    '/admin/laboratorio': 'Laboratorio',
+    '/_dev/sistema-diseno': 'Sistema de diseño',
+  } as Record<string, string>,
+};
+
 export const login = {
   titulo: 'Inicia sesión',
   subtitulo: 'El asistente de estudio de Procesamiento Digital de Imágenes.',

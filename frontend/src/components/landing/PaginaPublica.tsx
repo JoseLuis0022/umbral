@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { MarcaPlana } from '../brand/Logo';
 import { cn } from '../../lib/cn';
 import { Contenedor } from './primitivos';
 import { landing as copy } from '../../copy';
+import { desplazamientoPrevio, esServidor } from '../../lib/prerender';
+
+const useEfectoAntesDePintar = esServidor ? useEffect : useLayoutEffect;
 
 /**
  * Esqueleto de las páginas públicas (landing, privacidad y términos): un solo
@@ -19,6 +22,13 @@ import { landing as copy } from '../../copy';
 export function PaginaPublica({ children }: { children: ReactNode }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const [desplazada, setDesplazada] = useState(false);
+
+  // Si la persona ya había bajado por el HTML prerenderizado, el contenedor
+  // que monta React empieza en 0: se le devuelve su posición antes de pintar.
+  useEfectoAntesDePintar(() => {
+    const previo = desplazamientoPrevio();
+    if (previo && contenedor.current) contenedor.current.scrollTop = previo;
+  }, []);
 
   useEffect(() => {
     const el = contenedor.current;

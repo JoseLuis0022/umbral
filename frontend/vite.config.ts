@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
@@ -22,16 +22,9 @@ export default defineConfig(({ mode }) => {
      * así que basta con poner la variable en un único lugar.
      */
     base: env.VITE_BASE_URL || '/',
-    plugins: [
-      react(),
-      {
-        // Las etiquetas Open Graph de index.html necesitan la URL absoluta del
-        // sitio (WhatsApp y LinkedIn ignoran una imagen con ruta relativa).
-        name: 'url-publica',
-        transformIndexHtml: (html: string) =>
-          html.replaceAll('__URL_PUBLICA__', (env.VITE_URL_PUBLICA || '').replace(/\/$/, '')),
-      },
-    ],
+    // Las URL absolutas de Open Graph, canonical y JSON-LD (VITE_URL_PUBLICA) las
+    // escribe scripts/prerender.mjs en cada HTML, después de compilar.
+    plugins: [react()],
     /*
      * En desarrollo, todo lo que empieza con /api se reenvía al backend
      * (FastAPI en el puerto 8000). Así el navegador cree que front y back son
@@ -46,21 +39,27 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      rollupOptions: {
-        output: {
-          // El visor de PDF y el renderizador de markdown pesan más que la app
-          // entera y solo hacen falta en pantallas concretas. Separarlos en sus
-          // propios trozos deja que el navegador cachee el núcleo (React y el
-          // enrutador) entre despliegues, y que la carga inicial del chat no
-          // arrastre pdf.js.
-          manualChunks: {
-            react: ['react', 'react-dom', 'react-router-dom'],
-            movimiento: ['framer-motion'],
-            markdown: ['react-markdown', 'remark-gfm'],
-            pdf: ['react-pdf'],
+      // `vite build --ssr` (el prerender, ver src/prerender/) compila para Node
+      // a otra carpeta: ni copia public/ ni parte en trozos lo que Node importa
+      // de node_modules.
+      copyPublicDir: !isSsrBuild,
+      rollupOptions: isSsrBuild
+        ? {}
+        : {
+            output: {
+              // El visor de PDF y el renderizador de markdown pesan más que la app
+              // entera y solo hacen falta en pantallas concretas. Separarlos en sus
+              // propios trozos deja que el navegador cachee el núcleo (React y el
+              // enrutador) entre despliegues, y que la carga inicial del chat no
+              // arrastre pdf.js.
+              manualChunks: {
+                react: ['react', 'react-dom', 'react-router-dom'],
+                movimiento: ['framer-motion'],
+                markdown: ['react-markdown', 'remark-gfm'],
+                pdf: ['react-pdf'],
+              },
+            },
           },
-        },
-      },
     },
   }
 })

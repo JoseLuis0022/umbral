@@ -78,11 +78,13 @@ export function AnimatedNumber({
 
   // Antes de entrar en vista se muestra el punto de partida, no el valor
   // final: así el conteo es real cuando el usuario lo ve, nunca un salto
-  // desde una cifra ya resuelta de antemano.
+  // desde una cifra ya resuelta de antemano. En el servidor (el prerender de
+  // la landing) va el valor REAL: quien lee el HTML sin ejecutar JS —un
+  // rastreador, un motor de IA— no debe citar «US$0.000».
   return (
     <span ref={containerRef}>
       <span ref={ref} className={className}>
-        {format(Math.max(0, value - startOffset.current))}
+        {format(typeof window === 'undefined' ? value : Math.max(0, value - startOffset.current))}
       </span>
     </span>
   );

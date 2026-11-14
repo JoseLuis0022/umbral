@@ -14,29 +14,17 @@
     <!-- theme-color = --bg de src/index.css. Debe coincidir con el fondo de la
          app para que no haya destello blanco al abrir en móvil. -->
     <meta name="theme-color" content="#f5f7fa" />
-    <title>Umbral · Asistente de estudio con IA</title>
-    <meta name="description" content="Pregúntale a tus clases: cada respuesta cita la clase, la diapositiva o el apunte de donde sale." />
-
-    <!-- Vista previa al compartir el enlace (WhatsApp, LinkedIn, X, Slack…).
-         Las redes exigen la URL ABSOLUTA de la imagen: __URL_PUBLICA__ la
-         pone vite.config.ts con VITE_URL_PUBLICA al compilar. -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Umbral" />
-    <meta property="og:locale" content="es_MX" />
-    <meta property="og:url" content="__URL_PUBLICA__/" />
-    <meta property="og:title" content="Umbral · Asistente de estudio con IA" />
-    <meta property="og:description" content="Pregúntale a tus clases: cada respuesta cita la clase, la diapositiva o el apunte de donde sale." />
-    <meta property="og:image" content="__URL_PUBLICA__/og.png?v=3" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Umbral: chat que responde citando la clase y la diapositiva" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Umbral · Asistente de estudio con IA" />
-    <meta name="twitter:description" content="Pregúntale a tus clases: cada respuesta cita la clase, la diapositiva o el apunte de donde sale." />
-    <meta name="twitter:image" content="__URL_PUBLICA__/og.png?v=3" />
+    <!-- seo:inicio
+         Metadatos de cada página. scripts/prerender.mjs reemplaza este bloque
+         al compilar: título, descripción, canonical, Open Graph, Twitter y
+         JSON-LD de la landing y las legales (src/copy → seo), y noindex en el
+         shell de la app (app.html). Lo de aquí solo se ve en `npm run dev`. -->
+    <title>Umbral</title>
+    <meta name="description" content="Pregúntale a tu agente de Claude: cada respuesta cita la fuente de donde sale." />
+    <!-- seo:fin -->
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--app--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

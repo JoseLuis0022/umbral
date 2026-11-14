@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
@@ -22,6 +23,8 @@ import AdminLaboratorio from './pages/AdminLaboratorio';
 import NoEncontrada from './pages/NoEncontrada';
 import { SistemaDiseno } from './pages/SistemaDiseno';
 import { PantallaArranque } from './components/brand/PantallaArranque';
+import { tokenGuardado } from './services/api';
+import { terminarArranque } from './lib/prerender';
 
 /*
  * Prefijo de las RUTAS, hermano del `base` de vite.config.ts pero distinto:
@@ -49,7 +52,9 @@ const BASE_RUTAS = import.meta.env.BASE_URL.replace(/\/$/, '');
  */
 function Inicio() {
   const { sesion, cargando } = useAuth();
-  if (cargando) return <div className="h-full w-full bg-bg" />;
+  // Sin token no hay nada que validar: la landing desde el primer render. Así
+  // reemplaza a la prerenderizada sin pasar por un cuadro vacío.
+  if (cargando) return tokenGuardado() ? <div className="h-full w-full bg-bg" /> : <Landing />;
   return sesion ? <Navigate to="/chat" replace /> : <Landing />;
 }
 
@@ -64,6 +69,8 @@ function Inicio() {
  *    vuelve. Depende de `useAuth`, así que va por dentro de `AuthProvider`.
  */
 export default function App() {
+  // Después del primer commit: lo prerenderizado ya fue reemplazado.
+  useEffect(terminarArranque, []);
   return (
     <BrowserRouter basename={BASE_RUTAS}>
       <PreferenciasProvider>
