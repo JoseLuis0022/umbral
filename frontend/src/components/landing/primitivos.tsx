@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/cn';
-import { ease, springPress, springSoft } from '../../lib/motion';
+import { ease, springEscena, springPress, springSoft } from '../../lib/motion';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { desplazamientoPrevio, esServidor, llegoPrerenderizada } from '../../lib/prerender';
 
@@ -16,7 +16,9 @@ const useEfectoAntesDePintar = esServidor ? useEffect : useLayoutEffect;
  *  - Los botones cambian SOLO de color al pasar el cursor; al presionar
  *    comprimen con `springPress`. Miden 44 px de alto (objetivo táctil).
  *  - La aparición al entrar en vista es una sola, corta y sin cascada:
- *    fundido + 14 px de subida. Con movimiento reducido, solo el fundido.
+ *    fundido + 14 px de subida. Los dispositivos (`variante="dispositivo"`)
+ *    suben más y crecen de 0.96 a 1: pesan más que el texto y su llegada se
+ *    nota sin necesitar cascada. Con movimiento reducido, solo el fundido.
  */
 
 const MotionLink = motion.create(Link);
@@ -79,12 +81,15 @@ export function Revelar({
   className,
   retraso = 0,
   como = 'div',
+  variante = 'texto',
 }: {
   children: ReactNode;
   className?: string;
   retraso?: number;
   como?: 'div' | 'li' | 'figure';
+  variante?: 'texto' | 'dispositivo';
 }) {
+  const dispositivo = variante === 'dispositivo';
   const reducido = useReducedMotion();
   const Componente = motion[como];
   const ref = useRef<HTMLElement>(null);
@@ -106,13 +111,27 @@ export function Revelar({
       key={modo === 'animar' ? 'animar' : 'quieto'}
       ref={ref as never}
       className={className}
-      initial={modo !== 'animar' ? false : reducido ? { opacity: 0 } : { opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={
+        modo !== 'animar'
+          ? false
+          : reducido
+            ? { opacity: 0 }
+            : dispositivo
+              ? { opacity: 0, y: 40, scale: 0.96 }
+              : { opacity: 0, y: 14 }
+      }
+      whileInView={dispositivo ? { opacity: 1, y: 0, scale: 1 } : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -12% 0px' }}
       transition={
         reducido
           ? { duration: 0.2, ease, delay: retraso }
-          : { y: { ...springSoft, delay: retraso }, opacity: { duration: 0.45, ease, delay: retraso } }
+          : dispositivo
+            ? {
+                y: { ...springEscena, delay: retraso },
+                scale: { ...springEscena, delay: retraso },
+                opacity: { duration: 0.6, ease, delay: retraso },
+              }
+            : { y: { ...springSoft, delay: retraso }, opacity: { duration: 0.45, ease, delay: retraso } }
       }
     >
       {children}
