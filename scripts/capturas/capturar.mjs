@@ -25,6 +25,9 @@ const CONVERSACION = '/chat/c-demo-mediana';
 // 390×830 de pantalla de devices.css.
 const MAC = { width: 1440, height: 900 };
 const IPHONE = { width: 390, height: 830 - 48 - 22 };
+// iPad Pro en horizontal: la pantalla de devices.css (720×502 útiles) a la
+// proporción de un iPad Air/Pro 11" (1180×820 lógicos en Safari).
+const IPAD = { width: 1180, height: 820 };
 
 const navegador = await chromium.launch({ channel: 'chrome' });
 let fondoIphone = '#ffffff';
@@ -71,6 +74,25 @@ async function alPrincipio(pagina) {
   // Lejos del final aparece el botón "Ir al último mensaje": en la foto sobra.
   await pagina.addStyleTag({ content: 'button[aria-label="Ir al último mensaje"] { visibility: hidden !important; }' });
   await pagina.waitForTimeout(500);
+}
+
+/** Desplaza la vista para que `texto` quede a `y` px del borde superior. */
+async function desplazarHasta(pagina, texto, y) {
+  await pagina.evaluate(([texto, y]) => {
+    const recorrido = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let nodo;
+    while ((nodo = recorrido.nextNode()) && !nodo.textContent.includes(texto));
+    if (!nodo) return;
+    const el = nodo.parentElement;
+    let contenedor = el.parentElement;
+    while (contenedor && !(/(auto|scroll)/.test(getComputedStyle(contenedor).overflowY) && contenedor.scrollHeight > contenedor.clientHeight)) {
+      contenedor = contenedor.parentElement;
+    }
+    const delta = el.getBoundingClientRect().top - y;
+    if (contenedor) contenedor.scrollTop += delta;
+    else window.scrollBy(0, delta);
+  }, [texto, y]);
+  await pagina.waitForTimeout(600);
 }
 
 /** Color de fondo de la cabecera de la app: lo usa la barra de estado del iPhone. */
@@ -127,20 +149,41 @@ async function capturarApp() {
   await alPrincipio(iphone.pagina);
   await foto(iphone.pagina, 'iphone-chat');
   fondoIphone = await colorDeFondo(iphone.pagina);
+  await iphone.pagina.goto(`${URL_APP}/admin/tablero`);
+  await asentar(iphone.pagina);
+  // En el teléfono las tarjetas van apiladas: se baja hasta la gráfica.
+  await desplazarHasta(iphone.pagina, 'Sin terminar', 100);
+  await foto(iphone.pagina, 'iphone-tablero');
   await iphone.contexto.close();
+
+  // El iPad recibe el diseño de escritorio (Safari en iPad pide la versión de
+  // escritorio), con pantalla táctil.
+  const ipad = await nuevaSesion(IPAD, false);
+  await ipad.pagina.goto(URL_APP + CONVERSACION);
+  await asentar(ipad.pagina);
+  await alPrincipio(ipad.pagina);
+  await foto(ipad.pagina, 'ipad-chat');
+  await ipad.pagina.goto(`${URL_APP}/admin/tablero`);
+  await asentar(ipad.pagina);
+  await foto(ipad.pagina, 'ipad-tablero');
+  await ipad.contexto.close();
 }
 
 /* ──────────────────────────────── Marcos ──────────────────────────────── */
 
 // Escala del lienzo del marco: MacBook de 740 px CSS → ~2500 px de dispositivo
 // (la pantalla de 2880 px se reduce, así que queda nítida); iPhone de 428 px
-// CSS → 856 px, justo la resolución de su captura a 2x.
+// CSS → 856 px, justo la resolución de su captura a 2x; iPad de 778 px CSS →
+// ~2000 px (pantalla de 2360 px reducida).
 const MARCOS = [
   { nombre: 'mac-chat', dispositivo: 'mac', escala: 3.4 },
   { nombre: 'mac-tablero', dispositivo: 'mac', escala: 3.4 },
   { nombre: 'mac-auditoria', dispositivo: 'mac', escala: 3.4 },
   { nombre: 'mac-corpus', dispositivo: 'mac', escala: 3.4 },
   { nombre: 'iphone-chat', dispositivo: 'iphone', escala: 2 },
+  { nombre: 'iphone-tablero', dispositivo: 'iphone', escala: 2 },
+  { nombre: 'ipad-chat', dispositivo: 'ipad', escala: 2.6 },
+  { nombre: 'ipad-tablero', dispositivo: 'ipad', escala: 2.6 },
 ];
 
 async function enmarcar() {

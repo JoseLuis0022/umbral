@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Plantilla de los marcos: capturar.mjs reemplaza __DISPOSITIVO__ (mac | iphone)
+  Plantilla de los marcos: capturar.mjs reemplaza __DISPOSITIVO__ (mac | iphone | ipad)
   __PANTALLA__ (la captura de la app) y __FONDO__
   (el color de la cabecera de la app, para la barra de estado del iPhone) y fotografía #lienzo con fondo
   transparente. El margen de #lienzo es más grande que la sombra: así la sombra
@@ -29,6 +29,7 @@
     filter: drop-shadow(0 18px 22px rgba(15, 23, 42, 0.22)) drop-shadow(0 4px 8px rgba(15, 23, 42, 0.1));
   }
   [data-dispositivo="iphone"] .mac { display: none; }
+  [data-dispositivo="mac"] .ipad { display: none; }
   .iphone .device-screen {
     background: __FONDO__;
     display: flex !important;
@@ -47,6 +48,20 @@
   }
   .estado .iconos { display: flex !important; gap: 6px; align-items: center; }
   .iphone .app { width: 390px; height: 760px; flex: none; object-fit: cover; object-position: top; }
+  /* ── iPad Pro, en horizontal ──
+     devices.css 0.2.0 solo lo trae en vertical (560×778): se intercambian
+     ancho y alto del cuerpo y de la pantalla. La cámara queda en el lado
+     largo, como en los iPad Pro actuales. */
+  [data-dispositivo="ipad"] #lienzo { padding: 100px; }
+  [data-dispositivo="ipad"] .sombra {
+    filter: drop-shadow(0 24px 30px rgba(15, 23, 42, 0.2)) drop-shadow(0 5px 9px rgba(15, 23, 42, 0.1));
+  }
+  [data-dispositivo]:not([data-dispositivo="ipad"]) .ipad { display: none; }
+  [data-dispositivo="ipad"] .mac, [data-dispositivo="ipad"] .iphone { display: none; }
+  .ipad.device-ipad-pro, .ipad .device-frame { width: 778px; height: 560px; }
+  .ipad .device-screen { width: 724px; height: 506px; object-position: top center; }
+  .ipad .device-btns::after { right: auto; left: 40px; }
+
   .inicio { height: 22px; flex: none; position: relative; }
   .inicio::after {
     content: ""; position: absolute; left: 50%; bottom: 8px; width: 134px; height: 5px;
@@ -58,6 +73,17 @@
 <div id="lienzo">
   <div class="sombra">
     <div class="mac device device-macbook-pro device-spacegray">
+      <div class="device-frame">
+        <img class="device-screen" src="__PANTALLA__" alt="">
+      </div>
+      <div class="device-stripe"></div>
+      <div class="device-header"></div>
+      <div class="device-sensors"></div>
+      <div class="device-btns"></div>
+      <div class="device-power"></div>
+    </div>
+
+    <div class="ipad device device-ipad-pro device-spacegray">
       <div class="device-frame">
         <img class="device-screen" src="__PANTALLA__" alt="">
       </div>

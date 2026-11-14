@@ -14,7 +14,10 @@ from pathlib import Path
 
 from PIL import Image
 
-NOMBRES = ("mac-chat", "mac-tablero", "mac-auditoria", "mac-corpus", "iphone-chat")
+NOMBRES = (
+    "mac-chat", "mac-tablero", "mac-auditoria", "mac-corpus",
+    "iphone-chat", "iphone-tablero", "ipad-chat", "ipad-tablero",
+)
 MARGEN = 12  # px transparentes alrededor de lo visible
 CALIDAD = 86
 CALIDAD_ALFA = 90
