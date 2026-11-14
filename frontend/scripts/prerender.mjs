@@ -18,6 +18,7 @@
  * Uso: node scripts/prerender.mjs [carpeta de salida, por defecto dist]
  */
 import { readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadEnv } from 'vite';
@@ -118,5 +119,15 @@ const shell = [
 ];
 await writeFile(path.join(salida, 'app.html'), armar(shell, ''));
 console.log('prerender: resto de rutas → app.html (noindex)');
+
+// robots.txt, sitemap.xml y llms.txt traen el dominio de producción escrito;
+// con otra VITE_URL_PUBLICA se reescribe aquí.
+if (URL_PUBLICA !== DOMINIO) {
+  for (const archivo of ['robots.txt', 'sitemap.xml', 'llms.txt', 'llms-full.txt']) {
+    const ruta = path.join(salida, archivo);
+    if (!existsSync(ruta)) continue;
+    await writeFile(ruta, (await readFile(ruta, 'utf8')).replaceAll(DOMINIO, URL_PUBLICA));
+  }
+}
 
 await rm(path.dirname(moduloSsr), { recursive: true, force: true });

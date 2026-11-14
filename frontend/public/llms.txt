@@ -1,0 +1,57 @@
+# Umbral
+
+> Umbral es una app web de código abierto (licencia MIT) que toma la carpeta de un agente de Claude Code (su CLAUDE.md, sus skills y su material) y la sirve a un equipo con cuentas, control de gasto y respuestas que citan su fuente. Se despliega en un servidor propio con un solo `docker compose up`. Autor: José Luis Macedo Escamilla (México).
+
+Umbral está en producción en https://umbral.imperioon.com desde el 4 de noviembre de 2026. Las cifras de este archivo salen del registro de consultas de producción (medianas de noviembre de 2026, modo Consulta) y del repositorio público.
+
+## Qué es
+
+- Una capa web delante de un agente de Claude Code que ya funciona en una laptop: el agente no se reescribe, se sirve tal cual.
+- Para desarrolladores y equipos que quieren poner un agente con su propio material (documentación interna, manuales, un curso) en manos de otras personas.
+- Resuelve las cuatro piezas que faltan para pasar de la laptop a un producto: cuentas y permisos, un gasto con techo, tareas que no dependen de la pestaña abierta y un servidor.
+
+## Cómo funciona
+
+- Búsqueda agéntica, sin RAG: el agente busca en su carpeta con las herramientas Grep y Read (y Glob), como en Claude Code. No hay índice vectorial ni embeddings que mantener, ni fragmentos que se desactualicen al cambiar un archivo.
+- Respuestas con fuente: cada dato enlaza la clase, el apunte o la página exacta del PDF de donde sale, con la frase marcada.
+- La consulta vive en el servidor: cada pregunta es una tarea propia y el navegador solo la observa por SSE. Cerrar la pestaña o recargar no la cancela.
+- Gasto medido en vivo y cortado en el servidor: tope por consulta, crédito por cuenta y un tope mensual para todas las cuentas de invitado.
+- Seguro por defecto: el modo Consulta no tiene Bash ni escritura, sus herramientas están confinadas a la carpeta del agente y un hook revisa cada llamada a herramienta.
+- Modelos de Claude (Anthropic): el modo Consulta usa Claude Sonnet 5.5; el modo Generador, para especialistas y administradores, usa Claude Opus 5.5; las cuentas de invitado usan Claude Haiku 5.5. El modelo lo decide el rol de la cuenta.
+
+## Cifras (producción, noviembre de 2026)
+
+- US$0.033 por pregunta (mediana) con Claude Sonnet 5.5 en el modo Consulta. Fuente: registro de consultas de producción de Umbral, noviembre de 2026.
+- 8 segundos por respuesta (mediana) con Sonnet 5.5, incluida la búsqueda en el material. Misma fuente.
+- 3.4 veces más barato que Claude Opus 5.5, que cuesta US$0.114 por pregunta (mediana) con tiempos parecidos (6.5 s). Misma fuente.
+- US$0.0035 por pregunta (mediana) con Claude Haiku 5.5, el modelo de las cuentas de invitado. Misma fuente.
+- 53 pruebas automáticas corren en cada push (GitHub Actions: pytest, typecheck y build). Fuente: repositorio público.
+
+## Caso real
+
+El primer agente que corre en Umbral es un asistente de estudio para un curso universitario de Procesamiento Digital de Imágenes. Responde con el material del curso (clases, sus transcripciones y los PDF) y cita la clase y la página de donde sale cada dato. Cualquiera puede crear una cuenta de invitado con Claude Haiku y un crédito de prueba de US$0.30.
+
+## Stack
+
+- Agente: Claude Agent SDK, Claude Code.
+- Backend: Python, FastAPI, SQLite, SSE.
+- Frontend: React, TypeScript, Vite, Tailwind CSS.
+- Infraestructura: Docker Compose, nginx, Cloudflare Tunnel. Sin servicios administrados.
+
+## Licencia
+
+- Código abierto con licencia MIT: se puede usar, modificar y desplegar, también con fines comerciales. El software es gratuito; quien lo despliega paga su servidor y el uso de la API de Anthropic.
+- Los datos (cuentas, historial y registro de consultas) viven en el servidor de quien lo despliega, en SQLite, con respaldo diario.
+
+## Enlaces
+
+- [Umbral (landing)](https://umbral.imperioon.com/): qué es, funciones, cifras, cómo desplegarlo y preguntas frecuentes.
+- [Preguntas frecuentes](https://umbral.imperioon.com/#preguntas): modelos, RAG, costo, datos, material propio y licencia.
+- [Repositorio en GitHub](https://github.com/JoseLuis0022/umbral): código fuente.
+- [README](https://github.com/JoseLuis0022/umbral#readme): arquitectura, despliegue con Docker Compose y decisiones de diseño.
+- [Licencia MIT](https://github.com/JoseLuis0022/umbral/blob/main/LICENSE)
+
+## Optional
+
+- [Política de privacidad](https://umbral.imperioon.com/privacidad)
+- [Términos de uso](https://umbral.imperioon.com/terminos)
