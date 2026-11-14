@@ -111,6 +111,13 @@
  * los botones. Nunca escribas CSS global fuera de @layer en este archivo.
  */
 @layer base {
+  /* Barra de avance de la pestaña activa en la landing (FuncionesPestanas):
+     CSS y no Framer, para poder pausarla con animation-play-state. */
+  @keyframes avance-pestana {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
   * {
     border-color: var(--hairline);
   }

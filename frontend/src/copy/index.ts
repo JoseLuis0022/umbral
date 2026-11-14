@@ -57,7 +57,6 @@ export const landing = {
     nota: 'Código abierto con licencia MIT. Se despliega con un solo docker compose up.',
     altMac: 'Umbral en una laptop: una respuesta del asistente que cita la clase de donde sale.',
     altIphone: 'La misma conversación en un celular.',
-    altIpad: 'El tablero de costos de Umbral en una tableta.',
   },
   confianza: {
     etiqueta: 'Lo esencial',
@@ -314,7 +313,7 @@ export const legal = {
       {
         titulo: 'Quién es responsable de tus datos',
         parrafos: [
-          'José Luis Macedo Escamilla (Imperioon), con domicilio en [Domicilio por completar], México, es el responsable del tratamiento de tus datos personales.',
+          'José Luis Macedo Escamilla (Imperioon), con domicilio en Fraccionamiento Los Héroes Tecámac, Sector 19, Manzana 51, Lote 15, Casa 4, Tecámac, Estado de México, México, es el responsable del tratamiento de tus datos personales.',
           'Para cualquier asunto de privacidad escribe a joseluismacedo@imperioon.com.',
         ],
       },
@@ -367,7 +366,7 @@ export const legal = {
         titulo: 'Cuánto tiempo los conservamos',
         parrafos: [
           'Tu cuenta, tus conversaciones y el registro de tus consultas se conservan mientras tu cuenta exista. Puedes borrar cualquier conversación desde el chat en cualquier momento.',
-          'Si pides cancelar tu cuenta, borramos tus datos de la cuenta, tus conversaciones y el registro de tus consultas, salvo lo que la ley nos obligue a conservar. La base de datos se respalda una vez al día y se guardan los últimos 14 respaldos, así que una copia puede tardar hasta 14 días en desaparecer de ellos.',
+          'Si pides cancelar tu cuenta, borramos tus datos de la cuenta (nombre, correo y contraseña) y tus conversaciones. El registro de tus consultas (pregunta, respuesta, modelo, tokens y costo) se conserva para la auditoría de costos, pero queda desvinculado: ya no muestra a qué persona pertenecía. Si quieres que también se borre, pídelo por correo y lo eliminamos. La base de datos se respalda una vez al día y se guardan los últimos 14 respaldos, así que una copia puede tardar hasta 14 días en desaparecer de ellos.',
           'Los registros técnicos del servidor se conservan solo el tiempo necesario para la seguridad y el diagnóstico de fallas.',
         ],
       },

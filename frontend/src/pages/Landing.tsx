@@ -84,18 +84,15 @@ function Portada() {
           <p className="mt-5 font-ui text-14 text-text-2">{h.nota}</p>
         </div>
 
-        {/* Tres dispositivos: el iPad atrás a la izquierda, la Mac al centro y
-            el iPhone delante a la derecha, un poco más abajo. Las medidas son
-            porcentajes del ancho del grupo, así la composición escala entera. */}
-        <div className="relative -mx-2 pt-[9%] sm:mx-0 lg:-mr-12 xl:-mr-20">
-          <EntradaDispositivo retraso={0.12} className="absolute left-0 top-0 w-[46%]">
-            <Dispositivo nombre="ipad-tablero" alt={h.altIpad} prioridad sizes="(min-width: 1024px) 330px, 46vw" />
+        {/* Dos dispositivos: la Mac y el iPhone delante a la derecha, un poco
+            más abajo (el iPad se probó aquí y saturaba la portada; vive en el
+            cierre). Medidas en porcentajes del ancho del grupo: escala entera. */}
+        <div className="relative -mx-2 sm:mx-0 lg:-mr-12 xl:-mr-20">
+          <EntradaDispositivo className="relative w-[92%]">
+            <Dispositivo nombre="mac-chat" alt={h.altMac} prioridad sizes="(min-width: 1024px) 700px, 92vw" />
           </EntradaDispositivo>
-          <EntradaDispositivo className="relative ml-[10%] w-[90%]">
-            <Dispositivo nombre="mac-chat" alt={h.altMac} prioridad sizes="(min-width: 1024px) 680px, 90vw" />
-          </EntradaDispositivo>
-          <EntradaDispositivo retraso={0.24} desplazamiento={36} className="absolute bottom-[10%] right-[-2%] w-[21%]">
-            <Dispositivo nombre="iphone-chat" alt={h.altIphone} prioridad sizes="(min-width: 1024px) 160px, 21vw" />
+          <EntradaDispositivo retraso={0.14} desplazamiento={36} className="absolute bottom-[4%] right-[-1%] w-[23%]">
+            <Dispositivo nombre="iphone-chat" alt={h.altIphone} prioridad sizes="(min-width: 1024px) 175px, 23vw" />
           </EntradaDispositivo>
         </div>
       </Contenedor>
