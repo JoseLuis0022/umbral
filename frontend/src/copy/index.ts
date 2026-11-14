@@ -228,6 +228,185 @@ export const landing = {
   },
 };
 
+/**
+ * Páginas legales públicas (`/privacidad` y `/terminos`). Redactadas a partir
+ * de lo que el backend hace de verdad (backend/app/: db.py, rutas_auth.py,
+ * rutas_chat.py, correo.py, respaldo.py): si cambia qué se guarda o con quién
+ * se comparte, este texto cambia en el mismo commit.
+ */
+export type SeccionLegal = { titulo: string; parrafos?: readonly string[]; lista?: readonly string[]; cierre?: string };
+
+export const legal = {
+  actualizado: 'Última actualización: 13 de noviembre de 2026',
+  indice: 'En esta página',
+  otra: { privacidad: 'Leer la política de privacidad', terminos: 'Leer los términos de uso' },
+  privacidad: {
+    titulo: 'Política de privacidad',
+    intro:
+      'Esta política explica qué datos personales recaba Umbral (umbral.imperioon.com), para qué los usa, con quién los comparte y cómo puedes ejercer tus derechos, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.',
+    secciones: [
+      {
+        titulo: 'Quién es responsable de tus datos',
+        parrafos: [
+          'José Luis Macedo Escamilla (Imperioon), con domicilio en [Domicilio por completar], México, es el responsable del tratamiento de tus datos personales.',
+          'Para cualquier asunto de privacidad escribe a joseluismacedo@imperioon.com.',
+        ],
+      },
+      {
+        titulo: 'Qué datos recabamos',
+        lista: [
+          'Al crear tu cuenta: tu nombre, tu correo y tu contraseña. La contraseña no se guarda: se guarda solo una huella calculada con Argon2, que no permite recuperarla.',
+          'La dirección IP desde la que te registras. Sirve para limitar a tres las cuentas nuevas por dirección en 24 horas y evitar abusos.',
+          'El enlace y el código de verificación que te enviamos por correo, guardados solo como huella y con fecha de caducidad.',
+          'Tus conversaciones: el historial que ves en el chat se guarda en el servidor para que lo encuentres desde cualquier dispositivo.',
+          'El registro de cada consulta: la pregunta, la respuesta, el modelo, los tokens, las herramientas que usó el agente, la duración y el costo. Sirve para revisar la calidad de las respuestas y controlar el gasto.',
+          'Los archivos que adjuntas: se envían al modelo para responder tu pregunta y no se guardan como archivos sueltos. El historial conserva su nombre, su tamaño y, en las imágenes, una miniatura, y el registro de la sesión del agente en el servidor puede conservar su contenido para poder continuar la conversación.',
+          'Registros técnicos del servidor: la dirección IP, la fecha, la dirección solicitada y el navegador de cada petición, además de eventos como registros, intentos fallidos de inicio de sesión y consultas, que incluyen tu correo.',
+        ],
+        cierre: 'No pedimos datos personales sensibles. Te pedimos no incluirlos en tus preguntas ni en tus adjuntos.',
+      },
+      {
+        titulo: 'Qué guarda tu navegador',
+        parrafos: [
+          'Umbral usa el almacenamiento local de tu navegador para tu token de sesión, los datos básicos de tu cuenta, una copia del historial para mostrarlo al instante y tus preferencias de interfaz (densidad, tamaño de texto, contraste y movimiento).',
+          'No usamos cookies de rastreo ni herramientas de analítica o publicidad de terceros. Puedes borrar lo que guarda tu navegador desde Ajustes o desde la configuración del propio navegador.',
+        ],
+      },
+      {
+        titulo: 'Para qué los usamos',
+        lista: [
+          'Crear y proteger tu cuenta, y confirmar que el correo es tuyo.',
+          'Responder tus preguntas y guardar tu historial.',
+          'Aplicar tu crédito de prueba, los límites diarios y los topes de gasto.',
+          'Revisar la calidad y el costo de las respuestas para mejorar el agente.',
+          'Prevenir abusos, mantener la seguridad del servicio y resolver fallas.',
+        ],
+        cierre:
+          'Todas son necesarias para darte el servicio. No vendemos tus datos, no los usamos para publicidad y no hacemos perfiles comerciales.',
+      },
+      {
+        titulo: 'Con quién los compartimos',
+        parrafos: [
+          'Umbral corre en un servidor propio ubicado en México. Para funcionar se apoya en estos proveedores, que tratan tus datos por cuenta nuestra y solo para lo que se indica:',
+        ],
+        lista: [
+          'Anthropic (Estados Unidos): procesa tus preguntas, tus adjuntos y los fragmentos del material del curso para generar cada respuesta con Claude, a través de su API.',
+          'Cloudflare (Estados Unidos): la red y el túnel por los que viaja el tráfico entre tu navegador y el servidor.',
+          'Google, con Gmail (Estados Unidos): envía los correos de verificación, así que recibe tu dirección de correo y el contenido de ese mensaje.',
+        ],
+        cierre:
+          'Fuera de ellos, solo compartiríamos tus datos si lo exige una autoridad competente conforme a la ley.',
+      },
+      {
+        titulo: 'Cuánto tiempo los conservamos',
+        parrafos: [
+          'Tu cuenta, tus conversaciones y el registro de tus consultas se conservan mientras tu cuenta exista. Puedes borrar cualquier conversación desde el chat en cualquier momento.',
+          'Si pides cancelar tu cuenta, borramos tus datos de la cuenta, tus conversaciones y el registro de tus consultas, salvo lo que la ley nos obligue a conservar. La base de datos se respalda una vez al día y se guardan los últimos 14 respaldos, así que una copia puede tardar hasta 14 días en desaparecer de ellos.',
+          'Los registros técnicos del servidor se conservan solo el tiempo necesario para la seguridad y el diagnóstico de fallas.',
+        ],
+      },
+      {
+        titulo: 'Tus derechos',
+        parrafos: [
+          'Puedes acceder a tus datos, rectificarlos, cancelarlos u oponerte a su uso (derechos ARCO), así como revocar tu consentimiento o limitar su uso.',
+          'Para hacerlo, escribe a joseluismacedo@imperioon.com con el asunto "Derechos ARCO" e incluye tu nombre, el correo de tu cuenta, qué derecho quieres ejercer y sobre qué datos, y una copia de una identificación oficial (o la de tu representante, con el documento que lo acredite).',
+          'Te responderemos en un plazo máximo de 20 días hábiles, y si la solicitud procede, la haremos efectiva dentro de los 15 días hábiles siguientes.',
+        ],
+      },
+      {
+        titulo: 'Cómo los protegemos',
+        parrafos: [
+          'Todo el tráfico viaja cifrado por HTTPS. Las contraseñas y los códigos se guardan solo como huella. La identidad de cada petición sale de tu sesión y no del navegador, y solo el administrador puede leer el registro de consultas.',
+        ],
+      },
+      {
+        titulo: 'Cambios a esta política',
+        parrafos: [
+          'Si cambiamos esta política, publicaremos la nueva versión en esta página con su fecha de actualización. Si el cambio afecta cómo usamos tus datos, te avisaremos además por correo.',
+        ],
+      },
+    ] satisfies SeccionLegal[],
+  },
+  terminos: {
+    titulo: 'Términos de uso',
+    intro:
+      'Estos términos regulan el uso de Umbral (umbral.imperioon.com), operado por José Luis Macedo Escamilla (Imperioon). Al crear una cuenta o usar el servicio los aceptas, junto con la Política de privacidad.',
+    secciones: [
+      {
+        titulo: 'Qué es Umbral',
+        parrafos: [
+          'Umbral es un servicio de demostración y de uso educativo: muestra cómo poner un agente de Claude Code en manos de un equipo. El agente que hoy responde es un asistente de estudio para un curso universitario de Procesamiento Digital de Imágenes.',
+          'No es un servicio comercial, no tiene costo para ti y puede cambiar, interrumpirse o dejar de existir sin previo aviso.',
+        ],
+      },
+      {
+        titulo: 'La IA puede equivocarse',
+        parrafos: [
+          'Las respuestas las genera un modelo de inteligencia artificial y pueden contener errores, aunque citen su fuente. Verifica la información importante en la fuente citada o con tu profesor.',
+          'Umbral no sustituye la clase, los materiales oficiales del curso ni la asesoría de un profesional.',
+        ],
+      },
+      {
+        titulo: 'Tu cuenta',
+        lista: [
+          'Usa datos verdaderos y un correo al que tengas acceso.',
+          'Cuida tu contraseña: eres responsable de lo que se haga con tu cuenta.',
+          'Una cuenta por persona. No crees varias para evadir los límites.',
+        ],
+      },
+      {
+        titulo: 'Modo invitado y crédito de prueba',
+        parrafos: [
+          'Las cuentas nuevas entran en modo invitado: usan Claude Haiku, tienen un crédito de prueba de US$0.30 y hasta 25 consultas al día. El crédito no se recarga solo y, al agotarse, la cuenta deja de poder preguntar.',
+          'Además, todas las cuentas de invitado comparten un tope de gasto mensual, así que el servicio puede dejar de responder antes de que agotes tu crédito. Si necesitas más acceso, escríbenos.',
+        ],
+      },
+      {
+        titulo: 'Uso aceptable',
+        parrafos: ['Al usar Umbral te comprometes a no:'],
+        lista: [
+          'Intentar acceder a cuentas, datos o partes del servidor que no te corresponden, ni probar sus defensas sin permiso.',
+          'Automatizar consultas o sobrecargar el servicio.',
+          'Enviar contenido ilícito, ofensivo o datos personales de otras personas sin su permiso.',
+          'Usarlo para incumplir las reglas académicas de tu institución o las políticas de uso de Anthropic.',
+        ],
+        cierre: 'Podemos suspender o borrar cuentas que incumplan estos términos.',
+      },
+      {
+        titulo: 'Código y material',
+        parrafos: [
+          'El código de Umbral es abierto, con licencia MIT, y está publicado en GitHub.',
+          'El material de cada curso (clases, transcripciones, diapositivas, PDF y apuntes) no forma parte de ese código: pertenece a sus autores y se muestra solo para estudiar dentro del servicio. No lo copies ni lo redistribuyas fuera de él.',
+          'Tus preguntas son tuyas. Nos das permiso de procesarlas para responderte y para revisar la calidad del servicio, como describe la Política de privacidad.',
+        ],
+      },
+      {
+        titulo: 'Sin garantía',
+        parrafos: [
+          'Umbral se ofrece tal cual y según esté disponible, sin garantía de ningún tipo sobre su funcionamiento continuo ni sobre la exactitud de sus respuestas.',
+        ],
+      },
+      {
+        titulo: 'Limitación de responsabilidad',
+        parrafos: [
+          'En la medida máxima que permita la ley, no somos responsables de daños directos o indirectos derivados del uso del servicio o de decisiones tomadas con base en sus respuestas, ni de la pérdida de conversaciones o datos.',
+        ],
+      },
+      {
+        titulo: 'Cambios y ley aplicable',
+        parrafos: [
+          'Podemos actualizar estos términos; la versión vigente es la publicada en esta página, con su fecha. Si sigues usando Umbral después de un cambio, lo aceptas.',
+          'Estos términos se rigen por las leyes de los Estados Unidos Mexicanos.',
+        ],
+      },
+      {
+        titulo: 'Contacto',
+        parrafos: ['Para cualquier duda sobre estos términos escribe a joseluismacedo@imperioon.com.'],
+      },
+    ] satisfies SeccionLegal[],
+  },
+};
+
 export const login = {
   titulo: 'Inicia sesión',
   subtitulo: 'El asistente de estudio de Procesamiento Digital de Imágenes.',

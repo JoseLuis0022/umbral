@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Verificar from './pages/Verificar';
 import Landing from './pages/Landing';
+import { Privacidad, Terminos } from './pages/Legal';
 import { useAuth } from './context/AuthContext';
 import Chat from './pages/Chat';
 import Ajustes from './pages/Ajustes';
@@ -81,6 +82,9 @@ export default function App() {
                   <Route path="/verificar" element={<Verificar />} />
                   {/* La raíz: landing para quien no ha entrado, chat para quien sí. */}
                   <Route path="/" element={<Inicio />} />
+                  {/* Páginas legales: públicas, con o sin sesión. */}
+                  <Route path="/privacidad" element={<Privacidad />} />
+                  <Route path="/terminos" element={<Terminos />} />
 
                   {/* Referencia viva del sistema de diseño. Fuera del shell y sin
                       sesión: es documentación del equipo, no una pantalla de producto. */}
