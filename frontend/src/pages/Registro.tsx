@@ -208,6 +208,17 @@ export default function Registro() {
                 <Button type="submit" className="mt-2 w-full" loading={cargando}>
                   {cargando ? copy.creando : copy.crear}
                 </Button>
+                <p className="font-ui text-13 leading-relaxed text-text-2">
+                  {copy.aceptas.antes}
+                  <Link to="/terminos" className="font-medium text-text-1 underline underline-offset-2 hover:text-accent-fg">
+                    {copy.aceptas.terminos}
+                  </Link>
+                  {copy.aceptas.medio}
+                  <Link to="/privacidad" className="font-medium text-text-1 underline underline-offset-2 hover:text-accent-fg">
+                    {copy.aceptas.privacidad}
+                  </Link>
+                  {copy.aceptas.despues}
+                </p>
               </form>
               <p className="mt-6 font-ui text-14 text-text-2">
                 {copy.yaTienes}{' '}

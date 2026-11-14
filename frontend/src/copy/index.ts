@@ -18,6 +18,9 @@ export const marca = {
 };
 
 export const acceso = {
+  legal: 'Documentos legales',
+  privacidad: 'Privacidad',
+  terminos: 'Términos',
   leyendaGrafica:
     'Una imagen en escala de grises se vuelve blanco y negro al cruzar el umbral T. Umbral responde tus dudas del curso citando la clase de donde sale cada dato.',
 };
@@ -461,6 +464,8 @@ export const registro = {
   codigoTitulo: 'Confirma tu correo',
   codigoSubtitulo: 'Escribe tu correo y el código de 6 dígitos que te enviamos.',
   tengoCodigo: 'Tengo un código',
+  // "Al crear tu cuenta aceptas los Términos y la Política de privacidad."
+  aceptas: { antes: 'Al crear tu cuenta aceptas los ', terminos: 'Términos', medio: ' y la ', privacidad: 'Política de privacidad', despues: '.' },
 };
 
 export const invitado = {

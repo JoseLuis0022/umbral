@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { MarcaPlana } from '../brand/Logo';
 import { GraficaUmbral } from '../brand/GraficaUmbral';
 import { acceso as copy } from '../../copy';
+import { cn } from '../../lib/cn';
+
+const ENLACE_LEGAL =
+  'inline-flex h-11 items-center rounded-control px-2 font-ui text-13 text-text-2 transition-colors duration-150 hover:text-text-1';
 
 /**
  * Retícula de las pantallas de acceso (Login, Registro, Verificar).
@@ -37,6 +41,15 @@ export function LayoutAcceso({
           <div className="w-full max-w-[360px]">{children}</div>
         </main>
         {pie && <p className="max-w-[360px] font-ui text-13 leading-relaxed text-text-2">{pie}</p>}
+        {/* Discreto, al pie de la columna: está para quien lo busque. */}
+        <nav aria-label={copy.legal} className={cn('-ml-2 flex gap-1', pie && 'mt-2')}>
+          <Link to="/privacidad" className={ENLACE_LEGAL}>
+            {copy.privacidad}
+          </Link>
+          <Link to="/terminos" className={ENLACE_LEGAL}>
+            {copy.terminos}
+          </Link>
+        </nav>
       </div>
 
       <div className="hidden min-h-full flex-col items-center justify-center border-l border-hairline bg-surface-1 px-12 lg:flex">
