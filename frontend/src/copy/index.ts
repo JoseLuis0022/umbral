@@ -451,7 +451,7 @@ export const seo = {
     descripcion: 'Pregúntale a tu agente de Claude: cada respuesta cita la fuente de donde sale.',
   },
   imagen: {
-    ruta: '/og.png?v=3',
+    ruta: '/og.png?v=4',
     ancho: 1200,
     alto: 630,
     alt: 'Umbral: tu agente de Claude, de la laptop a una app web para tu equipo. Una MacBook con el chat de Umbral.',
